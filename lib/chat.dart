@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'profiles.dart';
 
@@ -19,6 +21,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? request;
   Map<String, dynamic>? otherProfile;
   bool actionLoading = false;
+  bool sendingPhoto = false;
 
   bool hasRated = false;
   int selectedStars = 5;
@@ -83,8 +86,12 @@ class _ChatScreenState extends State<ChatScreen> {
       'content': text,
     });
 
-    // The server finds the other person and sends the notification.
-    // If this fails, the chat itself still works.
+    await notifyOtherPerson(text);
+  }
+
+  // The server finds the other person and sends the notification.
+  // If this fails, the chat itself still works.
+  Future<void> notifyOtherPerson(String text) async {
     try {
       await supabase.functions.invoke('notify-chat-message', body: {
         'request_id': widget.requestId,
@@ -92,6 +99,70 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (e) {
       debugPrint('Push notification error: $e');
+    }
+  }
+
+  // Picks one photo from the gallery, uploads it to the private
+  // chat-photos bucket and sends it as an IMAGE message.
+  Future<void> sendPhoto() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+      maxWidth: 1280,
+    );
+    if (picked == null) return;
+
+    final name = picked.name.toLowerCase();
+    final String ext;
+    final String contentType;
+    if (name.endsWith('.png')) {
+      ext = 'png';
+      contentType = 'image/png';
+    } else if (name.endsWith('.webp')) {
+      ext = 'webp';
+      contentType = 'image/webp';
+    } else {
+      ext = 'jpg';
+      contentType = 'image/jpeg';
+    }
+
+    final bytes = await picked.readAsBytes();
+    if (bytes.length > 5 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This photo is too big (max 5 MB).')),
+        );
+      }
+      return;
+    }
+
+    setState(() => sendingPhoto = true);
+    try {
+      final myId = supabase.auth.currentUser!.id;
+      // The first folder must be the request id (the storage rules check it).
+      final path =
+          '${widget.requestId}/${myId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await supabase.storage.from('chat-photos').uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType),
+          );
+      await supabase.from('messages').insert({
+        'request_id': widget.requestId,
+        'sender_id': myId,
+        'type': 'IMAGE',
+        'content': '📷 Photo',
+        'attachment_url': path,
+      });
+      await notifyOtherPerson('📷 Photo');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not send photo: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => sendingPhoto = false);
     }
   }
 
@@ -335,6 +406,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     final m = messages[index];
                     final isSystem = m['type'] == 'SYSTEM';
                     final isMine = m['sender_id'] == myId;
+                    final isPhoto = m['type'] == 'IMAGE' &&
+                        m['attachment_url'] != null;
                     if (isSystem) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -353,15 +426,22 @@ class _ChatScreenState extends State<ChatScreen> {
                           : Alignment.centerLeft,
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                        padding: isPhoto
+                            ? const EdgeInsets.all(4)
+                            : const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: isMine
                               ? Colors.teal.shade100
                               : Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(m['content'] ?? ''),
+                        child: isPhoto
+                            ? ChatPhoto(
+                                key: ValueKey(m['id']),
+                                path: m['attachment_url'],
+                              )
+                            : Text(m['content'] ?? ''),
                       ),
                     );
                   },
@@ -375,6 +455,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.all(8),
                 child: Row(
                   children: [
+                    IconButton(
+                      icon: sendingPhoto
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.photo_camera_outlined),
+                      tooltip: 'Send a photo',
+                      onPressed: sendingPhoto ? null : sendPhoto,
+                    ),
                     Expanded(
                       child: TextField(
                         controller: messageController,
@@ -394,6 +485,89 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------- Chat photo (private bucket, signed link) ----------------
+
+class ChatPhoto extends StatefulWidget {
+  final String path;
+  const ChatPhoto({super.key, required this.path});
+
+  @override
+  State<ChatPhoto> createState() => _ChatPhotoState();
+}
+
+class _ChatPhotoState extends State<ChatPhoto> {
+  late final Future<String> urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // The bucket is private, so we ask for a link that works for 1 hour.
+    urlFuture =
+        supabase.storage.from('chat-photos').createSignedUrl(widget.path, 3600);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: urlFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const SizedBox(
+            width: 200,
+            height: 150,
+            child: Center(child: Icon(Icons.broken_image_outlined)),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const SizedBox(
+            width: 200,
+            height: 150,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final url = snapshot.data!;
+        return GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => FullScreenPhoto(url: url)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              url,
+              width: 200,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) => const SizedBox(
+                width: 200,
+                height: 150,
+                child: Center(child: Icon(Icons.broken_image_outlined)),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class FullScreenPhoto extends StatelessWidget {
+  final String url;
+  const FullScreenPhoto({super.key, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: InteractiveViewer(child: Image.network(url)),
       ),
     );
   }
