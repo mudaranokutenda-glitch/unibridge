@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
 import 'profiles.dart';
 
@@ -22,6 +24,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? otherProfile;
   bool actionLoading = false;
   bool sendingPhoto = false;
+  bool sendingLocation = false;
 
   bool hasRated = false;
   int selectedStars = 5;
@@ -164,6 +167,82 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => sendingPhoto = false);
     }
+  }
+
+  void showError(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  // Reads the phone's position ONE time (no tracking) and sends it as a
+  // LOCATION message. The Google Maps link is stored in attachment_url.
+  Future<void> sendLocation() async {
+    final otherName =
+        otherProfile == null ? 'the other person' : publicDisplayName(otherProfile!);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Share location'),
+        content: Text('Send your current location to $otherName?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() => sendingLocation = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        showError('Please turn on location (GPS) on your phone.');
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        showError('Location permission was refused.');
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      final mapsUrl =
+          'https://www.google.com/maps?q=${pos.latitude},${pos.longitude}';
+
+      await supabase.from('messages').insert({
+        'request_id': widget.requestId,
+        'sender_id': supabase.auth.currentUser!.id,
+        'type': 'LOCATION',
+        'content': '📍 Location',
+        'attachment_url': mapsUrl,
+      });
+      await notifyOtherPerson('📍 Location');
+    } catch (e) {
+      showError('Could not send location: $e');
+    } finally {
+      if (mounted) setState(() => sendingLocation = false);
+    }
+  }
+
+  Future<void> openMap(String url) async {
+    final ok = await launchUrl(Uri.parse(url),
+        mode: LaunchMode.externalApplication);
+    if (!ok) showError('Could not open the map.');
   }
 
   Future<void> confirm(String role) async {
@@ -408,6 +487,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     final isMine = m['sender_id'] == myId;
                     final isPhoto = m['type'] == 'IMAGE' &&
                         m['attachment_url'] != null;
+                    final isLocation = m['type'] == 'LOCATION' &&
+                        m['attachment_url'] != null;
                     if (isSystem) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -441,7 +522,18 @@ class _ChatScreenState extends State<ChatScreen> {
                                 key: ValueKey(m['id']),
                                 path: m['attachment_url'],
                               )
-                            : Text(m['content'] ?? ''),
+                            : isLocation
+                                ? InkWell(
+                                    onTap: () => openMap(m['attachment_url']),
+                                    child: Text(
+                                      isMine
+                                          ? '📍 My location (tap to open map)'
+                                          : '📍 Location (tap to open map)',
+                                      style: const TextStyle(
+                                          decoration: TextDecoration.underline),
+                                    ),
+                                  )
+                                : Text(m['content'] ?? ''),
                       ),
                     );
                   },
@@ -465,6 +557,17 @@ class _ChatScreenState extends State<ChatScreen> {
                           : const Icon(Icons.photo_camera_outlined),
                       tooltip: 'Send a photo',
                       onPressed: sendingPhoto ? null : sendPhoto,
+                    ),
+                    IconButton(
+                      icon: sendingLocation
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.location_on_outlined),
+                      tooltip: 'Share my location',
+                      onPressed: sendingLocation ? null : sendLocation,
                     ),
                     Expanded(
                       child: TextField(
