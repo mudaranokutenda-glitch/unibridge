@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "859726010076",
+    "project_id": "unibridge-29f11",
+    "storage_bucket": "unibridge-29f11.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:859726010076:android:15b4f148b3eedad1468619",
+        "android_client_info": {
+          "package_name": "com.example.unibridge_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzBR4VuNL_oCJN_ioRMf9pUmpnG7TRoMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
