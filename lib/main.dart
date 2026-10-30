@@ -1082,7 +1082,6 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
     );
   }
 }
-
 // ---------------- My requests (mine + matched) ----------------
 
 class MyRequestsScreen extends StatefulWidget {
@@ -1090,6 +1089,7 @@ class MyRequestsScreen extends StatefulWidget {
   @override
   State<MyRequestsScreen> createState() => _MyRequestsScreenState();
 }
+
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
   List<Map<String, dynamic>> myRequests = [];
   Map<String, Map<String, dynamic>> profiles = {};
@@ -1220,6 +1220,18 @@ const List<String> kListingCategories = [
 const String _filterAll = 'ALL';
 const String _filterMine = 'MINE';
 
+String _filterLabel(String f) {
+  if (f == _filterAll) return 'All';
+  if (f == _filterMine) return 'My listings';
+  return f;
+}
+
+IconData _filterIcon(String f) {
+  if (f == _filterAll) return Icons.apps;
+  if (f == _filterMine) return Icons.person_outline;
+  return Icons.label_outline;
+}
+
 String? _nullIfBlank(String s) {
   final t = s.trim();
   return t.isEmpty ? null : t;
@@ -1267,6 +1279,25 @@ List<String> listingImages(Map<String, dynamic> l) {
     if (single.isNotEmpty) urls.add(single);
   }
   return urls;
+}
+
+Future<void> openContactLinkFor(BuildContext context, String? raw) async {
+  final link = normalizeContactLink(raw ?? '');
+  if (link == null) return;
+  final uri = Uri.tryParse(link);
+  var opened = false;
+  if (uri != null) {
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+  }
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Couldn't open that link")),
+    );
+  }
 }
 
 // Swipeable photos with dots. Tapping opens the full-screen viewer.
@@ -1456,6 +1487,8 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   }
 }
 
+// ---------------- Marketplace list (2-column grid) ----------------
+
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
   @override
@@ -1463,6 +1496,7 @@ class MarketplaceScreen extends StatefulWidget {
 }
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
+  final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
   List<Map<String, dynamic>> listings = [];
   Map<String, Map<String, dynamic>> sellers = {};
   bool loading = true;
@@ -1541,115 +1575,83 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }).toList();
   }
 
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> openContactLink(String? raw) async {
-    final link = normalizeContactLink(raw ?? '');
-    if (link == null) return;
-    final uri = Uri.tryParse(link);
-    if (uri == null) {
-      _snack("Couldn't open that link");
-      return;
-    }
-    try {
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok) _snack("Couldn't open that link");
-    } catch (e) {
-      _snack("Couldn't open that link");
-    }
-  }
-
-  Future<void> editListing(Map<String, dynamic> l) async {
+  Future<void> _openDetail(Map<String, dynamic> l) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CreateListingScreen(existing: l)),
+      MaterialPageRoute(
+        builder: (_) => ListingDetailScreen(
+          listing: l,
+          seller: sellers[l['seller_id']],
+        ),
+      ),
     );
     load();
   }
 
-  Future<void> setSold(Map<String, dynamic> l, bool sold) async {
-    try {
-      await supabase
-          .from('marketplace_listings')
-          .update({'is_sold': sold}).eq('id', l['id']);
-      _snack(sold
-          ? 'Marked as sold. Other students can no longer see it.'
-          : 'Your listing is available again.');
-      load();
-    } catch (e) {
-      _snack('Could not update: $e');
-    }
-  }
-
-  Future<void> deleteListing(Map<String, dynamic> l) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete this listing?'),
-        content: const Text('This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Keep it'),
+  Widget _sellerLine(Map<String, dynamic>? p) {
+    final name = p == null ? 'Seller' : _displayName(p);
+    final verified = p?['is_verified'] == true;
+    return Row(
+      children: [
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
-          ),
+        ),
+        if (verified) ...[
+          const SizedBox(width: 4),
+          const Icon(Icons.verified, size: 14, color: Colors.blue),
         ],
-      ),
+      ],
     );
-    if (confirmed != true) return;
-
-    try {
-      await supabase.from('marketplace_listings').delete().eq('id', l['id']);
-      _snack('Listing deleted.');
-      load();
-    } catch (e) {
-      _snack('Could not delete: $e');
-    }
   }
 
-  Widget _listingCard(Map<String, dynamic> l) {
-    final myId = supabase.auth.currentUser!.id;
-    final isMine = l['seller_id'] == myId;
+  Widget _gridCard(Map<String, dynamic> l) {
     final isSold = l['is_sold'] == true;
     final images = listingImages(l);
-    final description = (l['description'] ?? '').toString().trim();
-    final contact = (l['contact_link'] ?? '').toString().trim();
-    final details = [
-      _priceText(l['price']),
-      (l['category'] ?? '').toString().trim(),
-      (l['location'] ?? '').toString().trim(),
-    ].where((s) => s.isNotEmpty).join(' • ');
+    final price = _priceText(l['price']);
+    final seller = sellers[l['seller_id']];
 
     return Opacity(
       opacity: isSold ? 0.65 : 1,
       child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (images.isNotEmpty) ListingPhotoSlider(urls: images, height: 200),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          (l['title'] ?? '').toString(),
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+        child: InkWell(
+          onTap: () => _openDetail(l),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (images.isEmpty)
+                      Container(
+                        color: Colors.grey.shade200,
+                        child: const Center(
+                          child: Icon(Icons.shopping_bag_outlined,
+                              size: 40, color: Colors.grey),
+                        ),
+                      )
+                    else
+                      Image.network(
+                        images.first,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                              child: Icon(Icons.image_not_supported)),
                         ),
                       ),
-                      if (isSold)
-                        Container(
+                    if (isSold)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
@@ -1659,66 +1661,81 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           child: const Text(
                             'SOLD',
                             style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.bold),
+                                fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ),
-                      if (isMine)
-                        PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              editListing(l);
-                            } else if (value == 'sold') {
-                              setSold(l, !isSold);
-                            } else {
-                              deleteListing(l);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                                value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(
-                              value: 'sold',
-                              child: Text(isSold
-                                  ? 'Mark as available'
-                                  : 'Mark as sold'),
-                            ),
-                            const PopupMenuItem(
-                                value: 'delete', child: Text('Delete')),
-                          ],
-                        ),
-                    ],
-                  ),
-                  if (details.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(details,
-                          style: const TextStyle(color: Colors.black54)),
-                    ),
-                  if (description.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(description,
-                          maxLines: 3, overflow: TextOverflow.ellipsis),
-                    ),
-                  const SizedBox(height: 10),
-                  ProfileSummary(profile: sellers[l['seller_id']]),
-                  if (contact.isNotEmpty && !isMine) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => openContactLink(contact),
-                        icon: const Icon(Icons.chat_outlined),
-                        label: const Text('Contact seller'),
                       ),
-                    ),
+                    if (images.length > 1)
+                      Positioned(
+                        bottom: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.photo_library_outlined,
+                                  size: 12, color: Colors.white),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${images.length}',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      (l['title'] ?? '').toString(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      price.isEmpty ? 'Price on request' : price,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    _sellerLine(seller),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _drawerItem(String f) {
+    return ListTile(
+      leading: Icon(_filterIcon(f)),
+      title: Text(_filterLabel(f)),
+      selected: selectedFilter == f,
+      onTap: () {
+        setState(() => selectedFilter = f);
+        Navigator.of(context).pop();
+      },
     );
   }
 
@@ -1726,7 +1743,37 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     final items = visibleListings;
     return Scaffold(
-      appBar: AppBar(title: const Text('Marketplace')),
+      key: scaffoldKey,
+      appBar: AppBar(
+        title: const Text('Marketplace'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Categories',
+            onPressed: () => scaffoldKey.currentState?.openEndDrawer(),
+          ),
+        ],
+      ),
+      endDrawer: Drawer(
+        child: SafeArea(
+          child: ListView(
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  'Categories',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              _drawerItem(_filterAll),
+              const Divider(),
+              for (final c in kListingCategories) _drawerItem(c),
+              const Divider(),
+              _drawerItem(_filterMine),
+            ],
+          ),
+        ),
+      ),
       body: Column(
         children: [
           Padding(
@@ -1751,28 +1798,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               onChanged: (v) => setState(() => searchText = v),
             ),
           ),
-          SizedBox(
-            height: 48,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: [
-                for (final f in [_filterAll, ...kListingCategories, _filterMine])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(f == _filterAll
-                          ? 'All'
-                          : f == _filterMine
-                              ? 'My listings'
-                              : f),
-                      selected: selectedFilter == f,
-                      onSelected: (_) => setState(() => selectedFilter = f),
+          if (selectedFilter != _filterAll)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Showing: ${_filterLabel(selectedFilter)}',
+                      style: const TextStyle(color: Colors.black54),
                     ),
                   ),
-              ],
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => selectedFilter = _filterAll),
+                    child: const Text('Show all'),
+                  ),
+                ],
+              ),
             ),
-          ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: load,
@@ -1780,6 +1824,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : errorMessage != null
                       ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
                             const SizedBox(height: 100),
                             Center(
@@ -1795,6 +1840,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         )
                       : items.isEmpty
                           ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
                               children: [
                                 const SizedBox(height: 100),
                                 Center(
@@ -1808,10 +1854,19 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 ),
                               ],
                             )
-                          : ListView.builder(
+                          : GridView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(12),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                                mainAxisExtent: 250,
+                              ),
                               itemCount: items.length,
                               itemBuilder: (context, index) =>
-                                  _listingCard(items[index]),
+                                  _gridCard(items[index]),
                             ),
             ),
           ),
@@ -1829,6 +1884,257 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 }
+
+// ---------------- One listing, full page ----------------
+
+class ListingDetailScreen extends StatefulWidget {
+  final Map<String, dynamic> listing;
+  final Map<String, dynamic>? seller;
+  const ListingDetailScreen({super.key, required this.listing, this.seller});
+
+  @override
+  State<ListingDetailScreen> createState() => _ListingDetailScreenState();
+}
+
+class _ListingDetailScreenState extends State<ListingDetailScreen> {
+  bool busy = false;
+
+  Map<String, dynamic> get l => widget.listing;
+  bool get isMine => l['seller_id'] == supabase.auth.currentUser!.id;
+  bool get isSold => l['is_sold'] == true;
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _edit() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => CreateListingScreen(existing: l)),
+    );
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
+  Future<void> _toggleSold() async {
+    setState(() => busy = true);
+    try {
+      await supabase
+          .from('marketplace_listings')
+          .update({'is_sold': !isSold}).eq('id', l['id']);
+      _snack(isSold
+          ? 'Your listing is available again.'
+          : 'Marked as sold. Other students can no longer see it.');
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      _snack('Could not update: $e');
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this listing?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep it'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => busy = true);
+    try {
+      await supabase.from('marketplace_listings').delete().eq('id', l['id']);
+      _snack('Listing deleted.');
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      _snack('Could not delete: $e');
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final images = listingImages(l);
+    final price = _priceText(l['price']);
+    final description = (l['description'] ?? '').toString().trim();
+    final contact = (l['contact_link'] ?? '').toString().trim();
+    final sellerId = l['seller_id']?.toString();
+    final seller = widget.seller;
+    final details = [
+      (l['category'] ?? '').toString().trim(),
+      (l['location'] ?? '').toString().trim(),
+    ].where((s) => s.isNotEmpty).join(' • ');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Listing'),
+        actions: [
+          if (isMine)
+            PopupMenuButton<String>(
+              enabled: !busy,
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _edit();
+                } else if (value == 'sold') {
+                  _toggleSold();
+                } else {
+                  _delete();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(
+                  value: 'sold',
+                  child: Text(isSold ? 'Mark as available' : 'Mark as sold'),
+                ),
+                const PopupMenuItem(value: 'delete', child: Text('Delete')),
+              ],
+            ),
+        ],
+      ),
+      body: ListView(
+        children: [
+          if (images.isNotEmpty)
+            ListingPhotoSlider(urls: images, height: 300)
+          else
+            Container(
+              height: 160,
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: Icon(Icons.shopping_bag_outlined,
+                    size: 48, color: Colors.grey),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        (l['title'] ?? '').toString(),
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (isSold)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'SOLD',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  price.isEmpty ? 'Price on request' : price,
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                if (details.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(details,
+                        style: const TextStyle(color: Colors.black54)),
+                  ),
+                if (description.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(description),
+                  ),
+                const Divider(height: 32),
+                InkWell(
+                  onTap: sellerId == null
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => UserProfileScreen(userId: sellerId),
+                            ),
+                          );
+                        },
+                  child: Row(
+                    children: [
+                      _avatar(seller, radius: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    seller == null
+                                        ? 'Seller'
+                                        : _displayName(seller),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                if (seller?['is_verified'] == true) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.verified,
+                                      size: 16, color: Colors.blue),
+                                ],
+                              ],
+                            ),
+                            if (seller != null &&
+                                profilePlace(seller).isNotEmpty)
+                              Text(
+                                profilePlace(seller),
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.black54),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: Colors.grey),
+                    ],
+                  ),
+                ),
+                if (contact.isNotEmpty && !isMine) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => openContactLinkFor(context, contact),
+                      icon: const Icon(Icons.chat_outlined),
+                      label: const Text('Contact seller'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- Create / edit a listing ----------------
 
 class CreateListingScreen extends StatefulWidget {
   // When "existing" is given, the screen edits that listing.
@@ -1878,16 +2184,41 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
   }
 
-  Future<void> addPhoto() async {
-    if (photoCount >= 3) return;
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-      maxWidth: 1000,
-    );
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    setState(() => newPhotos.add(bytes));
+  // Lets the seller pick several photos in one go (up to the free slots).
+  Future<void> addPhotos() async {
+    final remaining = 3 - photoCount;
+    if (remaining <= 0) return;
+
+    final picker = ImagePicker();
+    List<XFile> picked;
+    if (remaining == 1) {
+      final one = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 1000,
+      );
+      picked = one == null ? [] : [one];
+    } else {
+      picked = await picker.pickMultiImage(
+        imageQuality: 70,
+        maxWidth: 1000,
+        limit: remaining,
+      );
+    }
+    if (picked.isEmpty) return;
+
+    final chosen = picked.take(remaining).toList();
+    final bytes = <Uint8List>[];
+    for (final x in chosen) {
+      bytes.add(await x.readAsBytes());
+    }
+    if (!mounted) return;
+    setState(() => newPhotos.addAll(bytes));
+    if (picked.length > remaining) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only 3 photos are allowed per listing.')),
+      );
+    }
   }
 
   Future<List<String>> uploadNewPhotos() async {
@@ -2036,7 +2367,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     ),
                   if (photoCount < 3)
                     GestureDetector(
-                      onTap: uploadingImage ? null : addPhoto,
+                      onTap: uploadingImage ? null : addPhotos,
                       child: Container(
                         width: 100,
                         height: 100,
@@ -2048,9 +2379,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.add_a_photo_outlined, size: 28),
+                              Icon(Icons.add_photo_alternate_outlined,
+                                  size: 28),
                               SizedBox(height: 4),
-                              Text('Add photo',
+                              Text('Add photos',
                                   style: TextStyle(fontSize: 12)),
                             ],
                           ),
