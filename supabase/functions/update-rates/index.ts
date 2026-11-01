@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { GoogleAuth } from "npm:google-auth-library@9";
 

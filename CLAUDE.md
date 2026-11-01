@@ -29,3 +29,4 @@ Storage buckets: listings (public photos), verification (private student cards, 
 - Marketplace cards must not show ratings (the owner removed them on purpose).
 - One feature per change. Show a short plan first for anything bigger than a few lines.
 - Harmless known issues: VS Code errors inside supabase/functions/**/index.ts (that is Deno code), and test/widget_test.dart (old sample).
+messages columns: id, request_id, sender_id, type (enum message_type: TEXT, IMAGE, DOCUMENT, LOCATION, CONTACT, QUICK_REPLY, SYSTEM), content, attachment_url, created_at.

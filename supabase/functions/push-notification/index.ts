@@ -1,32 +1,84 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
+// @ts-nocheck
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { GoogleAuth } from "npm:google-auth-library@9";
 
-// Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+// If your Firebase secret has a different name (see: supabase secrets list),
+// change this one line.
+const SERVICE_ACCOUNT_ENV = "FIREBASE_SERVICE_ACCOUNT";
 
-console.log("Hello from Functions!")
+const TITLES: Record<string, string> = {
+  MATCH_FOUND: "Someone matched your request",
+  CONFIRMATION_NEEDED: "Please confirm",
+  TRANSACTION_COMPLETED: "Transaction complete",
+  DISPUTE_OPENED: "Dispute opened",
+  VERIFIED_BADGE_AWARDED: "You are verified",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 Deno.serve(async (req) => {
-  const { name } = await req.json()
-  const data = {
-    message: `Hello ${name}!`,
+  // Only the database (which knows the secret) may call this.
+  const secret = Deno.env.get("CRON_SECRET");
+  if (!secret || req.headers.get("x-cron-secret") !== secret) {
+    return json({ error: "Not allowed" }, 401);
   }
 
-  return new Response(
-    JSON.stringify(data),
-    { headers: { "Content-Type": "application/json" } },
-  )
-})
+  try {
+    const { user_id, type, content } = await req.json();
+    if (!user_id) return json({ error: "user_id is required" }, 400);
 
-/* To invoke locally:
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
 
-  1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Make an HTTP request:
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("fcm_token")
+      .eq("id", user_id)
+      .single();
+    if (!profile?.fcm_token) {
+      return json({ skipped: "User has no device token" });
+    }
 
-  curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/push-notification' \
-    --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0' \
-    --header 'Content-Type: application/json' \
-    --data '{"name":"Functions"}'
+    const raw = Deno.env.get(SERVICE_ACCOUNT_ENV);
+    if (!raw) return json({ error: `Secret ${SERVICE_ACCOUNT_ENV} not found` }, 500);
+    const credentials = JSON.parse(raw);
+    const auth = new GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
+    });
+    const client = await auth.getClient();
+    const accessToken = (await client.getAccessToken()).token;
 
-*/
+    const fcmRes = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            token: profile.fcm_token,
+            notification: {
+              title: TITLES[String(type)] ?? "UniBridge",
+              body: String(content ?? "").slice(0, 150),
+            },
+            data: { type: String(type ?? "") },
+          },
+        }),
+      },
+    );
+    const result = await fcmRes.json();
+    return json({ ok: fcmRes.ok, result }, fcmRes.ok ? 200 : 502);
+  } catch (e) {
+    return json({ error: String(e) }, 500);
+  }
+});
