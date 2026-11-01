@@ -333,7 +333,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           .select()
           .eq('is_active', true)
           .order('created_at', ascending: false);
-      final loaded = List<Map<String, dynamic>>.from(data);
+      // Hide listings from people I blocked or who blocked me.
+      final hidden = await fetchHiddenUserIds();
+      final loaded = List<Map<String, dynamic>>.from(data)
+          .where((l) => !hidden.contains(l['seller_id']))
+          .toList();
       final loadedSellers = await fetchPublicProfiles(
         loaded.map((l) => l['seller_id'] as String?),
       );

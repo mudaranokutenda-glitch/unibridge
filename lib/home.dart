@@ -44,7 +44,11 @@ class _HomeScreenState extends State<HomeScreen> {
         .eq('status', 'OPEN')
         .neq('creator_id', myId)
         .order('created_at', ascending: false);
-    final loaded = List<Map<String, dynamic>>.from(data);
+    // Hide requests from people I blocked or who blocked me.
+    final hidden = await fetchHiddenUserIds();
+    final loaded = List<Map<String, dynamic>>.from(data)
+        .where((r) => !hidden.contains(r['creator_id']))
+        .toList();
     final loadedProfiles = await fetchPublicProfiles(
       loaded.map((r) => r['creator_id'] as String?),
     );

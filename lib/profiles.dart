@@ -59,6 +59,20 @@ Future<Map<String, Map<String, dynamic>>> fetchPublicProfiles(
   }
 }
 
+// Everyone I blocked + everyone who blocked me. Their requests and
+// listings are hidden. If this fails, nothing is hidden (app still works).
+Future<Set<String>> fetchHiddenUserIds() async {
+  try {
+    final data = await supabase.rpc('get_hidden_user_ids');
+    return (data as List)
+        .map((v) => v is Map ? v.values.first.toString() : v.toString())
+        .toSet();
+  } catch (e) {
+    debugPrint('Could not load blocked users: $e');
+    return {};
+  }
+}
+
 Widget avatar(Map<String, dynamic>? p, {double radius = 20}) {
   final url = (p?['profile_picture_url'] ?? '').toString();
   final name = p == null ? '?' : publicDisplayName(p);
@@ -181,11 +195,78 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Map<String, dynamic>? profile;
   List<Map<String, dynamic>> reviews = [];
   bool loading = true;
+  bool iBlocked = false;
 
   @override
   void initState() {
     super.initState();
     load();
+    loadBlocked();
+  }
+
+  Future<void> loadBlocked() async {
+    try {
+      final rows = await supabase
+          .from('user_blocks')
+          .select('blocked_id')
+          .eq('blocker_id', supabase.auth.currentUser!.id)
+          .eq('blocked_id', widget.userId);
+      if (mounted) setState(() => iBlocked = (rows as List).isNotEmpty);
+    } catch (e) {
+      debugPrint('Could not load block status: $e');
+    }
+  }
+
+  Future<void> toggleBlock() async {
+    final name = profile == null ? 'this user' : publicDisplayName(profile!);
+    if (!iBlocked) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Block $name?'),
+          content: const Text(
+              "You won't see each other's requests or listings, and you "
+              "can't message each other. Open transactions can still be "
+              'confirmed or disputed. You can unblock later in your profile.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Block'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    try {
+      if (iBlocked) {
+        await supabase
+            .from('user_blocks')
+            .delete()
+            .eq('blocker_id', supabase.auth.currentUser!.id)
+            .eq('blocked_id', widget.userId);
+      } else {
+        await supabase
+            .from('user_blocks')
+            .insert({'blocked_id': widget.userId});
+      }
+      if (!mounted) return;
+      setState(() => iBlocked = !iBlocked);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(iBlocked ? '$name blocked.' : '$name unblocked.')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   Future<void> load() async {
@@ -311,9 +392,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'report') reportUser();
+                if (value == 'block') toggleBlock();
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'report', child: Text('Report user')),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'report', child: Text('Report user')),
+                PopupMenuItem(
+                  value: 'block',
+                  child: Text(iBlocked ? 'Unblock user' : 'Block user'),
+                ),
               ],
             ),
         ],
@@ -567,12 +653,113 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   label: const Text('Get verified'),
                 ),
                 const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const BlockedUsersScreen()),
+                          );
+                        },
+                  icon: const Icon(Icons.block),
+                  label: const Text('Blocked users'),
+                ),
+                const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: saving ? null : save,
                   child: Text(saving ? 'Saving...' : 'Save'),
                 ),
               ],
             ),
+    );
+  }
+}
+
+// ---------------- Blocked users (unblock here) ----------------
+
+class BlockedUsersScreen extends StatefulWidget {
+  const BlockedUsersScreen({super.key});
+
+  @override
+  State<BlockedUsersScreen> createState() => _BlockedUsersScreenState();
+}
+
+class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
+  List<String> blockedIds = [];
+  Map<String, Map<String, dynamic>> profiles = {};
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final rows = await supabase
+          .from('user_blocks')
+          .select('blocked_id')
+          .eq('blocker_id', supabase.auth.currentUser!.id)
+          .order('created_at', ascending: false);
+      final ids = (rows as List).map((r) => r['blocked_id'].toString()).toList();
+      final loadedProfiles = await fetchPublicProfiles(ids);
+      if (!mounted) return;
+      setState(() {
+        blockedIds = ids;
+        profiles = loadedProfiles;
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load blocked users: $e')),
+      );
+    }
+  }
+
+  Future<void> unblock(String id) async {
+    try {
+      await supabase
+          .from('user_blocks')
+          .delete()
+          .eq('blocker_id', supabase.auth.currentUser!.id)
+          .eq('blocked_id', id);
+      if (mounted) setState(() => blockedIds.remove(id));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Blocked users')),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : blockedIds.isEmpty
+              ? const Center(child: Text('You have not blocked anyone.'))
+              : ListView.builder(
+                  itemCount: blockedIds.length,
+                  itemBuilder: (context, index) {
+                    final id = blockedIds[index];
+                    final p = profiles[id];
+                    return ListTile(
+                      leading: avatar(p),
+                      title: Text(p == null ? 'UniBridge user' : publicDisplayName(p)),
+                      trailing: TextButton(
+                        onPressed: () => unblock(id),
+                        child: const Text('Unblock'),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

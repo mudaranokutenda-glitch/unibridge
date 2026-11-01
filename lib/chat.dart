@@ -28,6 +28,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool sendingPhoto = false;
   bool sendingLocation = false;
   bool downloading = false;
+  bool chatBlocked = false;
 
   bool hasRated = false;
   int selectedStars = 5;
@@ -65,6 +66,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (data['status'] == 'COMPLETED') {
       checkIfRated();
+    }
+
+    // If one of us blocked the other, new messages are not allowed.
+    try {
+      final blocked = await supabase
+          .rpc('chat_is_blocked', params: {'p_request_id': widget.requestId});
+      if (mounted) setState(() => chatBlocked = blocked == true);
+    } catch (e) {
+      debugPrint('Could not check block status: $e');
     }
   }
 
@@ -621,7 +631,19 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          if (status != 'COMPLETED' && status != 'DISPUTED')
+          if (chatBlocked && status != 'COMPLETED' && status != 'DISPUTED')
+            SafeArea(
+              child: Container(
+                width: double.infinity,
+                color: Colors.grey.shade200,
+                padding: const EdgeInsets.all(12),
+                child: const Text(
+                  "You can't send messages in this chat.",
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else if (status != 'COMPLETED' && status != 'DISPUTED')
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(8),
