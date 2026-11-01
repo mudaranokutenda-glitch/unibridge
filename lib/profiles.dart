@@ -210,11 +210,114 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
   }
 
+  // Lets the user report this person. The report is saved in user_reports
+  // and the owner reviews it in Supabase.
+  Future<void> reportUser() async {
+    const reasons = {
+      'SCAM': 'Scam or fraud',
+      'HARASSMENT': 'Harassment',
+      'FAKE_PROFILE': 'Fake profile',
+      'INAPPROPRIATE': 'Inappropriate content',
+      'OTHER': 'Other',
+    };
+    String? selected;
+    final detailsController = TextEditingController();
+
+    final send = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Report user'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final entry in reasons.entries)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(selected == entry.key
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked),
+                    title: Text(entry.value),
+                    onTap: () => setDialogState(() => selected = entry.key),
+                  ),
+                TextField(
+                  controller: detailsController,
+                  maxLength: 1000,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Details (optional)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: selected == null
+                  ? null
+                  : () => Navigator.of(context).pop(true),
+              child: const Text('Send report'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (send != true || selected == null) return;
+
+    final details = detailsController.text.trim();
+    try {
+      await supabase.from('user_reports').insert({
+        'reported_id': widget.userId,
+        'reason': selected,
+        'details': details.isEmpty ? null : details,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Thanks, we'll review this report.")),
+        );
+      }
+    } on PostgrestException catch (e) {
+      if (!mounted) return;
+      // 23505 = the unique rule: an open report about this user already exists.
+      final text = e.code == '23505'
+          ? 'You already reported this user. We are reviewing it.'
+          : 'Could not send report: ${e.message}';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(text)));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not send report: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = profile;
+    final isMe = widget.userId == supabase.auth.currentUser?.id;
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          if (!isMe && p != null)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'report') reportUser();
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'report', child: Text('Report user')),
+              ],
+            ),
+        ],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : p == null
