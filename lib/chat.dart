@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -25,6 +27,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool actionLoading = false;
   bool sendingPhoto = false;
   bool sendingLocation = false;
+  bool downloading = false;
 
   bool hasRated = false;
   int selectedStars = 5;
@@ -239,6 +242,78 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  String twoDigits(int n) => n.toString().padLeft(2, '0');
+
+  String formatTime(dynamic iso) {
+    final d = DateTime.tryParse(iso?.toString() ?? '')?.toLocal();
+    if (d == null) return '';
+    return '${d.year}-${twoDigits(d.month)}-${twoDigits(d.day)} '
+        '${twoDigits(d.hour)}:${twoDigits(d.minute)}';
+  }
+
+  // Builds a plain text copy of the whole chat and lets the user choose
+  // where to save it (Android "Save as" screen).
+  Future<void> downloadChat() async {
+    setState(() => downloading = true);
+    try {
+      final messages = await supabase
+          .from('messages')
+          .select()
+          .eq('request_id', widget.requestId)
+          .order('created_at', ascending: true);
+
+      final myId = supabase.auth.currentUser!.id;
+      final otherName = otherProfile == null
+          ? 'Other person'
+          : publicDisplayName(otherProfile!);
+
+      final lines = <String>[
+        'UniBridge chat',
+        'Request: ${widget.requestId}',
+        'With: $otherName',
+        'Saved: ${formatTime(DateTime.now().toIso8601String())}',
+        '',
+      ];
+      for (final m in messages) {
+        final time = formatTime(m['created_at']);
+        final content = (m['content'] ?? '').toString();
+        if (m['type'] == 'SYSTEM') {
+          lines.add('$time · --- $content ---');
+          continue;
+        }
+        final who = m['sender_id'] == myId ? 'Me' : otherName;
+        final String text;
+        if (m['type'] == 'IMAGE') {
+          text = '[Photo]';
+        } else if (m['type'] == 'LOCATION') {
+          text = '[Location: ${m['attachment_url'] ?? ''}]';
+        } else {
+          text = content;
+        }
+        lines.add('$time · $who: $text');
+      }
+
+      final now = DateTime.now();
+      final fileName = 'unibridge-chat-${now.year}${twoDigits(now.month)}'
+          '${twoDigits(now.day)}-${twoDigits(now.hour)}${twoDigits(now.minute)}.txt';
+      final saved = await FilePicker.saveFile(
+        dialogTitle: 'Save chat',
+        fileName: fileName,
+        bytes: utf8.encode(lines.join('\n')),
+        mimeType: 'text/plain',
+      );
+      if (saved != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chat saved.')),
+        );
+      }
+    } catch (e) {
+      showError('Could not save the chat: $e');
+    } finally {
+      if (mounted) setState(() => downloading = false);
+    }
+  }
+
   Future<void> openMap(String url) async {
     final ok = await launchUrl(Uri.parse(url),
         mode: LaunchMode.externalApplication);
@@ -365,6 +440,11 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: const Text('Chat'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Download chat as text',
+            onPressed: downloading ? null : downloadChat,
+          ),
           if (status != null && status != 'COMPLETED' && status != 'DISPUTED')
             IconButton(
               icon: const Icon(Icons.flag_outlined),
