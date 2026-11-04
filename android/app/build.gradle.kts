@@ -50,3 +50,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Theme.AppCompat for the launch theme (needed by local_auth / app lock).
+    implementation("androidx.appcompat:appcompat:1.7.1")
+}

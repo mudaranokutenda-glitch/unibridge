@@ -8,6 +8,7 @@ import 'config.dart';
 import 'push.dart';
 import 'auth.dart';
 import 'home.dart';
+import 'app_lock.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,9 @@ class UniBridgeApp extends StatelessWidget {
     return MaterialApp(
       title: 'UniBridge',
       theme: ThemeData(primarySwatch: Colors.teal),
+      // The lock covers every screen, so it also works after hot restart
+      // and on screens opened from notifications.
+      builder: (context, child) => AppLock(child: child!),
       home: supabase.auth.currentSession == null
           ? const AuthScreen()
           : const HomeScreen(),

@@ -10,7 +10,7 @@
 - [x] Report and block a user
 - [x] Delete my account
 - [x] Terms and privacy screen
-- [ ] Fingerprint or face unlock
+- [x] Fingerprint or face unlock
 - [ ] Request filters: type, currency, wilaya
 - [ ] Languages (Arabic, French, English) and dark mode
 - [ ] Redesign: bottom navigation (Requests, Marketplace, Rates, Profile), logout moved into Profile
