@@ -1,4 +1,4 @@
-# UniBridge to-do list (work from top to bottom)
+﻿# UniBridge to-do list (work from top to bottom)
 
 ## Working rules
 - One item at a time. Show a plan first and wait for my OK.
@@ -9,7 +9,7 @@
 - [x] Chat extras: send a photo, share my location once (button), download the chat as a text file
 - [x] Report and block a user
 - [x] Delete my account
-- [ ] Terms and privacy screen
+- [x] Terms and privacy screen
 - [ ] Fingerprint or face unlock
 - [ ] Request filters: type, currency, wilaya
 - [ ] Languages (Arabic, French, English) and dark mode

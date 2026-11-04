@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'verification.dart';
 import 'auth.dart';
+import 'legal.dart';
 
 // ---------------- Public profile helpers ----------------
 
@@ -756,6 +757,16 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                         },
                   icon: const Icon(Icons.block),
                   label: const Text('Blocked users'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const LegalScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('Terms and privacy'),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(

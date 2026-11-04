@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'config.dart';
 import 'push.dart';
 import 'home.dart';
+import 'legal.dart';
 
 bool _googleSignInInitialized = false;
 
@@ -171,6 +172,30 @@ class _AuthScreenState extends State<AuthScreen> {
               onPressed: loading ? null : signInWithGoogle,
               icon: const Icon(Icons.login),
               label: const Text('Continue with Google'),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'By continuing, you agree to our Terms of use and Privacy policy.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LegalScreen()),
+                  ),
+                  child: const Text('Terms of use'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const LegalScreen(initialTab: 1)),
+                  ),
+                  child: const Text('Privacy policy'),
+                ),
+              ],
             ),
           ],
         ),
