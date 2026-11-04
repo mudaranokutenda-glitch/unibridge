@@ -3,14 +3,13 @@ import 'package:flutter/material.dart';
 import 'config.dart';
 import 'push.dart';
 import 'profiles.dart';
-import 'auth.dart';
 import 'requests.dart';
 import 'marketplace.dart';
 import 'chat.dart';
 import 'rates.dart';
 import 'notifications.dart';
 
-// ---------------- Home screen: browse + create requests ----------------
+// ---------------- Home: bottom navigation with 4 tabs ----------------
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +18,69 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Covers the case where the app was already signed in from a previous
+    // session (so AuthScreen's submit() never ran this time).
+    setupPushNotifications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) listenForForegroundNotifications(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // IndexedStack keeps each tab as it was when you come back to it.
+      body: IndexedStack(
+        index: tab,
+        children: const [
+          OpenRequestsScreen(),
+          MarketplaceScreen(),
+          ExchangeRatesScreen(),
+          EditMyProfileScreen(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (i) => setState(() => tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.swap_horiz),
+            label: 'Requests',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.storefront_outlined),
+            selectedIcon: Icon(Icons.storefront),
+            label: 'Marketplace',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.currency_exchange),
+            label: 'Rates',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- Requests tab: browse + create requests ----------------
+
+class OpenRequestsScreen extends StatefulWidget {
+  const OpenRequestsScreen({super.key});
+  @override
+  State<OpenRequestsScreen> createState() => _OpenRequestsScreenState();
+}
+
+class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
   List<Map<String, dynamic>> requests = [];
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
@@ -127,12 +189,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     loadRequests();
-    // Covers the case where the app was already signed in from a previous
-    // session (so AuthScreen's submit() never ran this time).
-    setupPushNotifications();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) listenForForegroundNotifications(context);
-    });
   }
 
   Future<void> loadRequests() async {
@@ -184,34 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('UniBridge'),
         actions: [
-                    const NotificationBell(),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'My profile',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const EditMyProfileScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.currency_exchange),
-            tooltip: 'Exchange rates',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ExchangeRatesScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.storefront_outlined),
-            tooltip: 'Marketplace',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MarketplaceScreen()),
-              );
-            },
-          ),
+          const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.list_alt),
             tooltip: 'My requests',
@@ -219,38 +248,6 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const MyRequestsScreen()),
               );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () async {
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (dialogContext) => AlertDialog(
-                  title: const Text('Log out?'),
-                  content: const Text('Are you sure you want to log out?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(true),
-                      child: const Text('Log out'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmed != true) return;
-
-              await clearPushToken();
-              await supabase.auth.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const AuthScreen()),
-                );
-              }
             },
           ),
         ],

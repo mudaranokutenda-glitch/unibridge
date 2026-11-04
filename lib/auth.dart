@@ -203,3 +203,35 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
+
+// ---------------- Log out (button on the Profile tab) ----------------
+
+Future<void> confirmAndLogOut(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Log out?'),
+      content: const Text('Are you sure you want to log out?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Log out'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+
+  await clearPushToken();
+  await supabase.auth.signOut();
+  if (context.mounted) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      (route) => false,
+    );
+  }
+}

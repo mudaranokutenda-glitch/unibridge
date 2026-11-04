@@ -13,7 +13,7 @@
 - [x] Fingerprint or face unlock
 - [x] Request filters: type, currency, wilaya
 - [ ] Languages (Arabic, French, English) and dark mode
-- [ ] Redesign: bottom navigation (Requests, Marketplace, Rates, Profile), logout moved into Profile
+- [x] Redesign: bottom navigation (Requests, Marketplace, Rates, Profile), logout moved into Profile
 - [ ] Release preparation: app name and ID, icon, signing, Play Store listing
 
 ## Done

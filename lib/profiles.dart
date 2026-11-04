@@ -663,7 +663,14 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       }
 
       await supabase.from('profiles').update(updates).eq('id', myId);
-      if (mounted) Navigator.of(context).pop();
+      // This screen is a tab now, so stay here and show the new card.
+      newPhotoBytes = null;
+      await load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile saved.')),
+        );
+      }
     } catch (e) {
       setState(() => errorMessage = 'Could not save: $e');
     } finally {
@@ -773,7 +780,15 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   onPressed: saving ? null : save,
                   child: Text(saving ? 'Saving...' : 'Save'),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: (saving || deleting)
+                      ? null
+                      : () => confirmAndLogOut(context),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Log out'),
+                ),
+                const SizedBox(height: 16),
                 TextButton.icon(
                   onPressed: (saving || deleting) ? null : deleteAccount,
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
