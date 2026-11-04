@@ -5,7 +5,7 @@
     <!-- App lock: fingerprint / face / phone PIN. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <application
-        android:label="unibridge_app"
+        android:label="UniBridge"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
