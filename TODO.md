@@ -7,8 +7,8 @@
 
 ## Next
 - [x] Chat extras: send a photo, share my location once (button), download the chat as a text file
-- [ ] Report and block a user
-- [ ] Delete my account
+- [x] Report and block a user
+- [x] Delete my account
 - [ ] Terms and privacy screen
 - [ ] Fingerprint or face unlock
 - [ ] Request filters: type, currency, wilaya
