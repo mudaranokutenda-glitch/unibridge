@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'verification.dart';
+import 'auth.dart';
 
 // ---------------- Public profile helpers ----------------
 
@@ -507,7 +508,98 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
   Uint8List? newPhotoBytes;
   bool loading = true;
   bool saving = false;
+  bool deleting = false;
   String? errorMessage;
+
+  void showDeleteError(String text) {
+    if (!mounted) return;
+    setState(() => deleting = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), duration: const Duration(seconds: 6)),
+    );
+  }
+
+  // Asks the user to type DELETE, then calls the delete-account Edge
+  // Function (it refuses while a transaction is in progress).
+  Future<void> deleteAccount() async {
+    final confirmController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Delete my account'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'This cannot be undone.\n\n'
+                  'Deleted: your profile, photos, listings, open requests, '
+                  'notifications and blocks.\n\n'
+                  'Kept for the other person: finished transactions, chats '
+                  'and ratings (you will show as "UniBridge user").\n\n'
+                  'Type DELETE to confirm.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmController,
+                  autofocus: true,
+                  decoration: const InputDecoration(hintText: 'DELETE'),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: confirmController.text.trim() == 'DELETE'
+                  ? () => Navigator.of(context).pop(true)
+                  : null,
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete forever'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => deleting = true);
+    try {
+      await supabase.functions.invoke('delete-account');
+    } on FunctionException catch (e) {
+      final details = e.details;
+      final text = e.status == 409
+          ? 'Finish or resolve your open transactions first.'
+          : 'Could not delete account: '
+              '${details is Map ? details['error'] : details}';
+      showDeleteError(text);
+      return;
+    } catch (e) {
+      showDeleteError('Could not delete account: $e');
+      return;
+    }
+
+    // The account is gone: sign out on this phone and go to the login screen.
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      debugPrint('Sign out after delete: $e');
+    }
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      (route) => false,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your account has been deleted.')),
+    );
+  }
 
   @override
   void initState() {
@@ -669,6 +761,13 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                 ElevatedButton(
                   onPressed: saving ? null : save,
                   child: Text(saving ? 'Saving...' : 'Save'),
+                ),
+                const SizedBox(height: 32),
+                TextButton.icon(
+                  onPressed: (saving || deleting) ? null : deleteAccount,
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  icon: const Icon(Icons.delete_forever),
+                  label: Text(deleting ? 'Deleting...' : 'Delete my account'),
                 ),
               ],
             ),
