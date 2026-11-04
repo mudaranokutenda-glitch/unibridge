@@ -23,6 +23,106 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
 
+  // Filters (null = all)
+  String? filterType;
+  String? filterCurrency;
+  String? filterWilaya;
+
+  String creatorWilaya(Map<String, dynamic> r) {
+    final w = (profiles[r['creator_id']]?['wilaya'] ?? '').toString().trim();
+    return w == 'OTHER' ? '' : w;
+  }
+
+  List<String> optionsOf(String Function(Map<String, dynamic>) read) {
+    final values = <String, String>{}; // lower case -> as written
+    for (final r in requests) {
+      final v = read(r).trim();
+      if (v.isNotEmpty) values.putIfAbsent(v.toLowerCase(), () => v);
+    }
+    return values.values.toList()..sort();
+  }
+
+  List<Map<String, dynamic>> get visibleRequests => requests.where((r) {
+        if (filterType != null && r['type'] != filterType) return false;
+        if (filterCurrency != null && r['currency'] != filterCurrency) {
+          return false;
+        }
+        if (filterWilaya != null &&
+            creatorWilaya(r).toLowerCase() != filterWilaya!.toLowerCase()) {
+          return false;
+        }
+        return true;
+      }).toList();
+
+  bool get hasFilters =>
+      filterType != null || filterCurrency != null || filterWilaya != null;
+
+  Widget filterDropdown({
+    required String label,
+    required String? value,
+    required Map<String, String> options, // value -> text shown
+    required ValueChanged<String?> onChanged,
+  }) {
+    // Keep the chosen value in the list even if no request uses it anymore
+    // (a dropdown crashes when its value is missing from the items).
+    if (value != null && !options.containsKey(value)) {
+      options = {...options, value: value};
+    }
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: DropdownButton<String?>(
+        value: value,
+        underline: const SizedBox.shrink(),
+        items: [
+          DropdownMenuItem<String?>(value: null, child: Text('$label: All')),
+          for (final e in options.entries)
+            DropdownMenuItem<String?>(value: e.key, child: Text(e.value)),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget filterBar() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          filterDropdown(
+            label: 'Type',
+            value: filterType,
+            options: const {'SEND': 'Send', 'RECEIVE': 'Receive'},
+            onChanged: (v) => setState(() => filterType = v),
+          ),
+          filterDropdown(
+            label: 'Currency',
+            value: filterCurrency,
+            options: {
+              for (final c in optionsOf((r) => '${r['currency'] ?? ''}')) c: c
+            },
+            onChanged: (v) => setState(() => filterCurrency = v),
+          ),
+          filterDropdown(
+            label: 'Wilaya',
+            value: filterWilaya,
+            options: {for (final w in optionsOf(creatorWilaya)) w: w},
+            onChanged: (v) => setState(() => filterWilaya = v),
+          ),
+          if (hasFilters)
+            TextButton(
+              onPressed: () => setState(() {
+                filterType = null;
+                filterCurrency = null;
+                filterWilaya = null;
+              }),
+              child: const Text('Clear filters'),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -155,21 +255,45 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          if (!loading && requests.isNotEmpty) filterBar(),
+          Expanded(child: requestList()),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => CreateRequestScreen()),
+          );
+          loadRequests();
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget requestList() {
+    final visible = visibleRequests;
+    return RefreshIndicator(
         onRefresh: loadRequests,
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : requests.isEmpty
+            : visible.isEmpty
                 ? ListView(
-                    children: const [
-                      SizedBox(height: 100),
-                      Center(child: Text('No open requests right now.')),
+                    children: [
+                      const SizedBox(height: 100),
+                      Center(
+                        child: Text(requests.isEmpty
+                            ? 'No open requests right now.'
+                            : 'No requests match these filters.'),
+                      ),
                     ],
                   )
                 : ListView.builder(
-                    itemCount: requests.length,
+                    itemCount: visible.length,
                     itemBuilder: (context, index) {
-                      final r = requests[index];
+                      final r = visible[index];
                       return Card(
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
@@ -205,16 +329,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => CreateRequestScreen()),
-          );
-          loadRequests();
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }

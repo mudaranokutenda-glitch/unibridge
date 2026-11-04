@@ -11,7 +11,7 @@
 - [x] Delete my account
 - [x] Terms and privacy screen
 - [x] Fingerprint or face unlock
-- [ ] Request filters: type, currency, wilaya
+- [x] Request filters: type, currency, wilaya
 - [ ] Languages (Arabic, French, English) and dark mode
 - [ ] Redesign: bottom navigation (Requests, Marketplace, Rates, Profile), logout moved into Profile
 - [ ] Release preparation: app name and ID, icon, signing, Play Store listing
