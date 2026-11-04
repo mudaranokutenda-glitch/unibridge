@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'config.dart';
 import 'profiles.dart';
+import 'l10n.dart';
 
 // ---------------- Exchange rates ----------------
 
@@ -18,12 +19,12 @@ double? _rateMid(Map<String, dynamic> row) {
 }
 
 String updatedAgo(DateTime? d) {
-  if (d == null) return 'unknown';
+  if (d == null) return tr('unknown');
   final diff = DateTime.now().difference(d.toLocal());
-  if (diff.inMinutes < 1) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours} h ago';
-  return '${diff.inDays} days ago';
+  if (diff.inMinutes < 1) return tr('just now');
+  if (diff.inMinutes < 60) return tr('{n} min ago', {'n': diff.inMinutes});
+  if (diff.inHours < 24) return tr('{n} h ago', {'n': diff.inHours});
+  return tr('{n} days ago', {'n': diff.inDays});
 }
 
 class ExchangeRatesScreen extends StatefulWidget {
@@ -74,7 +75,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        errorMessage = 'Could not load rates: $e';
+        errorMessage = tr('Could not load rates: {error}', {'error': e});
         loading = false;
       });
     }
@@ -118,7 +119,10 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
       if (bankMid != null && marketMid != null && bankMid > 0) {
         final gap = (marketMid - bankMid) / bankMid * 100;
         gapText =
-            'Parallel market is ${gap.abs().toStringAsFixed(0)}% ${gap >= 0 ? 'higher' : 'lower'} than the bank';
+            tr(gap >= 0
+                ? 'Parallel market is {pct}% higher than the bank'
+                : 'Parallel market is {pct}% lower than the bank',
+            {'pct': gap.abs().toStringAsFixed(0)});
       }
     }
 
@@ -140,33 +144,33 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            const Row(
+            Row(
               children: [
                 Expanded(flex: 3, child: Text('')),
                 Expanded(
                   flex: 2,
-                  child: Text('Buy',
+                  child: Text(tr('Buy'),
                       textAlign: TextAlign.right,
-                      style: TextStyle(color: Colors.black54, fontSize: 12)),
+                      style: TextStyle(color: kMutedText, fontSize: 12)),
                 ),
                 Expanded(
                   flex: 2,
-                  child: Text('Sell',
+                  child: Text(tr('Sell'),
                       textAlign: TextAlign.right,
-                      style: TextStyle(color: Colors.black54, fontSize: 12)),
+                      style: TextStyle(color: kMutedText, fontSize: 12)),
                 ),
               ],
             ),
-            _rateRow('Bank', bank),
-            _rateRow('Parallel market', market),
+            _rateRow(tr('Bank'), bank),
+            _rateRow(tr('Parallel market'), market),
             if (gapText != null) ...[
               const SizedBox(height: 8),
               Text(gapText, style: const TextStyle(color: Colors.deepOrange)),
             ],
             const SizedBox(height: 8),
             Text(
-              'Updated ${updatedAgo(newest)}',
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              tr('Updated {ago}', {'ago': updatedAgo(newest)}),
+              style: const TextStyle(fontSize: 12, color: kMutedText),
             ),
           ],
         ),
@@ -178,7 +182,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
   Widget build(BuildContext context) {
     final pairs = rates.keys.toList()..sort();
     return Scaffold(
-      appBar: AppBar(title: const Text('Exchange rates')),
+      appBar: AppBar(title: Text(tr('Exchange rates'))),
       body: RefreshIndicator(
         onRefresh: load,
         child: loading
@@ -200,9 +204,9 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                   )
                 : pairs.isEmpty
                     ? ListView(
-                        children: const [
+                        children: [
                           SizedBox(height: 100),
-                          Center(child: Text('No rates available yet.')),
+                          Center(child: Text(tr('No rates available yet.'))),
                         ],
                       )
                     : ListView(
@@ -210,9 +214,9 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                         children: [
                           for (final pair in pairs)
                             _pairCard(pair, rates[pair]!),
-                          const Text(
-                            'Buy = what you get when you sell foreign currency. Sell = what you pay to buy it. These rates are indicative and updated by hand, so always agree the exact rate with the other person before exchanging anything.',
-                            style: TextStyle(fontSize: 12, color: Colors.black54),
+                          Text(
+                            tr('Buy = what you get when you sell foreign currency. Sell = what you pay to buy it. These rates are indicative and updated by hand, so always agree the exact rate with the other person before exchanging anything.'),
+                            style: TextStyle(fontSize: 12, color: kMutedText),
                           ),
                         ],
                       ),

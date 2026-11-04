@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'profiles.dart';
+import 'l10n.dart';
 
 // ---------------- Marketplace ----------------
 
@@ -25,9 +26,9 @@ const String _filterAll = 'ALL';
 const String _filterMine = 'MINE';
 
 String _filterLabel(String f) {
-  if (f == _filterAll) return 'All';
-  if (f == _filterMine) return 'My listings';
-  return f;
+  if (f == _filterAll) return tr('All');
+  if (f == _filterMine) return tr('My listings');
+  return tr(f); // category names are saved in English, shown translated
 }
 
 IconData _filterIcon(String f) {
@@ -99,7 +100,7 @@ Future<void> openContactLinkFor(BuildContext context, String? raw) async {
   }
   if (!opened && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Couldn't open that link")),
+      SnackBar(content: Text(tr("Couldn't open that link"))),
     );
   }
 }
@@ -151,7 +152,7 @@ class _ListingPhotoSliderState extends State<ListingPhotoSlider> {
                 fit: BoxFit.cover,
                 width: double.infinity,
                 errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey.shade200,
+                  color: kPlaceholderBg,
                   child: const Center(child: Icon(Icons.image_not_supported)),
                 ),
               ),
@@ -350,7 +351,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        errorMessage = 'Could not load listings: $e';
+        errorMessage = tr('Could not load listings: {error}', {'error': e});
         loading = false;
       });
     }
@@ -366,7 +367,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       if (selectedFilter == _filterMine) {
         if (!isMine) return false;
       } else {
-        if (isSold) return false; // sold items only show under "My listings"
+        if (isSold) return false; // sold items only show under tr("My listings")
         if (selectedFilter != _filterAll &&
             (l['category'] ?? '').toString().trim() != selectedFilter) {
           return false;
@@ -396,7 +397,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _sellerLine(Map<String, dynamic>? p) {
-    final name = p == null ? 'Seller' : publicDisplayName(p);
+    final name = p == null ? tr('Seller') : publicDisplayName(p);
     final verified = p?['is_verified'] == true;
     return Row(
       children: [
@@ -405,7 +406,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
+            style: const TextStyle(fontSize: 12, color: kMutedText),
           ),
         ),
         if (verified) ...[
@@ -438,7 +439,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   children: [
                     if (images.isEmpty)
                       Container(
-                        color: Colors.grey.shade200,
+                        color: kPlaceholderBg,
                         child: const Center(
                           child: Icon(Icons.shopping_bag_outlined,
                               size: 40, color: Colors.grey),
@@ -450,7 +451,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
                             Container(
-                          color: Colors.grey.shade200,
+                          color: kPlaceholderBg,
                           child: const Center(
                               child: Icon(Icons.image_not_supported)),
                         ),
@@ -466,10 +467,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             color: Colors.red.shade100,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            'SOLD',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.bold),
+                          child: Text(
+                            tr('SOLD'),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87),
                           ),
                         ),
                       ),
@@ -517,7 +520,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      price.isEmpty ? 'Price on request' : price,
+                      price.isEmpty ? tr('Price on request') : price,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -553,11 +556,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return Scaffold(
       key: scaffoldKey,
       appBar: AppBar(
-        title: const Text('Marketplace'),
+        title: Text(tr('Marketplace')),
         actions: [
           IconButton(
             icon: const Icon(Icons.menu),
-            tooltip: 'Categories',
+            tooltip: tr('Categories'),
             onPressed: () => scaffoldKey.currentState?.openEndDrawer(),
           ),
         ],
@@ -566,10 +569,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         child: SafeArea(
           child: ListView(
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
-                  'Categories',
+                  tr('Categories'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -589,7 +592,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             child: TextField(
               controller: searchController,
               decoration: InputDecoration(
-                hintText: 'Search listings',
+                hintText: tr('Search listings'),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: searchText.isEmpty
                     ? null
@@ -613,14 +616,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Showing: ${_filterLabel(selectedFilter)}',
-                      style: const TextStyle(color: Colors.black54),
+                      tr('Showing: {filter}', {'filter': _filterLabel(selectedFilter)}),
+                      style: const TextStyle(color: kMutedText),
                     ),
                   ),
                   TextButton(
                     onPressed: () =>
                         setState(() => selectedFilter = _filterAll),
-                    child: const Text('Show all'),
+                    child: Text(tr('Show all')),
                   ),
                 ],
               ),
@@ -654,10 +657,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 Center(
                                   child: Text(
                                     selectedFilter == _filterMine
-                                        ? 'You have no listings yet.'
+                                        ? tr('You have no listings yet.')
                                         : listings.isEmpty
-                                            ? 'No listings yet. Be the first!'
-                                            : 'No listings match your search.',
+                                            ? tr('No listings yet. Be the first!')
+                                            : tr('No listings match your search.'),
                                   ),
                                 ),
                               ],
@@ -730,11 +733,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           .from('marketplace_listings')
           .update({'is_sold': !isSold}).eq('id', l['id']);
       _snack(isSold
-          ? 'Your listing is available again.'
-          : 'Marked as sold. Other students can no longer see it.');
+          ? tr('Your listing is available again.')
+          : tr('Marked as sold. Other students can no longer see it.'));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      _snack('Could not update: $e');
+      _snack(tr('Could not update: {error}', {'error': e}));
       if (mounted) setState(() => busy = false);
     }
   }
@@ -743,16 +746,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete this listing?'),
-        content: const Text('This cannot be undone.'),
+        title: Text(tr('Delete this listing?')),
+        content: Text(tr('This cannot be undone.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Keep it'),
+            child: Text(tr('Keep it')),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(tr('Delete')),
           ),
         ],
       ),
@@ -762,10 +765,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     setState(() => busy = true);
     try {
       await supabase.from('marketplace_listings').delete().eq('id', l['id']);
-      _snack('Listing deleted.');
+      _snack(tr('Listing deleted.'));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      _snack('Could not delete: $e');
+      _snack(tr('Could not delete: {error}', {'error': e}));
       if (mounted) setState(() => busy = false);
     }
   }
@@ -779,13 +782,13 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final sellerId = l['seller_id']?.toString();
     final seller = widget.seller;
     final details = [
-      (l['category'] ?? '').toString().trim(),
+      tr((l['category'] ?? '').toString().trim()),
       (l['location'] ?? '').toString().trim(),
     ].where((s) => s.isNotEmpty).join(' • ');
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Listing'),
+        title: Text(tr('Listing')),
         actions: [
           if (isMine)
             PopupMenuButton<String>(
@@ -800,12 +803,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'edit', child: Text(tr('Edit'))),
                 PopupMenuItem(
                   value: 'sold',
-                  child: Text(isSold ? 'Mark as available' : 'Mark as sold'),
+                  child: Text(isSold ? tr('Mark as available') : tr('Mark as sold')),
                 ),
-                const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                PopupMenuItem(value: 'delete', child: Text(tr('Delete'))),
               ],
             ),
         ],
@@ -817,7 +820,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           else
             Container(
               height: 160,
-              color: Colors.grey.shade200,
+              color: kPlaceholderBg,
               child: const Center(
                 child: Icon(Icons.shopping_bag_outlined,
                     size: 48, color: Colors.grey),
@@ -845,17 +848,19 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           color: Colors.red.shade100,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
-                          'SOLD',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.bold),
+                        child: Text(
+                          tr('SOLD'),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87),
                         ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  price.isEmpty ? 'Price on request' : price,
+                  price.isEmpty ? tr('Price on request') : price,
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.bold),
                 ),
@@ -863,7 +868,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(details,
-                        style: const TextStyle(color: Colors.black54)),
+                        style: const TextStyle(color: kMutedText)),
                   ),
                 if (description.isNotEmpty)
                   Padding(
@@ -894,7 +899,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                 Flexible(
                                   child: Text(
                                     seller == null
-                                        ? 'Seller'
+                                        ? tr('Seller')
                                         : publicDisplayName(seller),
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -913,7 +918,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               Text(
                                 profilePlace(seller),
                                 style: const TextStyle(
-                                    fontSize: 12, color: Colors.black54),
+                                    fontSize: 12, color: kMutedText),
                               ),
                           ],
                         ),
@@ -929,7 +934,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () => openContactLinkFor(context, contact),
                       icon: const Icon(Icons.chat_outlined),
-                      label: const Text('Contact seller'),
+                      label: Text(tr('Contact seller')),
                     ),
                   ),
                 ],
@@ -1024,7 +1029,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     setState(() => newPhotos.addAll(bytes));
     if (picked.length > remaining) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Only 3 photos are allowed per listing.')),
+        SnackBar(content: Text(tr('Only 3 photos are allowed per listing.'))),
       );
     }
   }
@@ -1059,14 +1064,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     try {
       if (titleController.text.trim().isEmpty) {
         setState(() {
-          errorMessage = 'Title is required';
+          errorMessage = tr('Title is required');
           loading = false;
         });
         return;
       }
       if (category == null) {
         setState(() {
-          errorMessage = 'Please choose a category';
+          errorMessage = tr('Please choose a category');
           loading = false;
         });
         return;
@@ -1078,7 +1083,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         price = double.tryParse(priceText);
         if (price == null || price < 0) {
           setState(() {
-            errorMessage = 'Price must be a number';
+            errorMessage = tr('Price must be a number');
             loading = false;
           });
           return;
@@ -1112,7 +1117,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => errorMessage = 'Something went wrong: $e');
+      setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -1150,12 +1155,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(isEditing ? 'Edit listing' : 'New listing')),
+      appBar: AppBar(title: Text(isEditing ? tr('Edit listing') : tr('New listing'))),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: ListView(
           children: [
-            Text('Photos ($photoCount/3)',
+            Text(tr('Photos ({count}/3)', {'count': photoCount}),
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             SizedBox(
@@ -1180,17 +1185,17 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
+                          color: kPlaceholderBg,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.add_photo_alternate_outlined,
                                   size: 28),
                               SizedBox(height: 4),
-                              Text('Add photos',
+                              Text(tr('Add photos'),
                                   style: TextStyle(fontSize: 12)),
                             ],
                           ),
@@ -1203,43 +1208,43 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             const SizedBox(height: 20),
             TextField(
               controller: titleController,
-              decoration: const InputDecoration(labelText: 'Title *'),
+              decoration: InputDecoration(labelText: tr('Title *')),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: category,
-              decoration: const InputDecoration(labelText: 'Category *'),
+              decoration: InputDecoration(labelText: tr('Category *')),
               items: kListingCategories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .map((c) => DropdownMenuItem(value: c, child: Text(tr(c))))
                   .toList(),
               onChanged: (v) => setState(() => category = v),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'Description'),
+              decoration: InputDecoration(labelText: tr('Description')),
               maxLines: 3,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: priceController,
               decoration:
-                  const InputDecoration(labelText: 'Price in DA (optional)'),
+                  InputDecoration(labelText: tr('Price in DA (optional)')),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: locationController,
-              decoration: const InputDecoration(labelText: 'Location'),
+              decoration: InputDecoration(labelText: tr('Location')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: contactLinkController,
-              decoration: const InputDecoration(
-                labelText: 'WhatsApp number or contact link',
-                hintText: '0555 12 34 56 or instagram.com/yourname',
+              decoration: InputDecoration(
+                labelText: tr('WhatsApp number or contact link'),
+                hintText: tr('0555 12 34 56 or instagram.com/yourname'),
                 helperText:
-                    'Numbers starting with 0 become WhatsApp links for Algeria (+213).',
+                    tr('Numbers starting with 0 become WhatsApp links for Algeria (+213).'),
                 helperMaxLines: 2,
               ),
             ),
@@ -1253,10 +1258,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             ElevatedButton(
               onPressed: (loading || uploadingImage) ? null : submit,
               child: Text(loading
-                  ? 'Please wait...'
+                  ? tr('Please wait...')
                   : uploadingImage
-                      ? 'Uploading photos...'
-                      : (isEditing ? 'Save changes' : 'Post listing')),
+                      ? tr('Uploading photos...')
+                      : (isEditing ? tr('Save changes') : tr('Post listing'))),
             ),
           ],
         ),

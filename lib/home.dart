@@ -8,6 +8,7 @@ import 'marketplace.dart';
 import 'chat.dart';
 import 'rates.dart';
 import 'notifications.dart';
+import 'l10n.dart';
 
 // ---------------- Home: bottom navigation with 4 tabs ----------------
 
@@ -35,36 +36,43 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       // IndexedStack keeps each tab as it was when you come back to it.
-      body: IndexedStack(
-        index: tab,
-        children: const [
-          OpenRequestsScreen(),
-          MarketplaceScreen(),
-          ExchangeRatesScreen(),
-          EditMyProfileScreen(),
-        ],
+      // A new language rebuilds all tabs so every text is translated.
+      body: ValueListenableBuilder<String>(
+        valueListenable: AppSettings.language,
+        builder: (context, language, _) => KeyedSubtree(
+          key: ValueKey(language),
+          child: IndexedStack(
+            index: tab,
+            children: const [
+              OpenRequestsScreen(),
+              MarketplaceScreen(),
+              ExchangeRatesScreen(),
+              EditMyProfileScreen(),
+            ],
+          ),
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (i) => setState(() => tab = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.swap_horiz),
-            label: 'Requests',
+            label: tr('Requests'),
           ),
           NavigationDestination(
             icon: Icon(Icons.storefront_outlined),
             selectedIcon: Icon(Icons.storefront),
-            label: 'Marketplace',
+            label: tr('Marketplace'),
           ),
           NavigationDestination(
             icon: Icon(Icons.currency_exchange),
-            label: 'Rates',
+            label: tr('Rates'),
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            label: tr('Profile'),
           ),
         ],
       ),
@@ -136,7 +144,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
         value: value,
         underline: const SizedBox.shrink(),
         items: [
-          DropdownMenuItem<String?>(value: null, child: Text('$label: All')),
+          DropdownMenuItem<String?>(value: null, child: Text(tr('{label}: All', {'label': label}))),
           for (final e in options.entries)
             DropdownMenuItem<String?>(value: e.key, child: Text(e.value)),
         ],
@@ -152,13 +160,13 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
       child: Row(
         children: [
           filterDropdown(
-            label: 'Type',
+            label: tr('Type'),
             value: filterType,
-            options: const {'SEND': 'Send', 'RECEIVE': 'Receive'},
+            options: {'SEND': tr('Send'), 'RECEIVE': tr('Receive')},
             onChanged: (v) => setState(() => filterType = v),
           ),
           filterDropdown(
-            label: 'Currency',
+            label: tr('Currency'),
             value: filterCurrency,
             options: {
               for (final c in optionsOf((r) => '${r['currency'] ?? ''}')) c: c
@@ -166,7 +174,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
             onChanged: (v) => setState(() => filterCurrency = v),
           ),
           filterDropdown(
-            label: 'Wilaya',
+            label: tr('Wilaya'),
             value: filterWilaya,
             options: {for (final w in optionsOf(creatorWilaya)) w: w},
             onChanged: (v) => setState(() => filterWilaya = v),
@@ -178,7 +186,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
                 filterCurrency = null;
                 filterWilaya = null;
               }),
-              child: const Text('Clear filters'),
+              child: Text(tr('Clear filters')),
             ),
         ],
       ),
@@ -228,7 +236,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
         );
       }
     }
@@ -243,7 +251,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
           const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.list_alt),
-            tooltip: 'My requests',
+            tooltip: tr('My requests'),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const MyRequestsScreen()),
@@ -282,8 +290,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
                       const SizedBox(height: 100),
                       Center(
                         child: Text(requests.isEmpty
-                            ? 'No open requests right now.'
-                            : 'No requests match these filters.'),
+                            ? tr('No open requests right now.')
+                            : tr('No requests match these filters.')),
                       ),
                     ],
                   )
@@ -303,7 +311,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      '${r['type']} • ${r['amount']} ${r['currency']}',
+                                      tr(r['type'] == 'SEND' ? 'Wants to send {amount}' : 'Wants to receive {amount}',
+                                          {'amount': '${r['amount']} ${r['currency']}'}),
                                       style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold),
@@ -312,7 +321,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
                                   ElevatedButton(
                                     onPressed: () =>
                                         matchWithRequest(r['id']),
-                                    child: const Text('Match'),
+                                    child: Text(tr('Match')),
                                   ),
                                 ],
                               ),

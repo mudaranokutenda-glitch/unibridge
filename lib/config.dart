@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const String supabaseUrl = 'https://lhdkzcsaqlhswyytirxb.supabase.co';
@@ -10,3 +11,9 @@ final supabase = Supabase.instance.client;
 
 const String googleWebClientId =
     '446026136458-6b9o3prsfjcgttf58am8cdkch2b4ghri.apps.googleusercontent.com';
+
+// Grey for secondary text. Readable in both light and dark mode.
+const Color kMutedText = Color(0xFF8A8A8A);
+
+// See-through grey for empty photo boxes. Works in light and dark mode.
+const Color kPlaceholderBg = Color(0x22888888);

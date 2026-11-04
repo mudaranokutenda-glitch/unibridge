@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -9,6 +10,7 @@ import 'push.dart';
 import 'auth.dart';
 import 'home.dart';
 import 'app_lock.dart';
+import 'l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +25,8 @@ Future<void> main() async {
     anonKey: supabaseAnonKey,
   );
 
+  await AppSettings.load();
+
   runApp(const UniBridgeApp());
 }
 
@@ -31,15 +35,34 @@ class UniBridgeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'UniBridge',
-      theme: ThemeData(primarySwatch: Colors.teal),
-      // The lock covers every screen, so it also works after hot restart
-      // and on screens opened from notifications.
-      builder: (context, child) => AppLock(child: child!),
-      home: supabase.auth.currentSession == null
-          ? const AuthScreen()
-          : const HomeScreen(),
+    // Rebuilds when the language or the theme changes (Profile tab).
+    return ValueListenableBuilder<String>(
+      valueListenable: AppSettings.language,
+      builder: (context, language, _) => ValueListenableBuilder<ThemeMode>(
+        valueListenable: AppSettings.themeMode,
+        builder: (context, themeMode, _) => MaterialApp(
+          title: 'UniBridge',
+          theme: ThemeData(
+            colorSchemeSeed: Colors.teal,
+            brightness: Brightness.light,
+          ),
+          darkTheme: ThemeData(
+            colorSchemeSeed: Colors.teal,
+            brightness: Brightness.dark,
+          ),
+          themeMode: themeMode,
+          // Arabic switches the whole layout to right-to-left.
+          locale: Locale(language),
+          supportedLocales: const [Locale('en'), Locale('fr'), Locale('ar')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          // The lock covers every screen, so it also works after hot restart
+          // and on screens opened from notifications.
+          builder: (context, child) => AppLock(child: child!),
+          home: supabase.auth.currentSession == null
+              ? const AuthScreen()
+              : const HomeScreen(),
+        ),
+      ),
     );
   }
 }

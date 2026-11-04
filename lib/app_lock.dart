@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'config.dart';
+import 'l10n.dart';
 
 // ---------------- App lock (fingerprint / face / phone PIN) ----------------
 // Always on for signed-in users: the app asks to unlock when it opens and
@@ -68,7 +69,7 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
         return;
       }
       final ok = await auth.authenticate(
-        localizedReason: 'Unlock UniBridge',
+        localizedReason: tr('Unlock UniBridge'),
         persistAcrossBackgrounding: true,
       );
       if (ok && mounted) setState(() => locked = false);
@@ -106,21 +107,21 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
                             size: 64,
                             color: Theme.of(context).colorScheme.primary),
                         const SizedBox(height: 16),
-                        const Text(
-                          'UniBridge is locked',
+                        Text(
+                          tr('UniBridge is locked'),
                           style: TextStyle(
                               fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Use your fingerprint, face or phone PIN to unlock.',
+                        Text(
+                          tr('Use your fingerprint, face or phone PIN to unlock.'),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
                           onPressed: unlock,
                           icon: const Icon(Icons.fingerprint),
-                          label: const Text('Unlock'),
+                          label: Text(tr('Unlock')),
                         ),
                       ],
                     ),

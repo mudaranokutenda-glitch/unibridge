@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'l10n.dart';
 
 // ---------------- Terms of use + Privacy policy ----------------
 // A template written for this app. Have it checked before release.
@@ -120,11 +121,11 @@ class LegalScreen extends StatelessWidget {
       initialIndex: initialTab,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Terms and privacy'),
-          bottom: const TabBar(
+          title: Text(tr('Terms and privacy')),
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Terms of use'),
-              Tab(text: 'Privacy policy'),
+              Tab(text: tr('Terms of use')),
+              Tab(text: tr('Privacy policy')),
             ],
           ),
         ),
@@ -148,7 +149,7 @@ class _LegalText extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Last updated: $kLegalLastUpdated',
+        Text(tr('Last updated: {date}', {'date': kLegalLastUpdated}),
             style: Theme.of(context).textTheme.bodySmall),
         for (final (title, body) in sections) ...[
           const SizedBox(height: 16),

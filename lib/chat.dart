@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
 import 'profiles.dart';
+import 'l10n.dart';
 
 // ---------------- Chat screen (with confirm / dispute / rating) ----------------
 
@@ -146,7 +147,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (bytes.length > 5 * 1024 * 1024) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('This photo is too big (max 5 MB).')),
+          SnackBar(content: Text(tr('This photo is too big (max 5 MB).'))),
         );
       }
       return;
@@ -174,7 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not send photo: $e')),
+          SnackBar(content: Text(tr('Could not send photo: {error}', {'error': e}))),
         );
       }
     } finally {
@@ -192,20 +193,20 @@ class _ChatScreenState extends State<ChatScreen> {
   // LOCATION message. The Google Maps link is stored in attachment_url.
   Future<void> sendLocation() async {
     final otherName =
-        otherProfile == null ? 'the other person' : publicDisplayName(otherProfile!);
+        otherProfile == null ? tr('the other person') : publicDisplayName(otherProfile!);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Share location'),
-        content: Text('Send your current location to $otherName?'),
+        title: Text(tr('Share location')),
+        content: Text(tr('Send your current location to {name}?', {'name': otherName})),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(tr('Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Send'),
+            child: Text(tr('Send')),
           ),
         ],
       ),
@@ -215,7 +216,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => sendingLocation = true);
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        showError('Please turn on location (GPS) on your phone.');
+        showError(tr('Please turn on location (GPS) on your phone.'));
         return;
       }
       var permission = await Geolocator.checkPermission();
@@ -224,7 +225,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        showError('Location permission was refused.');
+        showError(tr('Location permission was refused.'));
         return;
       }
 
@@ -246,7 +247,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       await notifyOtherPerson('📍 Location');
     } catch (e) {
-      showError('Could not send location: $e');
+      showError(tr('Could not send location: {error}', {'error': e}));
     } finally {
       if (mounted) setState(() => sendingLocation = false);
     }
@@ -314,11 +315,11 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       if (saved != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chat saved.')),
+          SnackBar(content: Text(tr('Chat saved.'))),
         );
       }
     } catch (e) {
-      showError('Could not save the chat: $e');
+      showError(tr('Could not save the chat: {error}', {'error': e}));
     } finally {
       if (mounted) setState(() => downloading = false);
     }
@@ -327,7 +328,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> openMap(String url) async {
     final ok = await launchUrl(Uri.parse(url),
         mode: LaunchMode.externalApplication);
-    if (!ok) showError('Could not open the map.');
+    if (!ok) showError(tr('Could not open the map.'));
   }
 
   Future<void> confirm(String role) async {
@@ -340,14 +341,14 @@ class _ChatScreenState extends State<ChatScreen> {
       await loadRequest();
       if (mounted && request?['status'] == 'COMPLETED') {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Transaction complete! You can now rate each other.')),
+          SnackBar(
+              content: Text(tr('Transaction complete! You can now rate each other.'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
         );
       }
     } finally {
@@ -360,22 +361,22 @@ class _ChatScreenState extends State<ChatScreen> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Report a problem'),
+        title: Text(tr('Report a problem')),
         content: TextField(
           controller: reasonController,
-          decoration: const InputDecoration(
-            hintText: 'Describe what went wrong...',
+          decoration: InputDecoration(
+            hintText: tr('Describe what went wrong...'),
           ),
           maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(tr('Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(reasonController.text),
-            child: const Text('Submit'),
+            child: Text(tr('Submit')),
           ),
         ],
       ),
@@ -391,13 +392,13 @@ class _ChatScreenState extends State<ChatScreen> {
       await loadRequest();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dispute submitted.')),
+          SnackBar(content: Text(tr('Dispute submitted.'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
         );
       }
     } finally {
@@ -418,13 +419,13 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) {
         setState(() => hasRated = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thanks for rating!')),
+          SnackBar(content: Text(tr('Thanks for rating!'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
         );
       }
     } finally {
@@ -446,19 +447,20 @@ class _ChatScreenState extends State<ChatScreen> {
         ((myRole == 'SENDER' && r['sender_confirmed'] == true) ||
             (myRole == 'RECEIVER' && r['receiver_confirmed'] == true));
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chat'),
+        title: Text(tr('Chat')),
         actions: [
           IconButton(
             icon: const Icon(Icons.download_outlined),
-            tooltip: 'Download chat as text',
+            tooltip: tr('Download chat as text'),
             onPressed: downloading ? null : downloadChat,
           ),
           if (status != null && status != 'COMPLETED' && status != 'DISPUTED')
             IconButton(
               icon: const Icon(Icons.flag_outlined),
-              tooltip: 'Report a problem',
+              tooltip: tr('Report a problem'),
               onPressed: actionLoading ? null : openDispute,
             ),
         ],
@@ -468,7 +470,7 @@ class _ChatScreenState extends State<ChatScreen> {
           if (otherProfile != null) ...[
             Container(
               width: double.infinity,
-              color: Colors.white,
+              color: scheme.surface,
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               child: ProfileSummary(profile: otherProfile),
             ),
@@ -477,17 +479,17 @@ class _ChatScreenState extends State<ChatScreen> {
           if (status == 'COMPLETED')
             Container(
               width: double.infinity,
-              color: Colors.green.shade100,
+              color: scheme.primaryContainer,
               padding: const EdgeInsets.all(12),
               child: hasRated
-                  ? const Text('✅ Transaction completed — thanks for rating!',
+                  ? Text(tr('✅ Transaction completed — thanks for rating!'),
                       textAlign: TextAlign.center)
                   : Column(
                       children: [
-                        const Text('✅ Transaction completed',
+                        Text(tr('✅ Transaction completed'),
                             textAlign: TextAlign.center),
                         const SizedBox(height: 8),
-                        const Text('Rate the other person:'),
+                        Text(tr('Rate the other person:')),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(5, (i) {
@@ -509,8 +511,8 @@ class _ChatScreenState extends State<ChatScreen> {
                               const EdgeInsets.symmetric(horizontal: 24),
                           child: TextField(
                             controller: ratingCommentController,
-                            decoration: const InputDecoration(
-                              hintText: 'Optional comment...',
+                            decoration: InputDecoration(
+                              hintText: tr('Optional comment...'),
                             ),
                           ),
                         ),
@@ -518,7 +520,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ElevatedButton(
                           onPressed: ratingLoading ? null : submitRating,
                           child: Text(
-                              ratingLoading ? 'Submitting...' : 'Submit rating'),
+                              ratingLoading ? tr('Submitting...') : tr('Submit rating')),
                         ),
                       ],
                     ),
@@ -526,22 +528,22 @@ class _ChatScreenState extends State<ChatScreen> {
           else if (status == 'DISPUTED')
             Container(
               width: double.infinity,
-              color: Colors.red.shade100,
+              color: scheme.errorContainer,
               padding: const EdgeInsets.all(12),
-              child: const Text('⚠️ Dispute opened on this transaction',
+              child: Text(tr('⚠️ Dispute opened on this transaction'),
                   textAlign: TextAlign.center),
             )
           else if (status != null)
             Container(
               width: double.infinity,
-              color: Colors.teal.shade50,
+              color: scheme.secondaryContainer,
               padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
                   Text(
                     iHaveConfirmed
-                        ? 'You confirmed. Waiting for the other side...'
-                        : 'Once the exchange is done outside the app, confirm here.',
+                        ? tr('You confirmed. Waiting for the other side...')
+                        : tr('Once the exchange is done outside the app, confirm here.'),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
@@ -550,8 +552,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         ? null
                         : () => confirm(myRole),
                     child: Text(myRole == 'SENDER'
-                        ? "I sent the money"
-                        : "I received the money"),
+                        ? tr("I sent the money")
+                        : tr("I received the money")),
                   ),
                 ],
               ),
@@ -565,7 +567,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
                 final messages = snapshot.data!;
                 if (messages.isEmpty) {
-                  return const Center(child: Text('No messages yet. Say hi!'));
+                  return Center(child: Text(tr('No messages yet. Say hi!')));
                 }
                 return ListView.builder(
                   reverse: true,
@@ -593,8 +595,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
                     return Align(
                       alignment: isMine
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
+                          ? AlignmentDirectional.centerEnd
+                          : AlignmentDirectional.centerStart,
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         padding: isPhoto
@@ -603,8 +605,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                 horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: isMine
-                              ? Colors.teal.shade100
-                              : Colors.grey.shade200,
+                              ? scheme.primaryContainer
+                              : scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: isPhoto
@@ -617,8 +619,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                     onTap: () => openMap(m['attachment_url']),
                                     child: Text(
                                       isMine
-                                          ? '📍 My location (tap to open map)'
-                                          : '📍 Location (tap to open map)',
+                                          ? tr('📍 My location (tap to open map)')
+                                          : tr('📍 Location (tap to open map)'),
                                       style: const TextStyle(
                                           decoration: TextDecoration.underline),
                                     ),
@@ -635,10 +637,10 @@ class _ChatScreenState extends State<ChatScreen> {
             SafeArea(
               child: Container(
                 width: double.infinity,
-                color: Colors.grey.shade200,
+                color: scheme.surfaceContainerHighest,
                 padding: const EdgeInsets.all(12),
-                child: const Text(
-                  "You can't send messages in this chat.",
+                child: Text(
+                  tr("You can't send messages in this chat."),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -657,7 +659,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.photo_camera_outlined),
-                      tooltip: 'Send a photo',
+                      tooltip: tr('Send a photo'),
                       onPressed: sendingPhoto ? null : sendPhoto,
                     ),
                     IconButton(
@@ -668,14 +670,14 @@ class _ChatScreenState extends State<ChatScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.location_on_outlined),
-                      tooltip: 'Share my location',
+                      tooltip: tr('Share my location'),
                       onPressed: sendingLocation ? null : sendLocation,
                     ),
                     Expanded(
                       child: TextField(
                         controller: messageController,
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message...',
+                        decoration: InputDecoration(
+                          hintText: tr('Type a message...'),
                           border: OutlineInputBorder(),
                         ),
                         onSubmitted: (_) => sendMessage(),

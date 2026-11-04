@@ -7,6 +7,7 @@ import 'config.dart';
 import 'verification.dart';
 import 'auth.dart';
 import 'legal.dart';
+import 'l10n.dart';
 
 // ---------------- Public profile helpers ----------------
 
@@ -16,7 +17,7 @@ double? asDouble(dynamic v) =>
 
 String publicDisplayName(Map<String, dynamic> p) {
   final name = (p['full_name'] ?? '').toString().trim();
-  return name.isEmpty ? 'UniBridge user' : name;
+  return name.isEmpty ? tr('UniBridge user') : name;
 }
 
 String profilePlace(Map<String, dynamic> p) {
@@ -113,8 +114,8 @@ class ProfileSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = profile;
     if (p == null) {
-      return const Text(
-        'Profile unavailable',
+      return Text(
+        tr('Profile unavailable'),
         style: TextStyle(color: Colors.grey, fontSize: 12),
       );
     }
@@ -130,8 +131,8 @@ class ProfileSummary extends StatelessWidget {
       if (ratingCount > 0 && avg != null)
         '★ ${avg.toStringAsFixed(1)} ($ratingCount)'
       else
-        'No ratings yet',
-      if (completed > 0) '$completed completed' else 'New member',
+        tr('No ratings yet'),
+      if (completed > 0) tr('{count} completed', {'count': completed}) else tr('New member'),
     ];
 
     final content = Row(
@@ -159,9 +160,9 @@ class ProfileSummary extends StatelessWidget {
               ),
               if (place.isNotEmpty)
                 Text(place,
-                    style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    style: const TextStyle(fontSize: 12, color: kMutedText)),
               Text(stats.join(' • '),
-                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  style: const TextStyle(fontSize: 12, color: kMutedText)),
             ],
           ),
         ),
@@ -220,24 +221,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> toggleBlock() async {
-    final name = profile == null ? 'this user' : publicDisplayName(profile!);
+    final name = profile == null ? tr('this user') : publicDisplayName(profile!);
     if (!iBlocked) {
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Block $name?'),
-          content: const Text(
+          title: Text(tr('Block {name}?', {'name': name})),
+          content: Text(tr(
               "You won't see each other's requests or listings, and you "
               "can't message each other. Open transactions can still be "
-              'confirmed or disputed. You can unblock later in your profile.'),
+              'confirmed or disputed. You can unblock later in your profile.')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(tr('Cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Block'),
+              child: Text(tr('Block')),
             ),
           ],
         ),
@@ -260,12 +261,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (!mounted) return;
       setState(() => iBlocked = !iBlocked);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(iBlocked ? '$name blocked.' : '$name unblocked.')),
+        SnackBar(content: Text(iBlocked
+            ? tr('{name} blocked.', {'name': name})
+            : tr('{name} unblocked.', {'name': name}))),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
         );
       }
     }
@@ -296,12 +299,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   // Lets the user report this person. The report is saved in user_reports
   // and the owner reviews it in Supabase.
   Future<void> reportUser() async {
-    const reasons = {
-      'SCAM': 'Scam or fraud',
-      'HARASSMENT': 'Harassment',
-      'FAKE_PROFILE': 'Fake profile',
-      'INAPPROPRIATE': 'Inappropriate content',
-      'OTHER': 'Other',
+    final reasons = {
+      'SCAM': tr('Scam or fraud'),
+      'HARASSMENT': tr('Harassment'),
+      'FAKE_PROFILE': tr('Fake profile'),
+      'INAPPROPRIATE': tr('Inappropriate content'),
+      'OTHER': tr('Other'),
     };
     String? selected;
     final detailsController = TextEditingController();
@@ -310,7 +313,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Report user'),
+          title: Text(tr('Report user')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -329,8 +332,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   controller: detailsController,
                   maxLength: 1000,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    hintText: 'Details (optional)',
+                  decoration: InputDecoration(
+                    hintText: tr('Details (optional)'),
                   ),
                 ),
               ],
@@ -339,13 +342,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(tr('Cancel')),
             ),
             TextButton(
               onPressed: selected == null
                   ? null
                   : () => Navigator.of(context).pop(true),
-              child: const Text('Send report'),
+              child: Text(tr('Send report')),
             ),
           ],
         ),
@@ -362,21 +365,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Thanks, we'll review this report.")),
+          SnackBar(content: Text(tr("Thanks, we'll review this report."))),
         );
       }
     } on PostgrestException catch (e) {
       if (!mounted) return;
       // 23505 = the unique rule: an open report about this user already exists.
       final text = e.code == '23505'
-          ? 'You already reported this user. We are reviewing it.'
-          : 'Could not send report: ${e.message}';
+          ? tr('You already reported this user. We are reviewing it.')
+          : tr('Could not send report: {error}', {'error': e.message});
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(text)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not send report: $e')),
+          SnackBar(content: Text(tr('Could not send report: {error}', {'error': e}))),
         );
       }
     }
@@ -388,7 +391,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final isMe = widget.userId == supabase.auth.currentUser?.id;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(tr('Profile')),
         actions: [
           if (!isMe && p != null)
             PopupMenuButton<String>(
@@ -397,10 +400,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 if (value == 'block') toggleBlock();
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(value: 'report', child: Text('Report user')),
+                PopupMenuItem(value: 'report', child: Text(tr('Report user'))),
                 PopupMenuItem(
                   value: 'block',
-                  child: Text(iBlocked ? 'Unblock user' : 'Block user'),
+                  child: Text(iBlocked ? tr('Unblock user') : tr('Block user')),
                 ),
               ],
             ),
@@ -409,7 +412,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : p == null
-              ? const Center(child: Text('Profile unavailable'))
+              ? Center(child: Text(tr('Profile unavailable')))
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
@@ -436,7 +439,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       Center(
                         child: Text(
                           profilePlace(p),
-                          style: const TextStyle(color: Colors.black54),
+                          style: const TextStyle(color: kMutedText),
                         ),
                       ),
                     const SizedBox(height: 16),
@@ -446,29 +449,29 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         child: Column(
                           children: [
                             _statRow(
-                              'Rating',
+                              tr('Rating'),
                               _asInt(p['rating_count']) > 0
-                                  ? '★ ${asDouble(p['avg_rating'])?.toStringAsFixed(1)} (${_asInt(p['rating_count'])} reviews)'
-                                  : 'No ratings yet',
+                                  ? tr('★ {avg} ({count} reviews)', {'avg': asDouble(p['avg_rating'])?.toStringAsFixed(1), 'count': _asInt(p['rating_count'])})
+                                  : tr('No ratings yet'),
                             ),
-                            _statRow('Completed transactions',
+                            _statRow(tr('Completed transactions'),
                                 '${_asInt(p['completed_count'])}'),
-                            _statRow('Trust score', '${_asInt(p['trust_score'])}'),
-                            _statRow('Member since', _memberSince(p['joined'])),
-                            _statRow('Verified',
-                                p['is_verified'] == true ? 'Yes' : 'Not yet'),
+                            _statRow(tr('Trust score'), '${_asInt(p['trust_score'])}'),
+                            _statRow(tr('Member since'), _memberSince(p['joined'])),
+                            _statRow(tr('Verified'),
+                                p['is_verified'] == true ? tr('Yes') : tr('Not yet')),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Reviews',
+                    Text(tr('Reviews'),
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
                     if (reviews.isEmpty)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('No reviews yet.',
+                        child: Text(tr('No reviews yet.'),
                             style: TextStyle(color: Colors.grey)),
                       )
                     else
@@ -528,20 +531,20 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Delete my account'),
+          title: Text(tr('Delete my account')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(tr(
                   'This cannot be undone.\n\n'
                   'Deleted: your profile, photos, listings, open requests, '
                   'notifications and blocks.\n\n'
                   'Kept for the other person: finished transactions, chats '
                   'and ratings (you will show as "UniBridge user").\n\n'
                   'Type DELETE to confirm.',
-                ),
+                )),
                 const SizedBox(height: 12),
                 TextField(
                   controller: confirmController,
@@ -555,14 +558,14 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(tr('Cancel')),
             ),
             TextButton(
               onPressed: confirmController.text.trim() == 'DELETE'
                   ? () => Navigator.of(context).pop(true)
                   : null,
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete forever'),
+              child: Text(tr('Delete forever')),
             ),
           ],
         ),
@@ -576,13 +579,13 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     } on FunctionException catch (e) {
       final details = e.details;
       final text = e.status == 409
-          ? 'Finish or resolve your open transactions first.'
-          : 'Could not delete account: '
-              '${details is Map ? details['error'] : details}';
+          ? tr('Finish or resolve your open transactions first.')
+          : tr('Could not delete account: {error}',
+              {'error': details is Map ? details['error'] : details});
       showDeleteError(text);
       return;
     } catch (e) {
-      showDeleteError('Could not delete account: $e');
+      showDeleteError(tr('Could not delete account: {error}', {'error': e}));
       return;
     }
 
@@ -598,7 +601,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       (route) => false,
     );
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Your account has been deleted.')),
+      SnackBar(content: Text(tr('Your account has been deleted.'))),
     );
   }
 
@@ -668,11 +671,11 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       await load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile saved.')),
+          SnackBar(content: Text(tr('Profile saved.'))),
         );
       }
     } catch (e) {
-      setState(() => errorMessage = 'Could not save: $e');
+      setState(() => errorMessage = tr('Could not save: {error}', {'error': e}));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -681,7 +684,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My profile')),
+      appBar: AppBar(title: Text(tr('My profile'))),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -699,12 +702,12 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Center(
-                  child: Text('Tap the picture to change it',
+                Center(
+                  child: Text(tr('Tap the picture to change it'),
                       style: TextStyle(fontSize: 12, color: Colors.grey)),
                 ),
                 const SizedBox(height: 20),
-                const Text('This is how others see you:',
+                Text(tr('This is how others see you:'),
                     style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Card(
@@ -714,23 +717,23 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Your name and student ID come from sign-up and can\'t be changed here. Your student ID is never shown to other users.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                Text(
+                  tr('Your name and student ID come from sign-up and can\'t be changed here. Your student ID is never shown to other users.'),
+                  style: TextStyle(fontSize: 12, color: kMutedText),
                 ),
                 const SizedBox(height: 20),
                 TextField(
                   controller: wilayaController,
-                  decoration: const InputDecoration(
-                    labelText: 'Wilaya',
-                    hintText: 'e.g. Annaba',
+                  decoration: InputDecoration(
+                    labelText: tr('Wilaya'),
+                    hintText: tr('e.g. Annaba'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: locationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Location (city / area)',
+                  decoration: InputDecoration(
+                    labelText: tr('Location (city / area)'),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -750,7 +753,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                           );
                         },
                   icon: const Icon(Icons.verified_outlined),
-                  label: const Text('Get verified'),
+                  label: Text(tr('Get verified')),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -763,7 +766,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                           );
                         },
                   icon: const Icon(Icons.block),
-                  label: const Text('Blocked users'),
+                  label: Text(tr('Blocked users')),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -773,27 +776,29 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                     );
                   },
                   icon: const Icon(Icons.description_outlined),
-                  label: const Text('Terms and privacy'),
+                  label: Text(tr('Terms and privacy')),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: saving ? null : save,
-                  child: Text(saving ? 'Saving...' : 'Save'),
+                  child: Text(saving ? tr('Saving...') : tr('Save')),
                 ),
+                const SizedBox(height: 24),
+                const SettingsSection(),
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: (saving || deleting)
                       ? null
                       : () => confirmAndLogOut(context),
                   icon: const Icon(Icons.logout),
-                  label: const Text('Log out'),
+                  label: Text(tr('Log out')),
                 ),
                 const SizedBox(height: 16),
                 TextButton.icon(
                   onPressed: (saving || deleting) ? null : deleteAccount,
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                   icon: const Icon(Icons.delete_forever),
-                  label: Text(deleting ? 'Deleting...' : 'Delete my account'),
+                  label: Text(deleting ? tr('Deleting...') : tr('Delete my account')),
                 ),
               ],
             ),
@@ -840,7 +845,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
       if (!mounted) return;
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load blocked users: $e')),
+        SnackBar(content: Text(tr('Could not load blocked users: {error}', {'error': e}))),
       );
     }
   }
@@ -856,7 +861,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
         );
       }
     }
@@ -865,11 +870,11 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Blocked users')),
+      appBar: AppBar(title: Text(tr('Blocked users'))),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : blockedIds.isEmpty
-              ? const Center(child: Text('You have not blocked anyone.'))
+              ? Center(child: Text(tr('You have not blocked anyone.')))
               : ListView.builder(
                   itemCount: blockedIds.length,
                   itemBuilder: (context, index) {
@@ -877,10 +882,10 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                     final p = profiles[id];
                     return ListTile(
                       leading: avatar(p),
-                      title: Text(p == null ? 'UniBridge user' : publicDisplayName(p)),
+                      title: Text(p == null ? tr('UniBridge user') : publicDisplayName(p)),
                       trailing: TextButton(
                         onPressed: () => unblock(id),
-                        child: const Text('Unblock'),
+                        child: Text(tr('Unblock')),
                       ),
                     );
                   },

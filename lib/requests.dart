@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'config.dart';
 import 'profiles.dart';
 import 'chat.dart';
+import 'l10n.dart';
 
 // ---------------- My requests (mine + matched) ----------------
 
@@ -28,7 +29,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       final amount = double.tryParse(amountController.text.trim());
       if (amount == null || amount <= 0) {
         setState(() {
-          errorMessage = 'Enter a valid amount';
+          errorMessage = tr('Enter a valid amount');
           loading = false;
         });
         return;
@@ -41,7 +42,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       });
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => errorMessage = 'Something went wrong: $e');
+      setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -50,20 +51,20 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('New request')),
+      appBar: AppBar(title: Text(tr('New request'))),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: ListView(
           children: [
-            const Text('What do you want to do?'),
+            Text(tr('What do you want to do?')),
             RadioListTile<String>(
-              title: const Text('I want to SEND money'),
+              title: Text(tr('I want to SEND money')),
               value: 'SEND',
               groupValue: type,
               onChanged: (v) => setState(() => type = v!),
             ),
             RadioListTile<String>(
-              title: const Text('I want to RECEIVE money'),
+              title: Text(tr('I want to RECEIVE money')),
               value: 'RECEIVE',
               groupValue: type,
               onChanged: (v) => setState(() => type = v!),
@@ -71,13 +72,13 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: amountController,
-              decoration: const InputDecoration(labelText: 'Amount'),
+              decoration: InputDecoration(labelText: tr('Amount')),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: currency,
-              decoration: const InputDecoration(labelText: 'Currency'),
+              decoration: InputDecoration(labelText: tr('Currency')),
               items: ['USD', 'EUR'].map((c) {
                 return DropdownMenuItem(value: c, child: Text(c));
               }).toList(),
@@ -92,7 +93,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
               ),
             ElevatedButton(
               onPressed: loading ? null : submit,
-              child: Text(loading ? 'Please wait...' : 'Post request'),
+              child: Text(loading ? tr('Please wait...') : tr('Post request')),
             ),
           ],
         ),
@@ -143,16 +144,16 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   Widget build(BuildContext context) {
     final myId = supabase.auth.currentUser!.id;
     return Scaffold(
-      appBar: AppBar(title: const Text('My requests')),
+      appBar: AppBar(title: Text(tr('My requests'))),
       body: RefreshIndicator(
         onRefresh: load,
         child: loading
             ? const Center(child: CircularProgressIndicator())
             : myRequests.isEmpty
                 ? ListView(
-                    children: const [
+                    children: [
                       SizedBox(height: 100),
-                      Center(child: Text('You have no requests yet.')),
+                      Center(child: Text(tr('You have no requests yet.'))),
                     ],
                   )
                 : ListView.builder(
@@ -166,11 +167,11 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                             horizontal: 16, vertical: 8),
                         child: ListTile(
                           title: Text(
-                              '${r['type']} • ${r['amount']} ${r['currency']}'),
+                              '${typeLabel(r['type'])} • ${r['amount']} ${r['currency']}'),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Status: $status'),
+                              Text(tr('Status: {status}', {'status': statusLabel(status)})),
                               const SizedBox(height: 6),
                               if (otherId != null)
                                 ProfileSummary(
@@ -178,14 +179,14 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                                   tappable: false,
                                 )
                               else if (status == 'CANCELLED')
-                                const Text(
-                                  'Cancelled',
+                                Text(
+                                  tr('Cancelled'),
                                   style: TextStyle(
                                       color: Colors.grey, fontSize: 12),
                                 )
                               else
-                                const Text(
-                                  'Waiting for someone to match',
+                                Text(
+                                  tr('Waiting for someone to match'),
                                   style: TextStyle(
                                       color: Colors.grey, fontSize: 12),
                                 ),
@@ -194,7 +195,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                           trailing: status == 'OPEN'
                               ? IconButton(
                                   icon: const Icon(Icons.cancel_outlined),
-                                  tooltip: 'Cancel request',
+                                  tooltip: tr('Cancel request'),
                                   onPressed: () async {
                                     await cancelMyRequest(context, r['id']);
                                     load();
@@ -227,16 +228,16 @@ Future<void> cancelMyRequest(BuildContext context, String requestId) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Cancel this request?'),
-      content: const Text('It will no longer be visible to other users.'),
+      title: Text(tr('Cancel this request?')),
+      content: Text(tr('It will no longer be visible to other users.')),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Keep it'),
+          child: Text(tr('Keep it')),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Cancel request'),
+          child: Text(tr('Cancel request')),
         ),
       ],
     ),
@@ -247,13 +248,13 @@ Future<void> cancelMyRequest(BuildContext context, String requestId) async {
     await supabase.rpc('cancel_request', params: {'p_request_id': requestId});
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request cancelled.')),
+        SnackBar(content: Text(tr('Request cancelled.'))),
       );
     }
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not cancel: $e')),
+        SnackBar(content: Text(tr('Could not cancel: {error}', {'error': e}))),
       );
     }
   }

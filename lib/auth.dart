@@ -6,6 +6,7 @@ import 'config.dart';
 import 'push.dart';
 import 'home.dart';
 import 'legal.dart';
+import 'l10n.dart';
 
 bool _googleSignInInitialized = false;
 
@@ -59,7 +60,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } on AuthException catch (e) {
       setState(() => errorMessage = e.message);
     } catch (e) {
-      setState(() => errorMessage = 'Something went wrong: $e');
+      setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
     } finally {
       setState(() => loading = false);
     }
@@ -99,7 +100,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } catch (e) {
-      setState(() => errorMessage = 'Google sign-in failed: $e');
+      setState(() => errorMessage = tr('Google sign-in failed: {error}', {'error': e}));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -108,7 +109,10 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(isSignUp ? 'Create account' : 'Log in')),
+      appBar: AppBar(
+        title: Text(isSignUp ? tr('Create account') : tr('Log in')),
+        actions: [LanguageMenuButton(onChanged: () => setState(() {}))],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: ListView(
@@ -116,25 +120,25 @@ class _AuthScreenState extends State<AuthScreen> {
             if (isSignUp) ...[
               TextField(
                 controller: fullNameController,
-                decoration: const InputDecoration(labelText: 'Full name'),
+                decoration: InputDecoration(labelText: tr('Full name')),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: inscriptionController,
                 decoration:
-                    const InputDecoration(labelText: 'Inscription number'),
+                    InputDecoration(labelText: tr('Inscription number')),
               ),
               const SizedBox(height: 12),
             ],
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(labelText: tr('Email')),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: InputDecoration(labelText: tr('Password')),
               obscureText: true,
             ),
             const SizedBox(height: 20),
@@ -147,22 +151,22 @@ class _AuthScreenState extends State<AuthScreen> {
             ElevatedButton(
               onPressed: loading ? null : submit,
               child: Text(loading
-                  ? 'Please wait...'
-                  : (isSignUp ? 'Sign up' : 'Log in')),
+                  ? tr('Please wait...')
+                  : (isSignUp ? tr('Sign up') : tr('Log in'))),
             ),
             TextButton(
               onPressed: () => setState(() => isSignUp = !isSignUp),
               child: Text(isSignUp
-                  ? 'Already have an account? Log in'
-                  : 'New here? Create an account'),
+                  ? tr('Already have an account? Log in')
+                  : tr('New here? Create an account')),
             ),
             const SizedBox(height: 20),
-            const Row(
+            Row(
               children: [
                 Expanded(child: Divider()),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('OR'),
+                  child: Text(tr('OR')),
                 ),
                 Expanded(child: Divider()),
               ],
@@ -171,11 +175,11 @@ class _AuthScreenState extends State<AuthScreen> {
             OutlinedButton.icon(
               onPressed: loading ? null : signInWithGoogle,
               icon: const Icon(Icons.login),
-              label: const Text('Continue with Google'),
+              label: Text(tr('Continue with Google')),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'By continuing, you agree to our Terms of use and Privacy policy.',
+            Text(
+              tr('By continuing, you agree to our Terms of use and Privacy policy.'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12),
             ),
@@ -186,14 +190,14 @@ class _AuthScreenState extends State<AuthScreen> {
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const LegalScreen()),
                   ),
-                  child: const Text('Terms of use'),
+                  child: Text(tr('Terms of use')),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                         builder: (_) => const LegalScreen(initialTab: 1)),
                   ),
-                  child: const Text('Privacy policy'),
+                  child: Text(tr('Privacy policy')),
                 ),
               ],
             ),
@@ -210,16 +214,16 @@ Future<void> confirmAndLogOut(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Log out?'),
-      content: const Text('Are you sure you want to log out?'),
+      title: Text(tr('Log out?')),
+      content: Text(tr('Are you sure you want to log out?')),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Cancel'),
+          child: Text(tr('Cancel')),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Log out'),
+          child: Text(tr('Log out')),
         ),
       ],
     ),

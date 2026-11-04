@@ -12,7 +12,7 @@
 - [x] Terms and privacy screen
 - [x] Fingerprint or face unlock
 - [x] Request filters: type, currency, wilaya
-- [ ] Languages (Arabic, French, English) and dark mode
+- [x] Languages (Arabic, French, English) and dark mode
 - [x] Redesign: bottom navigation (Requests, Marketplace, Rates, Profile), logout moved into Profile
 - [ ] Release preparation: app name and ID, icon, signing, Play Store listing
 

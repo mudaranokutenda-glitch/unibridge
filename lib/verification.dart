@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'profiles.dart';
+import 'l10n.dart';
 
 // ---------------- Student verification request ----------------
 
@@ -49,7 +50,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        errorMessage = 'Could not load: $e';
+        errorMessage = tr('Could not load: {error}', {'error': e});
         loading = false;
       });
     }
@@ -68,7 +69,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
   Future<void> submit() async {
     if (cardBytes == null) {
-      setState(() => errorMessage = 'Choose a photo of your student card first');
+      setState(() => errorMessage = tr('Choose a photo of your student card first'));
       return;
     }
     setState(() {
@@ -90,7 +91,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       cardBytes = null;
       await load();
     } catch (e) {
-      setState(() => errorMessage = 'Could not send: $e');
+      setState(() => errorMessage = tr('Could not send: {error}', {'error': e}));
     } finally {
       if (mounted) setState(() => submitting = false);
     }
@@ -110,14 +111,14 @@ class _VerificationScreenState extends State<VerificationScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Icon(Icons.verified, size: 64, color: Colors.blue),
               SizedBox(height: 12),
-              Text('You are verified',
+              Text(tr('You are verified'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               SizedBox(height: 8),
               Text(
-                'Other users can see the blue tick next to your name.',
+                tr('Other users can see the blue tick next to your name.'),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -133,15 +134,15 @@ class _VerificationScreenState extends State<VerificationScreen> {
             children: [
               const Icon(Icons.hourglass_top, size: 64, color: Colors.orange),
               const SizedBox(height: 12),
-              const Text('Under review',
+              Text(tr('Under review'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text(
-                'We received your student card and will check it soon. You will see a blue tick here once it is approved.',
+              Text(
+                tr('We received your student card and will check it soon. You will see a blue tick here once it is approved.'),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              TextButton(onPressed: load, child: const Text('Check again')),
+              TextButton(onPressed: load, child: Text(tr('Check again'))),
             ],
           ),
         ),
@@ -152,24 +153,24 @@ class _VerificationScreenState extends State<VerificationScreen> {
         children: [
           if (status == 'REJECTED')
             Card(
-              color: Colors.red.shade50,
+              color: Theme.of(context).colorScheme.errorContainer,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Text(
                   note.isEmpty
-                      ? 'Your last request was not approved. You can send a new photo.'
-                      : 'Your last request was not approved: $note',
+                      ? tr('Your last request was not approved. You can send a new photo.')
+                      : tr('Your last request was not approved: {note}', {'note': note}),
                 ),
               ),
             ),
-          const Text(
-            'A blue tick tells other students that we checked your student card.',
+          Text(
+            tr('A blue tick tells other students that we checked your student card.'),
             style: TextStyle(fontSize: 16),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Send a clear photo of your student card. Your name and student number must be readable and must match your account. Only the UniBridge team can view this photo. It is used for this check and is never shown to other users.',
-            style: TextStyle(fontSize: 13, color: Colors.black54),
+          Text(
+            tr('Send a clear photo of your student card. Your name and student number must be readable and must match your account. Only the UniBridge team can view this photo. It is used for this check and is never shown to other users.'),
+            style: TextStyle(fontSize: 13, color: kMutedText),
           ),
           const SizedBox(height: 16),
           GestureDetector(
@@ -177,7 +178,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
             child: Container(
               height: 190,
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: kPlaceholderBg,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: cardBytes != null
@@ -185,13 +186,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: Image.memory(cardBytes!, fit: BoxFit.cover),
                     )
-                  : const Center(
+                  : Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.badge_outlined, size: 40),
                           SizedBox(height: 6),
-                          Text('Tap to choose a photo of your student card'),
+                          Text(tr('Tap to choose a photo of your student card')),
                         ],
                       ),
                     ),
@@ -206,14 +207,14 @@ class _VerificationScreenState extends State<VerificationScreen> {
             ),
           ElevatedButton(
             onPressed: submitting ? null : submit,
-            child: Text(submitting ? 'Sending...' : 'Send for review'),
+            child: Text(submitting ? tr('Sending...') : tr('Send for review')),
           ),
         ],
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Get verified')),
+      appBar: AppBar(title: Text(tr('Get verified'))),
       body: body,
     );
   }

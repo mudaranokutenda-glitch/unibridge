@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'config.dart';
 import 'requests.dart';
 import 'rates.dart';
+import 'l10n.dart';
 
 // ---------------- Notifications (bell + inbox) ----------------
 
@@ -48,7 +49,7 @@ class _NotificationBellState extends State<NotificationBell> {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Notifications',
+      tooltip: tr('Notifications'),
       icon: Badge(
         label: Text(unread > 9 ? '9+' : '$unread'),
         isLabelVisible: unread > 0,
@@ -129,16 +130,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(title: Text(tr('Notifications'))),
       body: RefreshIndicator(
         onRefresh: load,
         child: loading
             ? const Center(child: CircularProgressIndicator())
             : items.isEmpty
                 ? ListView(
-                    children: const [
+                    children: [
                       SizedBox(height: 100),
-                      Center(child: Text('No notifications yet.')),
+                      Center(child: Text(tr('No notifications yet.'))),
                     ],
                   )
                 : ListView.separated(
