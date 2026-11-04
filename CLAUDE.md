@@ -30,3 +30,15 @@ Storage buckets: listings (public photos), verification (private student cards, 
 - One feature per change. Show a short plan first for anything bigger than a few lines.
 - Harmless known issues: VS Code errors inside supabase/functions/**/index.ts (that is Deno code), and test/widget_test.dart (old sample).
 messages columns: id, request_id, sender_id, type (enum message_type: TEXT, IMAGE, DOCUMENT, LOCATION, CONTACT, QUICK_REPLY, SYSTEM), content, attachment_url, created_at.
+
+## Roles and sensitive data
+- profiles.role is 'student' (default), 'rep', 'attache' or 'admin'. A rep also has profiles.rep_wilaya. Only the owner changes them, in SQL. A user must never be able to update their own role or rep_wilaya.
+- The staff are the Educational Attaché of Zimbabwe (role attache), the wilaya representatives (role rep) and the owner (role admin). The attaché's office is in the embassy, but this is not an embassy app.
+- Security is enforced in the database rules (RLS). Hiding a button in the app is not security.
+- Student results, passports and attestations are private files in private buckets. A student sees only their own. attache and admin see all. A rep sees student records and results only for their own wilaya, never passports or attestations. Nobody else.
+- Never make those buckets public. Never put file paths or signed links in notifications, logs or chat.
+- Signed links last at most 1 hour.
+- Deleting rows from storage.objects with SQL does not delete the file. Delete files with the Storage API from an Edge Function.
+- Wilaya is always chosen from the fixed list of 58, never typed.
+- A student's inscription number and phone are never shown to other students.
+- For every new table or bucket, show me the security rules and a test checklist (what a second student must NOT be able to do) before I run the SQL.
