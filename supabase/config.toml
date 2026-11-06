@@ -430,3 +430,23 @@ entrypoint = "./functions/push-notification/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/push-notification/*.html" ]
+
+[functions.staff-documents]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-documents/deno.json"
+entrypoint = "./functions/staff-documents/index.ts"
+
+[functions.staff-reports]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-reports/deno.json"
+entrypoint = "./functions/staff-reports/index.ts"
+
+# Called by the database every night with x-cron-secret (no user login),
+# so the gateway must not ask for a user token. The function checks the secret.
+[functions.purge-passports]
+enabled = true
+verify_jwt = false
+import_map = "./functions/purge-passports/deno.json"
+entrypoint = "./functions/purge-passports/index.ts"

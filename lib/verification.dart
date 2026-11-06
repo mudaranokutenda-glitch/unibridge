@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'profiles.dart';
+import 'consent.dart';
 import 'l10n.dart';
 
 // ---------------- Student verification request ----------------
@@ -72,6 +73,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       setState(() => errorMessage = tr('Choose a photo of your student card first'));
       return;
     }
+    if (!await ensureDocumentConsent(context)) return;
     setState(() {
       submitting = true;
       errorMessage = null;

@@ -7,6 +7,10 @@ import 'config.dart';
 import 'verification.dart';
 import 'auth.dart';
 import 'legal.dart';
+import 'roles.dart';
+import 'staff.dart';
+import 'student_space.dart';
+import 'wilayas.dart';
 import 'l10n.dart';
 
 // ---------------- Public profile helpers ----------------
@@ -506,9 +510,10 @@ class EditMyProfileScreen extends StatefulWidget {
 }
 
 class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
-  final wilayaController = TextEditingController();
+  String? wilaya; // one of the 58, or null = not chosen
   final locationController = TextEditingController();
   Map<String, dynamic>? me;
+  MyRole role = MyRole.student;
   Uint8List? newPhotoBytes;
   bool loading = true;
   bool saving = false;
@@ -539,10 +544,13 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
               children: [
                 Text(tr(
                   'This cannot be undone.\n\n'
-                  'Deleted: your profile, photos, listings, open requests, '
-                  'notifications and blocks.\n\n'
-                  'Kept for the other person: finished transactions, chats '
-                  'and ratings (you will show as "UniBridge user").\n\n'
+                  'Deleted: your profile, all your photos and files (also '
+                  'the photos you sent in chats, your results, passport and '
+                  'attestations), your student record, listings, open '
+                  'requests, notifications and blocks.\n\n'
+                  'Kept for the other person: finished transactions, chat '
+                  'text messages and ratings (you will show as "UniBridge '
+                  'user").\n\n'
                   'Type DELETE to confirm.',
                 )),
                 const SizedBox(height: 12),
@@ -615,11 +623,12 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     final myId = supabase.auth.currentUser!.id;
     final profiles = await fetchPublicProfiles([myId]);
     final p = profiles[myId];
+    final loadedRole = await loadMyRole();
     if (!mounted) return;
     setState(() {
       me = p;
-      final wilaya = (p?['wilaya'] ?? '').toString();
-      wilayaController.text = wilaya == 'OTHER' ? '' : wilaya;
+      role = loadedRole;
+      wilaya = validWilaya(p?['wilaya']);
       locationController.text = (p?['location'] ?? '').toString();
       loading = false;
     });
@@ -645,9 +654,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     try {
       final myId = supabase.auth.currentUser!.id;
       final updates = <String, dynamic>{
-        'wilaya': wilayaController.text.trim().isEmpty
-            ? 'OTHER'
-            : wilayaController.text.trim(),
+        'wilaya': wilaya ?? 'OTHER',
         'location': locationController.text.trim().isEmpty
             ? null
             : locationController.text.trim(),
@@ -722,12 +729,9 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   style: TextStyle(fontSize: 12, color: kMutedText),
                 ),
                 const SizedBox(height: 20),
-                TextField(
-                  controller: wilayaController,
-                  decoration: InputDecoration(
-                    labelText: tr('Wilaya'),
-                    hintText: tr('e.g. Annaba'),
-                  ),
+                WilayaDropdown(
+                  value: wilaya,
+                  onChanged: saving ? null : (v) => setState(() => wilaya = v),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -743,7 +747,20 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                     child: Text(errorMessage!,
                         style: const TextStyle(color: Colors.red)),
                   ),
-                                  OutlinedButton.icon(
+                OutlinedButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const StudentSpaceScreen()),
+                          );
+                        },
+                  icon: const Icon(Icons.school_outlined),
+                  label: Text(tr('Student space')),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
                   onPressed: saving
                       ? null
                       : () {
@@ -783,6 +800,10 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   onPressed: saving ? null : save,
                   child: Text(saving ? tr('Saving...') : tr('Save')),
                 ),
+                if (role.canSeeStudents) ...[
+                  const SizedBox(height: 24),
+                  StaffSection(role: role),
+                ],
                 const SizedBox(height: 24),
                 const SettingsSection(),
                 const SizedBox(height: 24),

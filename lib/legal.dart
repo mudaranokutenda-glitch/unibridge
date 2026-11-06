@@ -5,7 +5,7 @@ import 'l10n.dart';
 // A template written for this app. Have it checked before release.
 
 const String kContactEmail = 'mudaranokutenda@gmail.com';
-const String kLegalLastUpdated = '4 November 2026';
+const String kLegalLastUpdated = '5 November 2026';
 
 const List<(String, String)> kTermsSections = [
   (
@@ -63,6 +63,9 @@ const List<(String, String)> kPrivacySections = [
         '• Profile: wilaya, location you type, profile photo.\n'
         '• Verification (optional): photo of your student card. Only you '
         'and the UniBridge team can see it.\n'
+        '• Student space (optional): your student record (program, level, '
+        'years, wilaya, phone, inscription number), your results (PDF), and '
+        'your passport scan when you ask for an attestation de bourse.\n'
         '• Activity: your requests, chats (text, photos, and a location only '
         'when you choose to share it), listings, ratings, reports and blocks.\n'
         '• Device: a notification token so we can send you push '
@@ -73,6 +76,16 @@ const List<(String, String)> kPrivacySections = [
     'Your name, profile photo, wilaya, location, verification badge, rating '
         'and member-since date. Your email, inscription number and student '
         'card are never shown to other users.',
+  ),
+  (
+    'Who sees your student documents',
+    'The Educational Attaché of Zimbabwe sees everything in your student '
+        'space. The representative of your wilaya sees your student record '
+        'and results only, never your passport or attestation. The app '
+        'administrator can technically access all files in storage. Other '
+        'students see none of it. Every time staff open your passport or '
+        'results, it is recorded. You are asked for consent before your '
+        'first upload, and the date is saved.',
   ),
   (
     'Why we use it',
@@ -94,11 +107,15 @@ const List<(String, String)> kPrivacySections = [
   ),
   (
     'How long we keep it',
-    'Until you delete your account. When you delete it, your profile, '
-        'photos, listings, open requests and notifications are deleted. '
-        'Finished exchanges, chats and ratings stay for the other person, '
-        'shown as "UniBridge user", because they may be needed to solve '
-        'disputes. Reports about an account may be kept for safety.',
+    'Until you delete your account. Your passport scan is deleted after '
+        'your attestation is issued. When you delete your account, your '
+        'profile, all your photos and files (also chat photos, results, '
+        'passport and attestations), student record, listings, open requests '
+        'and notifications are deleted. Finished exchanges, chat text '
+        'messages and ratings stay for the other person, shown as "UniBridge '
+        'user", because they may be needed to solve disputes. Reports about '
+        'an account and the record of who opened student documents may be '
+        'kept for safety.',
   ),
   (
     'Your rights',

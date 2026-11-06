@@ -8,6 +8,7 @@ import 'marketplace.dart';
 import 'chat.dart';
 import 'rates.dart';
 import 'notifications.dart';
+import 'posters.dart';
 import 'l10n.dart';
 
 // ---------------- Home: bottom navigation with 4 tabs ----------------
@@ -262,6 +263,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
       ),
       body: Column(
         children: [
+          const PosterCarousel(),
           if (!loading && requests.isNotEmpty) filterBar(),
           Expanded(child: requestList()),
         ],

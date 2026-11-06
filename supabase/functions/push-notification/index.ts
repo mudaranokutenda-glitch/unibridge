@@ -12,6 +12,7 @@ const TITLES: Record<string, string> = {
   TRANSACTION_COMPLETED: "Transaction complete",
   DISPUTE_OPENED: "Dispute opened",
   VERIFIED_BADGE_AWARDED: "You are verified",
+  ATTESTATION_UPDATE: "Attestation de bourse",
 };
 
 function json(body: unknown, status = 200) {

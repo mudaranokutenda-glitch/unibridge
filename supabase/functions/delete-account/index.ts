@@ -4,8 +4,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // Deletes the account of the person who calls it (never anyone else).
 // Needs sql/2026-11-04-delete-account.sql to be run first.
 //
-// Kept for the other person: finished transactions, chat messages,
-// chat photos and ratings (the deleted user shows as "UniBridge user").
+// Kept for the other person: finished transactions, chat text messages
+// and ratings (the deleted user shows as "UniBridge user").
+// Deleted: every file of the user in every bucket (see step 4).
+//
+// RULE: when a new bucket or a table with personal data is added, add it
+// here too (files in step 4; rows through ON DELETE CASCADE in the SQL).
 
 const ACTIVE_STATUSES = ["MATCHED", "SENDER_DONE", "RECEIVER_DONE", "DISPUTED"];
 
@@ -30,6 +34,27 @@ async function listFiles(admin, bucket: string, folder: string, prefix: string) 
       if (f.id && f.name.startsWith(prefix)) {
         paths.push(folder ? `${folder}/${f.name}` : f.name);
       }
+    }
+    if (!data || data.length < pageSize) break;
+  }
+  return paths;
+}
+
+// Lists every file inside a folder and all its sub-folders.
+async function listAllFiles(admin, bucket: string, folder: string) {
+  const paths: string[] = [];
+  const pageSize = 100;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await admin.storage
+      .from(bucket)
+      .list(folder, { limit: pageSize, offset });
+    // A bucket whose SQL file was not run yet simply has no files.
+    if (error && /not found/i.test(error.message)) return paths;
+    if (error) throw new Error(`Could not list ${bucket}/${folder}: ${error.message}`);
+    for (const f of data ?? []) {
+      const path = `${folder}/${f.name}`;
+      if (f.id) paths.push(path);
+      else paths.push(...await listAllFiles(admin, bucket, path));
     }
     if (!data || data.length < pageSize) break;
   }
@@ -79,18 +104,46 @@ Deno.serve(async (req) => {
       .eq("status", "OPEN");
     if (cancelErr) return json({ error: cancelErr.message }, 500);
 
-    // 4. Delete my files (listing photos, profile photos, student cards).
-    //    Chat photos stay with the chat for the other person.
+    // 4. Delete ALL my files.
+    //    listings: marketplace photos and profile photos
     const listingPhotos = await listFiles(admin, "listings", "", `${userId}_`);
     const avatarPhotos = await listFiles(admin, "listings", "avatars", `${userId}_`);
     await removeFiles(admin, "listings", [...listingPhotos, ...avatarPhotos]);
 
-    const cardPhotos = await listFiles(admin, "verification", userId, "");
-    await removeFiles(admin, "verification", cardPhotos);
+    //    Private buckets where everything of mine is in the folder <my id>/
+    for (const bucket of [
+      "verification",      // student cards
+      "academic-results",  // results PDFs (<id>/<year>/<file>)
+      "passports",         // passport scans
+      "attestations",      // issued attestations
+      "compiled-results",  // PDFs / CSV I built as staff
+    ]) {
+      await removeFiles(admin, bucket, await listAllFiles(admin, bucket, userId));
+    }
+
+    //    chat-photos: the photos I sent are in <request id>/<my id>_...
+    //    The message stays, but shows "Photo removed" to the other person.
+    const { data: myChats, error: chatsErr } = await admin
+      .from("transaction_requests")
+      .select("id")
+      .or(`creator_id.eq.${userId},matched_with_id.eq.${userId}`);
+    if (chatsErr) return json({ error: chatsErr.message }, 500);
+    for (const chat of myChats ?? []) {
+      const photos = await listFiles(admin, "chat-photos", chat.id, `${userId}_`);
+      await removeFiles(admin, "chat-photos", photos);
+    }
+    const { error: msgErr } = await admin
+      .from("messages")
+      .update({ attachment_url: null, content: "Photo removed" })
+      .eq("sender_id", userId)
+      .eq("type", "IMAGE");
+    if (msgErr) return json({ error: msgErr.message }, 500);
 
     // 5. Delete the login. The database removes the profile, listings,
-    //    notifications, blocks and verification requests by itself and
-    //    empties my id in shared history (see the SQL file).
+    //    notifications, blocks, verification requests, student record,
+    //    results rows, attestation requests and consents by itself and
+    //    empties my id in shared history (see the SQL files).
+    //    The access log keeps its rows (nobody can delete them).
     const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
     if (deleteErr) return json({ error: deleteErr.message }, 500);
 

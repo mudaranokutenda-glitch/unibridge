@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'config.dart';
 import 'requests.dart';
 import 'rates.dart';
+import 'student_space.dart';
 import 'l10n.dart';
 
 // ---------------- Notifications (bell + inbox) ----------------
@@ -77,6 +78,8 @@ IconData _notificationIcon(String type) {
       return Icons.report_problem_outlined;
     case 'VERIFIED_BADGE_AWARDED':
       return Icons.verified_outlined;
+    case 'ATTESTATION_UPDATE':
+      return Icons.workspace_premium_outlined;
     default:
       return Icons.notifications_none;
   }
@@ -166,7 +169,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (_) => const MyRequestsScreen()),
+                                builder: (_) => n['type'] == 'ATTESTATION_UPDATE'
+                                    ? const AttestationScreen()
+                                    : const MyRequestsScreen()),
                           );
                         },
                       );

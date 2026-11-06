@@ -42,3 +42,4 @@ messages columns: id, request_id, sender_id, type (enum message_type: TEXT, IMAG
 - Wilaya is always chosen from the fixed list of 58, never typed.
 - A student's inscription number and phone are never shown to other students.
 - For every new table or bucket, show me the security rules and a test checklist (what a second student must NOT be able to do) before I run the SQL.
+- Whenever a new bucket or a table with personal data is added, also update the delete-account function so it removes that user's files and rows.
