@@ -751,6 +751,23 @@ class _AttestationScreenState extends State<AttestationScreen> {
 
   Future<void> ask() async {
     if (!await ensureDocumentConsent(context)) return;
+    if (!mounted) return;
+    // 1. The date of entry into Algeria (required).
+    final now = DateTime.now();
+    final entry = await showDatePicker(
+      context: context,
+      helpText: tr('Date of entry into Algeria'),
+      initialDate: now,
+      firstDate: DateTime(1990),
+      lastDate: now,
+    );
+    if (entry == null || !mounted) {
+      if (mounted) {
+        showSnack(context, tr('The date of entry into Algeria is required.'));
+      }
+      return;
+    }
+    // 2. The passport scan (required).
     final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
@@ -776,9 +793,11 @@ class _AttestationScreenState extends State<AttestationScreen> {
             await file.readAsBytes(),
             fileOptions: FileOptions(contentType: contentTypeFor(ext)),
           );
+      String two(int n) => n.toString().padLeft(2, '0');
       await supabase.from('attestation_requests').insert({
         'user_id': myId,
         'passport_path': path,
+        'entry_date': '${entry.year}-${two(entry.month)}-${two(entry.day)}',
       });
       await load();
       if (mounted) showSnack(context, tr('Request sent.'));
@@ -803,7 +822,7 @@ class _AttestationScreenState extends State<AttestationScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(tr(
-                      'Send a clear scan or photo of your passport (photo page). The educational attaché checks it and issues your attestation here. Your passport scan is deleted after the attestation is issued.')),
+                      'You need two things: the date you entered Algeria, and a clear scan or photo of your passport (photo page). The Educational Attaché checks it and issues your attestation here. Your passport scan is deleted after the attestation is issued.')),
                   const SizedBox(height: 12),
                   ElevatedButton.icon(
                     onPressed: sending || hasOpenRequest ? null : ask,

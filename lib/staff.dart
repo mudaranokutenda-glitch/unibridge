@@ -339,6 +339,7 @@ class _AttestationReviewScreenState extends State<AttestationReviewScreen> {
                 fontWeight: FontWeight.w600),
           ),
           Text('${tr('Sent on')}: ${shortDate(r['created_at'])}'),
+          Text('${tr('Date of entry into Algeria')}: ${r['entry_date'] == null ? '—' : shortDate(r['entry_date'])}'),
           if ((r['note'] ?? '').toString().isNotEmpty)
             Text(tr('Note: {note}', {'note': r['note']})),
           const SizedBox(height: 16),

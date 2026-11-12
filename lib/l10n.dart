@@ -668,4 +668,10 @@ const Map<String, String> _t = {
       'Police, banque, bourse, médical',
   'Frequently asked questions':
       'Questions fréquentes',
+  'Date of entry into Algeria':
+      'Date d\'entrée en Algérie',
+  'The date of entry into Algeria is required.':
+      'La date d\'entrée en Algérie est obligatoire.',
+  'You need two things: the date you entered Algeria, and a clear scan or photo of your passport (photo page). The Educational Attaché checks it and issues your attestation here. Your passport scan is deleted after the attestation is issued.':
+      'Il vous faut deux choses : la date de votre entrée en Algérie et un scan ou une photo nette de votre passeport (page photo). L\'Attaché d\'éducation le vérifie et délivre votre attestation ici. Le scan de votre passeport est supprimé après la délivrance de l\'attestation.',
 };
