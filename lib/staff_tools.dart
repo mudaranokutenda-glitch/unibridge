@@ -348,11 +348,30 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   final message = TextEditingController();
   bool sending = false;
 
-  Future<void> send() async {
+  // test: true sends only to my own phone (nothing is saved, no dialog).
+  Future<void> send({bool test = false}) async {
     final t = title.text.trim();
     final m = message.text.trim();
     if (t.isEmpty || m.isEmpty) {
       showSnack(context, tr('Write a title and a message.'));
+      return;
+    }
+    if (test) {
+      setState(() => sending = true);
+      try {
+        final res = await callFunction(
+            'emergency-alert', {'title': t, 'message': m, 'test': true});
+        if (!mounted) return;
+        showSnack(
+            context,
+            (res['sent'] ?? 0) == 1
+                ? tr('Test sent to your phone only.')
+                : tr('The test could not be sent to your phone.'));
+      } catch (e) {
+        if (mounted) showSnack(context, tr('Could not send: {error}', {'error': e}));
+      } finally {
+        if (mounted) setState(() => sending = false);
+      }
       return;
     }
     final ok = await confirmDialog(
@@ -365,7 +384,12 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     try {
       final res = await callFunction('emergency-alert', {'title': t, 'message': m});
       if (!mounted) return;
-      showSnack(context, tr('Alert sent to {count} phones.', {'count': res['sent'] ?? 0}));
+      if (res['ok'] == false) {
+        // Some phones were not reached: show the warning from the server.
+        showSnack(context, '${res['warning'] ?? tr('The alert was not sent to every phone.')}');
+      } else {
+        showSnack(context, tr('Alert sent to {count} phones.', {'count': res['sent'] ?? 0}));
+      }
       title.clear();
       message.clear();
     } catch (e) {
@@ -410,9 +434,15 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
           FilledButton.icon(
             style: FilledButton.styleFrom(
                 backgroundColor: scheme.error, foregroundColor: scheme.onError),
-            onPressed: sending ? null : send,
+            onPressed: sending ? null : () => send(),
             icon: const Icon(Icons.campaign_outlined),
-            label: Text(sending ? tr('Sending...') : tr('Send the alert')),
+            label: Text(sending ? tr('Sending...') : tr('Send to everyone')),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: sending ? null : () => send(test: true),
+            icon: const Icon(Icons.phone_android_outlined),
+            label: Text(tr('Send a test to myself')),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(

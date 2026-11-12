@@ -59,10 +59,15 @@ set search_path = public
 as $$
 begin
   if new.status::text = 'OPEN' then
-    perform public.call_edge_function(
-      'new-request-push',
-      jsonb_build_object('request_id', new.id)
-    );
+    -- A failed push must never stop a request from being posted.
+    begin
+      perform public.call_edge_function(
+        'new-request-push',
+        jsonb_build_object('request_id', new.id)
+      );
+    exception when others then
+      raise warning 'New-request push not sent: %', sqlerrm;
+    end;
   end if;
   return new;
 end;

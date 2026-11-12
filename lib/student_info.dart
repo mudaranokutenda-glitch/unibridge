@@ -1085,6 +1085,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       });
       if (mounted) showSnack(context, tr('Request sent to the Educational Attaché.'));
       load();
+    } on PostgrestException catch (e) {
+      // Messages written by the database (for example the limit of 3
+      // appointments) are shown as they are.
+      if (mounted) showSnack(context, e.message);
     } catch (e) {
       if (mounted) showSnack(context, tr('Could not send: {error}', {'error': e}));
     } finally {

@@ -70,6 +70,41 @@ with check (
   and requested_at > now()
 );
 
+-- At most 3 active appointments per student: REQUESTED, PROPOSED or
+-- ACCEPTED, with a time still in the future.
+create or replace function public.limit_active_appointments()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n int;
+begin
+  -- One insert at a time per student, so two quick taps cannot both pass.
+  perform pg_advisory_xact_lock(hashtext('appointments:' || new.student_id::text));
+
+  select count(*) into n
+  from public.appointments
+  where student_id = new.student_id
+    and status in ('REQUESTED', 'PROPOSED', 'ACCEPTED')
+    and coalesce(proposed_at, requested_at) > now();
+
+  if n >= 3 then
+    raise exception 'You already have 3 appointments waiting or planned. Cancel one before asking for a new one.'
+      using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.limit_active_appointments() from public, anon, authenticated;
+
+drop trigger if exists limit_active_appointments on public.appointments;
+create trigger limit_active_appointments
+before insert on public.appointments
+for each row execute function public.limit_active_appointments();
+
 drop trigger if exists appointments_touch on public.appointments;
 create trigger appointments_touch
 before update on public.appointments

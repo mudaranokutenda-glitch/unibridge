@@ -9,6 +9,8 @@
 --   * the match happens ONLY when BOTH accept (function
 --     respond_match_suggestion, security definer). Either can decline.
 --   * a declined pair of users is never suggested to each other again,
+--   * two users are not suggested to each other again within 24 hours of
+--     any earlier suggestion between them (whatever its status),
 --   * a suggestion expires after 24 hours,
 --   * blocked users are never suggested to each other.
 -- When both accept: the OLDER request becomes MATCHED with the other person
@@ -117,12 +119,13 @@ begin
       select 1 from public.user_blocks b
       where (b.blocker_id = new.creator_id and b.blocked_id = r.creator_id)
          or (b.blocker_id = r.creator_id and b.blocked_id = new.creator_id))
-    -- a declined pair is never suggested again
+    -- the same two users: never again after a DECLINED suggestion, and not
+    -- within 24 hours of ANY suggestion between them (any status)
     and not exists (
       select 1 from public.match_suggestions s
-      where s.status = 'DECLINED'
-        and ((s.user_a = r.creator_id and s.user_b = new.creator_id)
-          or (s.user_a = new.creator_id and s.user_b = r.creator_id)))
+      where ((s.user_a = r.creator_id and s.user_b = new.creator_id)
+          or (s.user_a = new.creator_id and s.user_b = r.creator_id))
+        and (s.status = 'DECLINED' or s.created_at > now() - interval '24 hours'))
     -- one live suggestion at a time per request
     and not exists (
       select 1 from public.match_suggestions s
@@ -224,7 +227,11 @@ revoke execute on function public.my_match_suggestions() from public, anon;
 grant execute on function public.my_match_suggestions() to authenticated;
 
 -- Accept or decline. Returns the id of the matched request when the match
--- happened (both accepted), otherwise null.
+-- happened (both accepted), otherwise null. When the match is no longer
+-- possible (a request is no longer open, or a block), the suggestion is
+-- CLOSED and null is returned (no error, so the CLOSED status is kept); the
+-- app then sees the suggestion is gone and shows
+-- "This match is no longer available."
 create or replace function public.respond_match_suggestion(p_id uuid, p_accept boolean)
 returns uuid
 language plpgsql
@@ -279,14 +286,14 @@ begin
   if ra.status::text <> 'OPEN' or rb.status::text <> 'OPEN'
      or ra.archived_at is not null or rb.archived_at is not null then
     update public.match_suggestions set status = 'CLOSED', responded_at = now() where id = p_id;
-    raise exception 'One of the requests is no longer open';
+    return null; -- one of the requests is no longer open
   end if;
   if exists (
     select 1 from public.user_blocks b
     where (b.blocker_id = s.user_a and b.blocked_id = s.user_b)
        or (b.blocker_id = s.user_b and b.blocked_id = s.user_a)) then
     update public.match_suggestions set status = 'CLOSED', responded_at = now() where id = p_id;
-    raise exception 'You cannot match with this user.';
+    return null; -- you cannot match with this user (block)
   end if;
 
   update public.match_suggestions
@@ -294,11 +301,11 @@ begin
   where id = p_id;
 
   update public.transaction_requests
-  set status = 'MATCHED', matched_with_id = s.user_b
+  set status = 'MATCHED', matched_with_id = s.user_b, updated_at = now()
   where id = s.request_a;
 
   update public.transaction_requests
-  set status = 'CANCELLED'
+  set status = 'CANCELLED', updated_at = now()
   where id = s.request_b;
 
   perform public.notify_user(s.user_a, 'MATCH_FOUND', 'Your suggested match is confirmed. Open the chat.');

@@ -42,6 +42,17 @@ function safe(text: unknown): string {
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
 }
 
+// Stops a spreadsheet from running a cell as a formula (CSV injection):
+// a cell starting with = - @ tab or carriage return, or + not followed by
+// digits only (a phone like +213555123456 stays as it is), gets a ' in front.
+function noFormula(text: unknown): string {
+  const v = String(text ?? "");
+  if (/^[=\-@\t\r]/.test(v) || (v.startsWith("+") && !/^\+[0-9]+$/.test(v))) {
+    return "'" + v;
+  }
+  return v;
+}
+
 function fullName(s) {
   return `${s.last_name} ${s.first_name}`;
 }
@@ -215,7 +226,7 @@ Deno.serve(async (req) => {
           s.program,
           s.level,
           String((byStudent.get(s.user_id) ?? []).length),
-        ]),
+        ].map(noFormula)),
       );
 
       for (const s of parts[part - 1]) {
@@ -228,6 +239,19 @@ Deno.serve(async (req) => {
           ? `No results uploaded for ${year}.`
           : `${files.length} file(s) for ${year}: ${files.map((f) => f.semester).join(", ")}`),
           { x: 40, y: 690, size: 11, font });
+
+        // Log FIRST: no file is read unless the access log row is written.
+        const { error: logErr } = await admin.from("access_log").insert({
+          actor_id: callerId,
+          actor_role: me.role,
+          student_id: s.user_id,
+          kind: "RESULTS_COMPILED",
+          wilaya,
+          academic_year: year,
+        });
+        if (logErr) {
+          return json({ error: `Could not write the access log: ${logErr.message}` }, 500);
+        }
 
         for (const f of files) {
           try {
@@ -244,15 +268,6 @@ Deno.serve(async (req) => {
               { x: 40, y: 760, size: 12, font });
           }
         }
-
-        await admin.from("access_log").insert({
-          actor_id: callerId,
-          actor_role: me.role,
-          student_id: s.user_id,
-          kind: "RESULTS_COMPILED",
-          wilaya,
-          academic_year: year,
-        });
       }
 
       const code = wilaya.slice(0, 2);
@@ -318,7 +333,7 @@ Deno.serve(async (req) => {
           ? [{ label: "Bank account", width: 112, get: (s) => bank.get(s.user_id) ?? "" }]
           : []),
       ];
-      const rows = (students ?? []).map((s, i) => columns.map((c) => String(c.get(s, i) ?? "")));
+      const rows = (students ?? []).map((s, i) => columns.map((c) => noFormula(c.get(s, i))));
 
       // Every export is logged; the one with bank accounts has its own kind.
       const { error: logErr } = await admin.from("access_log").insert({
@@ -333,7 +348,8 @@ Deno.serve(async (req) => {
       let bytes: Uint8Array;
       if (format === "csv") {
         const esc = (v: string) => /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-        const lines = [columns.map((c) => c.label), ...rows].map((r) => r.map(esc).join(","));
+        const lines = [columns.map((c) => c.label), ...rows]
+          .map((r) => r.map(esc).join(",")); // rows already passed noFormula
         // The BOM makes Excel read the accents correctly.
         bytes = new TextEncoder().encode("﻿" + lines.join("\r\n"));
       } else {

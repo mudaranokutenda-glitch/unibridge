@@ -4,7 +4,10 @@ import { GoogleAuth } from "npm:google-auth-library@9";
 
 // Stage 7, item 29. Emergency alert to EVERY user.
 // Called from the app by the Educational Attaché or admin:
-//   body: { title: "...", message: "..." }
+//   body: { title: "...", message: "...", test?: true }
+// test: true sends ONLY to the caller's own phone, saves no alert and skips
+// the 2-minute rule. A real alert is refused (429) if another alert was
+// created less than MIN_GAP_SECONDS ago.
 // The caller is identified from the login token and the role is read from
 // the database (never trusted from the app). The alert is saved in the
 // alerts table (shown in the app) and sent as a high-priority push on the
@@ -15,6 +18,7 @@ const SERVICE_ACCOUNT_ENV = "FIREBASE_SERVICE_ACCOUNT";
 const EMERGENCY_CHANNEL = "emergency";
 const PAGE = 1000;
 const PARALLEL = 50;
+const MIN_GAP_SECONDS = 120;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -36,7 +40,7 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return json({ error: "Not signed in" }, 401);
     const callerId = userData.user.id;
     const { data: me } = await admin
-      .from("profiles").select("role").eq("id", callerId).single();
+      .from("profiles").select("role, fcm_token").eq("id", callerId).single();
     if (!me || (me.role !== "attache" && me.role !== "admin")) {
       return json({ error: "Not allowed" }, 403);
     }
@@ -52,17 +56,24 @@ Deno.serve(async (req) => {
       return json({ error: "The message must have 1 to 1000 characters" }, 400);
     }
 
-    // 3. Save it (shown in the app to everyone).
-    const { data: alert, error: insErr } = await admin
-      .from("alerts")
-      .insert({ title, message, created_by: callerId })
-      .select("id")
-      .single();
-    if (insErr) return json({ error: insErr.message }, 500);
+    const isTest = body.test === true;
 
-    // 4. Push to every phone.
+    // 3. Not twice in 2 minutes (a test does not count and is not blocked).
+    if (!isTest) {
+      const since = new Date(Date.now() - MIN_GAP_SECONDS * 1000).toISOString();
+      const { data: recent, error: recentErr } = await admin
+        .from("alerts").select("id").gte("created_at", since).limit(1);
+      if (recentErr) return json({ error: recentErr.message }, 500);
+      if ((recent ?? []).length > 0) {
+        return json({
+          error: "An alert was sent less than 2 minutes ago. Wait 2 minutes before sending another one.",
+        }, 429);
+      }
+    }
+
+    // 4. Firebase access token.
     const raw = Deno.env.get(SERVICE_ACCOUNT_ENV);
-    if (!raw) return json({ error: `Secret ${SERVICE_ACCOUNT_ENV} not found`, saved: true }, 500);
+    if (!raw) return json({ error: `Secret ${SERVICE_ACCOUNT_ENV} not found` }, 500);
     const credentials = JSON.parse(raw);
     const auth = new GoogleAuth({
       credentials,
@@ -71,7 +82,7 @@ Deno.serve(async (req) => {
     const accessToken = (await (await auth.getClient()).getAccessToken()).token;
     const url = `https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`;
 
-    async function sendTo(fcmToken: string) {
+    async function sendTo(fcmToken: string, alertId: string) {
       const res = await fetch(url, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -79,7 +90,7 @@ Deno.serve(async (req) => {
           message: {
             token: fcmToken,
             notification: { title, body: message.slice(0, 500) },
-            data: { type: "EMERGENCY_ALERT", alert_id: String(alert.id), channel: EMERGENCY_CHANNEL },
+            data: { type: "EMERGENCY_ALERT", alert_id: alertId, channel: EMERGENCY_CHANNEL },
             android: {
               priority: "high",
               notification: {
@@ -94,8 +105,27 @@ Deno.serve(async (req) => {
       return res.ok;
     }
 
+    // 5. Test: only my own phone, nothing saved.
+    if (isTest) {
+      if (!me.fcm_token) {
+        return json({ error: "This phone has no notification token yet. Open the app on your phone first." }, 400);
+      }
+      const ok = await sendTo(me.fcm_token, "test").catch(() => false);
+      return json({ ok: true, test: true, sent: ok ? 1 : 0 });
+    }
+
+    // 6. Save it (shown in the app to everyone).
+    const { data: alert, error: insErr } = await admin
+      .from("alerts")
+      .insert({ title, message, created_by: callerId })
+      .select("id")
+      .single();
+    if (insErr) return json({ error: insErr.message }, 500);
+
+    // 7. Push to every phone.
     let sent = 0;
     let failed = 0;
+    let warning: string | null = null;
     for (let from = 0; ; from += PAGE) {
       const { data: people, error } = await admin
         .from("profiles")
@@ -103,11 +133,16 @@ Deno.serve(async (req) => {
         .not("fcm_token", "is", null)
         .order("id")
         .range(from, from + PAGE - 1);
-      if (error) break;
+      if (error) {
+        // Stop here and say so: some phones may not have received it.
+        warning = `Could not read the list of users (${error.message}). ` +
+          `The alert was sent to ${sent} phones only.`;
+        break;
+      }
       const tokens = (people ?? []).map((p) => p.fcm_token as string).filter(Boolean);
       for (let i = 0; i < tokens.length; i += PARALLEL) {
         const results = await Promise.all(
-          tokens.slice(i, i + PARALLEL).map((t) => sendTo(t).catch(() => false)),
+          tokens.slice(i, i + PARALLEL).map((t) => sendTo(t, String(alert.id)).catch(() => false)),
         );
         for (const ok of results) ok ? sent++ : failed++;
       }
@@ -115,6 +150,7 @@ Deno.serve(async (req) => {
     }
 
     await admin.from("alerts").update({ sent_count: sent }).eq("id", alert.id);
+    if (warning) return json({ ok: false, sent, failed, warning });
     return json({ ok: true, sent, failed });
   } catch (e) {
     return json({ error: String(e) }, 500);

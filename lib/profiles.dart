@@ -590,8 +590,10 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       final details = e.details;
       final text = e.status == 409
           ? tr('Finish or resolve your open transactions first.')
-          : tr('Could not delete account: {error}',
-              {'error': details is Map ? details['error'] : details});
+          : e.status == 403
+              ? tr('Staff accounts are removed by the app owner.')
+              : tr('Could not delete account: {error}',
+                  {'error': details is Map ? details['error'] : details});
       showDeleteError(text);
       return;
     } catch (e) {

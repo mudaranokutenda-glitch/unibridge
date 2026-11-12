@@ -493,10 +493,15 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => ChatScreen(requestId: matched.toString())));
       } else {
+        // After an accept, a suggestion that has disappeared from my list
+        // was closed by the database (a request is no longer open, or a block).
+        final gone = accept && !suggestions.any((x) => x['id'].toString() == id);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(accept
-                ? tr('Accepted. Waiting for the other student.')
-                : tr('Suggestion declined.'))));
+            content: Text(gone
+                ? tr('This match is no longer available.')
+                : accept
+                    ? tr('Accepted. Waiting for the other student.')
+                    : tr('Suggestion declined.'))));
       }
     } catch (e) {
       await loadRequests(quiet: true);

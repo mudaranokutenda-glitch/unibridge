@@ -143,7 +143,11 @@ const List<LegalSection> kPrivacyEn = [
         'you sent in chats), listings, open requests and notifications. Finished '
         'exchanges, chat text messages and ratings stay for the other person, '
         'shown as "UniBridge user". The access log keeps its records for safety. '
-        'You cannot delete your account while an exchange is in progress.',
+        'You cannot delete your account while an exchange is in progress. '
+        'Messages you sent stay visible to the other person until the chat is '
+        'deleted automatically, 30 days after the request ends. A security log '
+        'of who opened sensitive documents is kept even after an account is '
+        'deleted.',
   ),
   (
     'Your rights',
@@ -299,7 +303,11 @@ const List<LegalSection> kPrivacyFr = [
         "terminés, les messages texte et les notes restent pour l'autre personne, "
         "avec le nom « UniBridge user ». Le journal d'accès garde ses lignes pour la "
         'sécurité. Vous ne pouvez pas supprimer votre compte pendant un échange en '
-        'cours.',
+        "cours. Les messages que vous avez envoyés restent visibles pour l'autre "
+        "personne jusqu'à la suppression automatique de la discussion, 30 jours "
+        'après la fin de la demande. Un journal de sécurité indiquant qui a ouvert '
+        'des documents sensibles est conservé même après la suppression d\'un '
+        'compte.',
   ),
   (
     'Vos droits',

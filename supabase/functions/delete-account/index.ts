@@ -81,6 +81,15 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return json({ error: "Not signed in" }, 401);
     const userId = userData.user.id;
 
+    // 1b. Staff accounts (attache, admin, Governor) are removed by the app
+    //     owner, never from the app. The role is read from the database.
+    const { data: me, error: meErr } = await admin
+      .from("profiles").select("role").eq("id", userId).maybeSingle();
+    if (meErr) return json({ error: meErr.message }, 500);
+    if (me && ["attache", "admin", "rep"].includes(me.role)) {
+      return json({ error: "Staff accounts are removed by the app owner." }, 403);
+    }
+
     // 2. Refuse while a transaction is in progress
     const { data: active, error: activeErr } = await admin
       .from("transaction_requests")

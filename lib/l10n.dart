@@ -1044,4 +1044,16 @@ const Map<String, String> _t = {
       'Le scan de votre passeport est supprimé après la délivrance de votre attestation. Le reste est gardé jusqu\'à ce que vous le supprimiez ou supprimiez votre compte. La suppression de votre compte supprime tous vos fichiers.',
   'This cannot be undone.\n\nDeleted: your profile, phone number, all your photos and files (also the photos you sent in chats, your results, passport and attestations), your student record, bank account and passport numbers, appointments, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chat text messages and ratings (you will show as "UniBridge user").\n\nType DELETE to confirm.':
       'Cette action est définitive.\n\nSupprimés : votre profil, votre numéro de téléphone, toutes vos photos et fichiers (aussi les photos envoyées dans les discussions, vos résultats, passeport et attestations), votre fiche étudiant, vos numéros de compte bancaire et de passeport, vos rendez-vous, annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : les transactions terminées, les messages texte et les notes (vous apparaîtrez comme « UniBridge user »).\n\nTapez DELETE pour confirmer.',
+  'Send a test to myself':
+      "Envoyer un test à moi-même",
+  'Test sent to your phone only.':
+      "Test envoyé seulement à votre téléphone.",
+  'The test could not be sent to your phone.':
+      "Le test n'a pas pu être envoyé à votre téléphone.",
+  'The alert was not sent to every phone.':
+      "L'alerte n'a pas été envoyée à tous les téléphones.",
+  'Staff accounts are removed by the app owner.':
+      "Les comptes du personnel sont supprimés par le propriétaire de l'application.",
+  'This match is no longer available.':
+      "Cette mise en relation n'est plus disponible.",
 };

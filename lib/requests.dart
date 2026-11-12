@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'config.dart';
 import 'profiles.dart';
 import 'chat.dart';
@@ -42,6 +43,10 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
         'creator_id': supabase.auth.currentUser!.id,
       });
       if (mounted) Navigator.of(context).pop();
+    } on PostgrestException catch (e) {
+      // Messages written by the database (for example the limit of 3 open
+      // requests) are shown as they are.
+      setState(() => errorMessage = e.message);
     } catch (e) {
       setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
     } finally {

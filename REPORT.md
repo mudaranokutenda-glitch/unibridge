@@ -7,24 +7,30 @@ Nothing was run on Supabase and no function was deployed: you do that with the s
 
 ---
 
-## 1. Deploy the Edge Functions (terminal, in the project folder)
+## 1. Deploy the Edge Functions FIRST (terminal, in the project folder)
 
 ```
 supabase functions deploy chat-cleanup --no-verify-jwt --use-api
 supabase functions deploy new-request-push --no-verify-jwt --use-api
+supabase functions deploy push-notification --no-verify-jwt --use-api
 supabase functions deploy emergency-alert --use-api
 supabase functions deploy staff-reports --use-api
 supabase functions deploy delete-account --use-api
-supabase functions deploy push-notification --use-api
 supabase functions deploy notify-chat-message --use-api
 ```
 
 - **New:** chat-cleanup, new-request-push and emergency-alert.
-- **Changed:** staff-reports (wilaya filter and bank column), delete-account (new tables), push-notification and notify-chat-message (Android channel "general").
-- `--no-verify-jwt` is only for the two functions that the database calls with the `x-cron-secret` header. They check that secret themselves.
+- **Changed:**
+  - chat-cleanup also deletes files older than 24 hours in `compiled-results`.
+  - new-request-push sends nothing if the creator posted another request in the last 10 minutes or has 3 or more open requests.
+  - emergency-alert: 2-minute rule, "test to myself", and a warning if not every phone was reached.
+  - staff-reports: wilaya filter, bank column, log written before each student's files are read, spreadsheet-formula protection.
+  - delete-account: new tables; staff accounts get "Staff accounts are removed by the app owner."
+  - push-notification and notify-chat-message: Android channel "general".
+- `--no-verify-jwt` is only for the three functions that the database calls with the `x-cron-secret` header. They check that secret themselves.
 - No new secret is needed. They use the existing `CRON_SECRET` and `FIREBASE_SERVICE_ACCOUNT`.
 
-## 2. Run the SQL files (Supabase → SQL Editor, in this order)
+## 2. Run the SQL files (Supabase → SQL Editor, in this exact order)
 
 Every file is safe to run twice and deletes no data, except the optional file 99.
 The 2026-11-05 files (TESTING.md Step 1) and `sql/2026-11-06-requests-realtime.sql` must already be run.
@@ -33,19 +39,30 @@ The 2026-11-05 files (TESTING.md Step 1) and `sql/2026-11-06-requests-realtime.s
 |---|------|--------------|
 | 1 | `sql/2026-11-11-01-no-student-id-at-signup.sql` | inscription_number in profiles may be empty; new profiles store NULL |
 | 2 | `sql/2026-11-11-02-phone.sql` | Private table user_phones, phone format check, student_wilaya() |
-| 3 | `sql/2026-11-11-03-cron-secret.sql` | **Replace `PASTE_YOUR_SECRET` in the SQL Editor only** (never in the file). Stores the CRON_SECRET once in Supabase Vault |
+| 3 | `sql/2026-11-11-03-cron-secret.sql` | **Type your real CRON_SECRET in place of `PASTE_YOUR_SECRET` in the SQL Editor only.** Never save it in the file. It is stored once in Supabase Vault |
 | 4 | `sql/2026-11-11-04-chat-rules.sql` | Only text and photos; chat closed after your rating; archived_at |
 | 5 | `sql/2026-11-11-05-chat-cleanup.sql` | ended_at, nightly job chat-cleanup (03:00 UTC) |
-| 6 | `sql/2026-11-11-06-new-request-push.sql` | notification_settings, push when a request is posted |
-| 7 | `sql/2026-11-11-07-match-suggestions.sql` | Suggested matching |
+| 6 | `sql/2026-11-11-06-new-request-push.sql` | notification_settings, push when a request is posted (a failed push never blocks posting) |
+| 7 | `sql/2026-11-11-07-match-suggestions.sql` | Suggested matching (same two users at most once in 24 hours, never again after a decline) |
 | 8 | `sql/2026-11-11-08-student-private-info.sql` | Gender, bank_accounts, passport_numbers, new access log kinds |
 | 9 | `sql/2026-11-11-09-staff-contacts.sql` | Staff contacts |
 | 10 | `sql/2026-11-11-10-guide-and-help.sql` | Guide (4 empty sections and private bucket guide) and Help (FAQ) |
-| 11 | `sql/2026-11-11-11-appointments.sql` | Appointments with the Educational Attaché |
+| 11 | `sql/2026-11-11-11-appointments.sql` | Appointments with the Educational Attaché (at most 3 active per student) |
 | 12 | `sql/2026-11-11-12-attestation-entry-date.sql` | Date of entry into Algeria (required for new requests) |
 | 13 | `sql/2026-11-11-13-staff-tools.sql` | Search, student details (logged), dashboard, alerts table |
 | 14 | `sql/2026-11-11-14-governor-tools.sql` | Results tracker, users without a record, bank accounts (logged) |
-| 99 | `sql/2026-11-11-99-optional-clear-old-student-ids.sql` | **OPTIONAL, cannot be undone.** Empties the old student IDs in profiles |
+| 15 | `sql/2026-11-11-15-match-hardening.sql` | Your file: match_request with a block check, rate_transaction search path |
+| 16 | `sql/2026-11-11-16-push-trigger-vault.sql` | Your file: the push trigger reads the secret from the Vault |
+| 17 | `sql/2026-11-11-17-open-request-limit.sql` | At most 3 open requests per user |
+| 99 | `sql/2026-11-11-99-optional-clear-old-student-ids.sql` | **OPTIONAL, LAST, cannot be undone.** Empties the old student IDs in profiles |
+
+**After 14, 16 and 17**, run this once (it removes table rights the app never needs):
+
+```sql
+revoke truncate, references, trigger
+  on public.bank_accounts, public.passport_numbers, public.alerts, public.user_phones
+  from authenticated;
+```
 
 Then check the jobs:
 
@@ -56,6 +73,7 @@ select jobname, schedule from cron.job;
 You should see `chat-cleanup | 0 3 * * *`, next to the old `purge-passports`.
 
 Then run the tests in `sql/tests/` (read `sql/tests/README.md` first). Every line must say PASS.
+Then TESTING.md part G and part H.
 
 ## 3. Things you must add by hand
 

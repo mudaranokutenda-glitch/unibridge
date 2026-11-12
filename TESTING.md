@@ -302,3 +302,79 @@ For each file in `sql/tests/` (see `sql/tests/README.md`): replace the ids, run,
 - [ ] G36. Profile → Terms and privacy, in English and in French: the "Who can see what" list matches this test list; chats are kept 30 days after a request ends.
 - [ ] G36. Upload the new `docs/privacy-policy.html` wherever your Play Store privacy link points.
 - [ ] G37. Delete a throw-away account that has a phone, bank account, passport number, appointment and a suggestion: Table Editor has no rows left for it in user_phones, bank_accounts, passport_numbers, notification_settings, appointments, match_suggestions.
+
+
+---
+---
+
+# Part H. Hardening (12 November 2026)
+
+First do REPORT.md parts 1 and 2 again with the new files: deploy the 7 functions, then run the SQL in the new order (01 to 17 and the revoke).
+Use the same accounts as part G. Lines in **bold** are security tests: they MUST be refused.
+
+### How to call a function as a given user (PowerShell)
+Some tests call a function directly with a user's login. This works for accounts with an email and a password (not Google).
+Your anon key is in `lib/config.dart` (it is public; still never paste it into a file you commit).
+
+```powershell
+$url = "https://lhdkzcsaqlhswyytirxb.supabase.co"
+$anon = "YOUR-ANON-KEY"
+$login = Invoke-RestMethod -Method Post -Uri "$url/auth/v1/token?grant_type=password" `
+  -Headers @{ apikey = $anon } -ContentType "application/json" `
+  -Body '{"email":"governor-a@example.com","password":"THE-PASSWORD"}'
+$h = @{ apikey = $anon; Authorization = "Bearer $($login.access_token)" }
+
+# then, for example:
+try {
+  Invoke-RestMethod -Method Post -Uri "$url/functions/v1/emergency-alert" -Headers $h `
+    -ContentType "application/json" -Body '{"title":"x","message":"x"}'
+} catch { $_.Exception.Response.StatusCode.value__; $_.ErrorDetails.Message }
+```
+The last line prints the HTTP code (for example 403) and the message.
+
+### Suggested matching (file 07)
+- [ ] H1. Student A blocks Student B. A posts SEND 50 USD, B posts RECEIVE 50 USD: no suggestion card on either phone.
+- [ ] **H1. A blocked user cannot match: with an existing suggestion between A and B, A blocks B, then both press Accept. The card disappears and the app says "This match is no longer available." Both requests stay OPEN. In Table Editor → match_suggestions the row is CLOSED.**
+- [ ] H2. A and B get a suggestion; A cancels their request (the card goes). Within 24 hours A posts SEND 50 USD again: NO new suggestion with B. (After 24 hours, or after setting `created_at` of the old row 25 hours in the past in the SQL Editor, a new suggestion IS made.)
+- [ ] H2. After a Decline, the same two users are never suggested again, even after 24 hours.
+- [ ] H3. A suggestion where one request was matched by hand in the meantime: press Accept → "This match is no longer available.", no error.
+- [ ] H4. After a match from a suggestion, both requests have a new `updated_at` (Table Editor → transaction_requests).
+
+### Open request limit (file 17 and new-request-push)
+- [ ] **H5. Post 3 requests, then a 4th: refused with "You already have 3 open requests. Cancel one before posting a new one." Cancel one: a new one can be posted.**
+- [ ] H6. Student A posts two requests within 10 minutes: Student B gets the push for the first one only.
+- [ ] H6. Student A posts a 3rd open request (more than 10 minutes after the 2nd): no push for it (3 open requests).
+- [ ] H7. Posting still works if the push cannot be sent. In the SQL Editor, run all of this at once (Student A must have fewer than 3 open requests). It breaks the push on purpose, posts a request, then `rollback` puts everything back as it was:
+  ```sql
+  begin;
+  create or replace function public.call_edge_function(p_name text, p_body jsonb)
+  returns void language plpgsql as $$
+  begin raise exception 'push broken on purpose'; end $$;
+  insert into public.transaction_requests (creator_id, type, amount, currency)
+  values ('STUDENT-A-ID', 'SEND', 50, 'USD')
+  returning id, status;
+  rollback;
+  ```
+  Expected: one row with status OPEN, and the message `WARNING: New-request push not sent: push broken on purpose`. No error.
+  Then post a request in the app: the push still arrives on Student B's phone (the real function is back).
+
+### Appointments (file 11)
+- [ ] **H8. Student A asks for 3 future appointments, then a 4th: refused with "You already have 3 appointments waiting or planned. Cancel one before asking for a new one." After cancelling one, a new one can be asked.**
+- [ ] H8. Declined appointments and past appointments do not count.
+
+### Emergency alert
+- [ ] H9. Attaché: Emergency alert → write a title and a message → "Send a test to myself" (no dialog): only YOUR phone rings. Other phones get nothing. Table Editor → alerts has no new row.
+- [ ] H10. "Send to everyone" still asks for confirmation. Send one, then at once send another: refused with "An alert was sent less than 2 minutes ago…". After 2 minutes it works. A test is allowed at any time.
+- [ ] **H11. As Governor A and as Student A, call emergency-alert (PowerShell above): 403 "Not allowed". Also with `"test":true`.**
+
+### Staff reports and documents
+- [ ] **H12. As Governor A and as Student A, call staff-reports with `{"action":"final_list","format":"csv"}`: 403 "Not allowed".**
+- [ ] **H13. As Governor A and as Student A, call staff-documents with `{"action":"open","kind":"PASSPORT","id":"AN-ATTESTATION-REQUEST-ID"}`: 403 (no link).**
+- [ ] H14. Give a test student the program `=1+2` and the phone `+213555123456`. Export the final list as CSV and open it in Excel: the program shows `'=1+2` as text (no 3), and the phone shows as it is.
+- [ ] H15. Compile results for a wilaya: the attaché's Access log has one "results compiled" line per student in that part.
+- [ ] H16. Clean-up of built files: in Storage → compiled-results, note a file older than 24 hours (or build one and wait a day). Run chat-cleanup by hand (as in G11): the file is gone; the answer shows `compiled_removed`. Files younger than 24 hours stay.
+
+### Delete account
+- [ ] **H17. As the attaché, as a Governor and as admin: Profile → Delete my account → DELETE: refused with "Staff accounts are removed by the app owner." The account still works.**
+- [ ] H17. A normal student can still delete their account (as G37).
+- [ ] H18. Profile → Terms and privacy (English and French) and `docs/privacy-policy.html` say: your sent messages stay visible to the other person until the chat is deleted 30 days after the request ends; and the security log of who opened sensitive documents is kept after an account is deleted.

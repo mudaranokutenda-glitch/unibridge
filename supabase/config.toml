@@ -422,7 +422,8 @@ entrypoint = "./functions/update-rates/index.ts"
 
 [functions.push-notification]
 enabled = true
-verify_jwt = true
+# Called by the database with the x-cron-secret header (it checks it itself).
+verify_jwt = false
 import_map = "./functions/push-notification/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

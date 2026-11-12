@@ -8,10 +8,15 @@ import { GoogleAuth } from "npm:google-auth-library@9";
 //   the creator, people who switched "New request notifications" off,
 //   and people blocked with the creator.
 // No inbox (notifications) row is created per user.
+//
+// Anti-spam: NO push at all if the creator posted another request in the
+// last 10 minutes, or has 3 or more OPEN requests (this one included).
 
 const SERVICE_ACCOUNT_ENV = "FIREBASE_SERVICE_ACCOUNT";
 const PAGE = 1000; // profiles read per page
 const PARALLEL = 50; // pushes sent at the same time
+const MIN_GAP_MINUTES = 10;
+const MAX_OPEN_FOR_PUSH = 3;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -48,6 +53,25 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (rErr || !r) return json({ error: "Request not found" }, 404);
     if (r.status !== "OPEN") return json({ skipped: "Not open" });
+
+    // Anti-spam checks (on the creator).
+    const since = new Date(Date.now() - MIN_GAP_MINUTES * 60 * 1000).toISOString();
+    const { count: recent, error: recentErr } = await admin
+      .from("transaction_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", r.creator_id)
+      .neq("id", r.id)
+      .gte("created_at", since);
+    if (recentErr) return json({ error: recentErr.message }, 500);
+    const { count: open, error: openErr } = await admin
+      .from("transaction_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", r.creator_id)
+      .eq("status", "OPEN");
+    if (openErr) return json({ error: openErr.message }, 500);
+    if ((recent ?? 0) > 0 || (open ?? 0) >= MAX_OPEN_FOR_PUSH) {
+      return json({ skipped: "rate limited" });
+    }
 
     // Who does NOT get it.
     const skip = new Set<string>([r.creator_id]);
