@@ -113,6 +113,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   List<Map<String, dynamic>> requests = []; // other people's open requests
   List<Map<String, dynamic>> myRequests = []; // I created it or I matched it
   Set<String> ratedIds = {}; // requests I already rated
+  List<Map<String, dynamic>> suggestions = []; // suggested matches for me
+  String? respondingTo; // suggestion being accepted / declined
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
 
@@ -233,6 +235,12 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
           table: 'transaction_requests',
           callback: (_) => reloadSoon(),
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'match_suggestions',
+          callback: (_) => reloadSoon(),
+        )
         .subscribe();
   }
 
@@ -286,17 +294,26 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
           .where((r) => !hidden.contains(r['creator_id']))
           .toList();
       final mine = List<Map<String, dynamic>>.from(results[1]);
+      List<Map<String, dynamic>> loadedSuggestions = [];
+      try {
+        loadedSuggestions = List<Map<String, dynamic>>.from(
+            await supabase.rpc('my_match_suggestions') as List);
+      } catch (e) {
+        debugPrint('Could not load suggestions: $e');
+      }
       final rated = await fetchMyRatedRequestIds();
       // My own profile is loaded too, for the profile bar at the top.
       final loadedProfiles = await fetchPublicProfiles([
         myId,
         ...loaded.map((r) => r['creator_id'] as String?),
         ...mine.map((r) => otherPartyId(r, myId)),
+        ...loadedSuggestions.map((x) => x['other_user_id']?.toString()),
       ]);
       if (!mounted) return;
       setState(() {
         requests = loaded;
         myRequests = mine;
+        suggestions = loadedSuggestions;
         ratedIds = rated;
         profiles = loadedProfiles;
         loading = false;
@@ -420,6 +437,10 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
               child: Center(child: CircularProgressIndicator()),
             )
           else ...[
+            if (suggestions.isNotEmpty) ...[
+              sectionHeader(tr('Suggested matches')),
+              for (final x in suggestions) suggestionCard(x),
+            ],
             sectionHeader(tr('My requests')),
             if (myRequests.isEmpty)
               emptyLine(tr('You have no requests yet.'))
@@ -442,6 +463,88 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
               ]),
           ],
         ],
+      ),
+    );
+  }
+
+  // Accept or decline a suggested match. Both must accept.
+  Future<void> respondToSuggestion(String id, bool accept) async {
+    setState(() => respondingTo = id);
+    try {
+      final matched = await supabase.rpc('respond_match_suggestion',
+          params: {'p_id': id, 'p_accept': accept});
+      await loadRequests(quiet: true);
+      if (!mounted) return;
+      if (matched != null) {
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ChatScreen(requestId: matched.toString())));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(accept
+                ? tr('Accepted. Waiting for the other student.')
+                : tr('Suggestion declined.'))));
+      }
+    } catch (e) {
+      await loadRequests(quiet: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => respondingTo = null);
+    }
+  }
+
+  Widget suggestionCard(Map<String, dynamic> x) {
+    final id = x['id'].toString();
+    final other = profiles[x['other_user_id']?.toString()];
+    final busy = respondingTo == id;
+    final iAccepted = x['i_accepted'] == true;
+    final expires = DateTime.tryParse('${x['expires_at']}')?.toLocal();
+    final hoursLeft =
+        expires?.difference(DateTime.now()).inHours;
+    return Card(
+      margin: const EdgeInsetsDirectional.fromSTEB(12, 4, 12, 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('A match is available. Accept or decline'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            RequestRow(
+              person: other,
+              subtitle: [ratingText(other), completedText(other)].join(' · '),
+              amount: formatAmount(x['amount'], x['currency']),
+              status: tr('Your request: {type}', {'type': typeLabel(x['my_type'])}),
+            ),
+            if (hoursLeft != null)
+              Text(tr('Expires in {hours} h', {'hours': hoursLeft < 0 ? 0 : hoursLeft}),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 8),
+            if (iAccepted)
+              Text(tr('You accepted. Waiting for the other student.'))
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: busy ? null : () => respondToSuggestion(id, false),
+                    child: Text(tr('Decline')),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: busy ? null : () => respondToSuggestion(id, true),
+                    child: Text(tr('Accept')),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }

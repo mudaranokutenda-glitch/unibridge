@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
+import 'push.dart';
 import 'verification.dart';
 import 'auth.dart';
 import 'legal.dart';
@@ -799,6 +800,8 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                 ],
                 const SizedBox(height: 24),
                 const SettingsSection(),
+                const SizedBox(height: 12),
+                const NewRequestNotificationsTile(),
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: (saving || deleting)

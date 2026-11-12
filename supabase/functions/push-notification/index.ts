@@ -13,6 +13,8 @@ const TITLES: Record<string, string> = {
   DISPUTE_OPENED: "Dispute opened",
   VERIFIED_BADGE_AWARDED: "You are verified",
   ATTESTATION_UPDATE: "Attestation de bourse",
+  MATCH_SUGGESTION: "A match is available",
+  APPOINTMENT_UPDATE: "Appointment with the Educational Attaché",
 };
 
 function json(body: unknown, status = 200) {
@@ -72,7 +74,8 @@ Deno.serve(async (req) => {
               title: TITLES[String(type)] ?? "UniBridge",
               body: String(content ?? "").slice(0, 150),
             },
-            data: { type: String(type ?? "") },
+            data: { type: String(type ?? ""), channel: "general" },
+            android: { notification: { channel_id: "general" } },
           },
         }),
       },

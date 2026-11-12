@@ -456,3 +456,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/chat-cleanup/deno.json"
 entrypoint = "./functions/chat-cleanup/index.ts"
+
+[functions.new-request-push]
+enabled = true
+verify_jwt = false
+import_map = "./functions/new-request-push/deno.json"
+entrypoint = "./functions/new-request-push/index.ts"

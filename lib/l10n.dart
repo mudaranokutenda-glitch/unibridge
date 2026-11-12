@@ -484,4 +484,34 @@ const Map<String, String> _t = {
       'Nouvelles demandes sans correspondance',
   'Student space':
       'Espace étudiant',
+  'General':
+      'Général',
+  'Messages, matches and requests':
+      'Messages, correspondances et demandes',
+  'Emergency alerts':
+      'Alertes d\'urgence',
+  'Urgent alerts from the Educational Attaché':
+      'Alertes urgentes de l\'Attaché d\'éducation',
+  'New request notifications':
+      'Notifications de nouvelles demandes',
+  'A notification each time someone posts a request.':
+      'Une notification chaque fois que quelqu\'un publie une demande.',
+  'Suggested matches':
+      'Correspondances suggérées',
+  'A match is available. Accept or decline':
+      'Une correspondance est disponible. Acceptez ou refusez',
+  'Your request: {type}':
+      'Votre demande : {type}',
+  'Expires in {hours} h':
+      'Expire dans {hours} h',
+  'You accepted. Waiting for the other student.':
+      'Vous avez accepté. En attente de l\'autre étudiant.',
+  'Accepted. Waiting for the other student.':
+      'Accepté. En attente de l\'autre étudiant.',
+  'Suggestion declined.':
+      'Suggestion refusée.',
+  'Decline':
+      'Refuser',
+  'Accept':
+      'Accepter',
 };

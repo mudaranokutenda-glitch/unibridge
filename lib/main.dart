@@ -19,6 +19,7 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
+  await initLocalNotifications();
 
   await Supabase.initialize(
     url: supabaseUrl,
