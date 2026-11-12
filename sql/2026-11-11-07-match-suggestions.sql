@@ -139,7 +139,8 @@ begin
   values (c.id, new.id, c.creator_id, new.creator_id)
   on conflict (request_a, request_b) do nothing;
 
-  msg := 'A match is available for ' || trim(to_char(new.amount, 'FM999999990.##'))
+  -- 50 -> "50", 12.5 -> "12.5"
+  msg := 'A match is available for ' || rtrim(to_char(new.amount, 'FM999999990.99'), '.')
          || ' ' || new.currency || '. Accept or decline in the app.';
   perform public.notify_user(c.creator_id, 'MATCH_SUGGESTION', msg);
   perform public.notify_user(new.creator_id, 'MATCH_SUGGESTION', msg);

@@ -545,9 +545,10 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
               children: [
                 Text(tr(
                   'This cannot be undone.\n\n'
-                  'Deleted: your profile, all your photos and files (also '
-                  'the photos you sent in chats, your results, passport and '
-                  'attestations), your student record, listings, open '
+                  'Deleted: your profile, phone number, all your photos and '
+                  'files (also the photos you sent in chats, your results, '
+                  'passport and attestations), your student record, bank '
+                  'account and passport numbers, appointments, listings, open '
                   'requests, notifications and blocks.\n\n'
                   'Kept for the other person: finished transactions, chat '
                   'text messages and ratings (you will show as "UniBridge '

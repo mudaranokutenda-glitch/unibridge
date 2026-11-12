@@ -10,36 +10,38 @@ import 'l10n.dart';
 // If the text below changes in a way that matters, change kConsentVersion:
 // everyone is then asked again before their next upload.
 
-const String kConsentVersion = '2026-11-05';
+const String kConsentVersion = '2026-11-11';
 
 const List<(String, String)> kConsentSections = [
   (
-    'What you upload',
-    'Your student record, your results (PDF), your passport scan for an '
+    'What you give',
+    'Your student record, your bank account number, your passport number, your '
+        'results (PDF), your passport scan and date of entry into Algeria for an '
         'attestation de bourse, and the photo of your student card.',
   ),
   (
     'Who can see what',
-    '• The Educational Attaché of Zimbabwe: everything you upload in the '
-        'student space (record, results, passport, attestation).\n'
-        '• The representative of your wilaya: your student record and your '
-        'results only. Never your passport or your attestation.\n'
-        '• The app administrator: can technically access all files in '
-        'storage to keep the app running.\n'
+    '• The Educational Attaché of Zimbabwe: everything in your student space.\n'
+        '• The Governor of your wilaya: your student record, results, phone and '
+        'bank account number. Never your passport number, passport scan or '
+        'attestation.\n'
+        '• The app administrator: can technically access the stored data to keep '
+        'the app running.\n'
         '• Other students: nothing. They never see your documents, your '
-        'inscription number or your phone.',
+        'inscription number, your phone or your bank account.',
   ),
   (
     'How it is protected',
-    'Files are kept in private storage. Every time the attaché or a '
-        'representative opens your passport or your results, it is recorded '
-        'with the date. Links to a file stop working after a short time.',
+    'Files are kept in private storage. Every time the Educational Attaché or a '
+        'Governor opens your results, bank account, passport number or passport '
+        'scan, it is recorded with the date. Links to a file stop working after '
+        'at most one hour.',
   ),
   (
     'How long it is kept',
-    'Your passport scan is deleted after your attestation is issued. Your '
-        'record and results stay until you delete them or delete your account. '
-        'Deleting your account deletes all your files.',
+    'Your passport scan is deleted after your attestation is issued. The rest '
+        'stays until you delete it or delete your account. Deleting your account '
+        'deletes all your files.',
   ),
 ];
 

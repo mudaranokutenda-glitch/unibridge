@@ -1,4 +1,4 @@
-﻿# UniBridge to-do list (work from top to bottom)
+# UniBridge to-do list (work from top to bottom)
 
 ## Working rules
 - One item at a time. Show a plan first and wait for my OK.
@@ -37,6 +37,48 @@
 - [x] E2. (built 2026-11-05, test with TESTING.md) Home screen carousel at the top: slides by itself every 4 seconds, can be swiped, shows dots, tap opens the link or the full poster. Hidden when there are no posters. Image ratio 16:9.
 - [x] E3. (built 2026-11-05, test with TESTING.md) Screen for attache and admin to add, order and remove posters.
 
+## G. Big update (built 2026-11-11 on branch big-update, test with TESTING.md part G)
+- [x] G1. Sign-up with email and password only (Google kept); student ID removed from sign-up and profile screens.
+- [x] G2. "Set up your profile" page: photo, wilaya, phone number (cannot be skipped).
+- [x] G3. Edit profile: photo, wilaya, city, phone number.
+- [x] G4. Phone format +213 / +263 (app and database), stored in private table user_phones.
+- [x] G5. Arabic removed (a phone saved on Arabic goes back to English).
+- [x] G6. Location sharing removed (button, geolocator package, Android permission).
+- [x] G7. Chat allows only text and photos (database rule).
+- [x] G8. "Download chat" removed (file_picker kept: Student space and staff use it).
+- [x] G9. Rate the other person after COMPLETED; the chat is then closed for you.
+- [x] G10. Cancelled requests shown in red.
+- [x] G11. Chats auto-cleaned 30 days after COMPLETED / CANCELLED (photos, messages); request row and ratings kept.
+- [x] G12. Home: profile bar with frame, posters (3 s), My requests (live), New unmatched requests.
+- [x] G13. Rates icon at the top right (My requests icon removed).
+- [x] G14. Bottom bar: Requests, Marketplace, Student space, Profile.
+- [x] G15. Marketplace reloads when the tab is opened, and pull to refresh.
+- [x] G16. Notifications in the phone's notification bar while the app is open; channels "general" and "emergency".
+- [x] G17. Push to everyone when a new request is posted; switch "New request notifications" in Profile.
+- [x] G18. Suggested matching (same amount and currency, opposite type, both must accept, 24 h).
+- [x] G19. Student record: gender, bank account number (20 digits).
+- [x] G20. Passport number (private table).
+- [x] G21. Contacts: Educational Attaché and Governors (call, WhatsApp, email).
+- [x] G22. Guide for new students (Police, Bank, Bourse, Medical) with optional PDFs.
+- [x] G23. Help: frequently asked questions with search.
+- [x] G24. Appointments with the Educational Attaché.
+- [x] G25. Attestation de bourse needs the passport file AND the date of entry into Algeria.
+- [x] G26. Attaché: search students on the server; student details (logged).
+- [x] G27. Final list: filter by wilaya, with or without the bank account column (logged).
+- [x] G28. List of all Governors' contacts.
+- [x] G29. Emergency alert to every user (confirmation, server check, alerts table, banner).
+- [x] G30. Attaché dashboard: students per wilaya and total.
+- [x] G31. Governor: results tracker.
+- [x] G32. Governor: number of students and users without a student record.
+- [x] G33. Governor: contact the attaché and students of their wilaya.
+- [x] G34. Governor: bank accounts of their wilaya (view only, logged).
+- [x] G35. Governor: dashboard of their wilaya.
+- [x] G36. Terms and privacy updated in English and French (app and docs/privacy-policy.html).
+- [x] G37. delete-account, CLAUDE.md, TODO.md and TESTING.md updated.
+- [x] G38. PASS/FAIL tests in sql/tests/.
+- [ ] G39. (YOU) Add android/app/src/main/res/raw/emergency_alert.mp3, then follow REPORT.md part 3.
+- [ ] G40. (YOU) Run the SQL, deploy the functions and do the tests in TESTING.md part G.
+
 ## F. Before launch
 - [ ] F5. Polish marketplace, chat and other screens. WAIT for my design brief.
 - [ ] F6. New look (colours, fonts, icons): WAIT for my design brief.
@@ -48,11 +90,11 @@
 - [x] Push notifications for chat messages
 - [x] Profile cards, verification requests, automatic exchange rates
 - [x] Split main.dart into several files
-- [x] Chat extras: photo, share my location once, download the chat as a text file
+- [x] Chat extras: photo (location sharing and chat download removed on 2026-11-11)
 - [x] A3a. Terms and privacy screen
 - [x] F1. Report and block a user
 - [x] F2. Fingerprint or face unlock
 - [x] F3. Request filters: type, currency, wilaya
-- [x] F4. Languages (English first, then French and Arabic) and dark mode
-- [x] F6 (part). Bottom navigation: Requests, Marketplace, Rates, Profile
+- [x] F4. Languages (English and French; Arabic removed on 2026-11-11) and dark mode
+- [x] F6 (part). Bottom navigation: Requests, Marketplace, Student space, Profile (Rates is the icon at the top of Requests)
 - [x] F7. Release preparation: app name and ID, icon, signing key, Play Store listing, privacy policy link

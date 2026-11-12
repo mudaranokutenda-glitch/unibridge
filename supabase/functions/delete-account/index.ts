@@ -139,11 +139,33 @@ Deno.serve(async (req) => {
       .eq("type", "IMAGE");
     if (msgErr) return json({ error: msgErr.message }, 500);
 
-    // 5. Delete the login. The database removes the profile, listings,
+    // 5. Delete my private rows added on 2026-11-11 (phone, bank account,
+    //    passport number, notification settings, appointments, match
+    //    suggestions). They would also go with the login (on delete cascade),
+    //    but deleting them first makes sure nothing stays if step 6 fails.
+    for (const [table, column] of [
+      ["user_phones", "user_id"],
+      ["bank_accounts", "user_id"],
+      ["passport_numbers", "user_id"],
+      ["notification_settings", "user_id"],
+      ["appointments", "student_id"],
+      ["match_suggestions", "user_a"],
+      ["match_suggestions", "user_b"],
+    ]) {
+      const { error } = await admin.from(table).delete().eq(column, userId);
+      // A table that does not exist yet (SQL not run) is not an error here.
+      if (error && !/does not exist|schema cache/i.test(error.message)) {
+        return json({ error: `${table}: ${error.message}` }, 500);
+      }
+    }
+
+    // 6. Delete the login. The database removes the profile, listings,
     //    notifications, blocks, verification requests, student record,
     //    results rows, attestation requests and consents by itself and
     //    empties my id in shared history (see the SQL files).
     //    The access log keeps its rows (nobody can delete them).
+    //    Staff contacts (staff_contacts) are official contacts typed by the
+    //    attaché, not linked to an account: the attaché removes them by hand.
     const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
     if (deleteErr) return json({ error: deleteErr.message }, 500);
 

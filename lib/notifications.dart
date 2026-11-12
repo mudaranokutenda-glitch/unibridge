@@ -5,6 +5,8 @@ import 'config.dart';
 import 'requests.dart';
 import 'rates.dart';
 import 'student_space.dart';
+import 'student_info.dart';
+import 'roles.dart';
 import 'l10n.dart';
 
 // ---------------- Notifications (bell + inbox) ----------------
@@ -166,12 +168,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ? const Icon(Icons.circle,
                                 size: 10, color: Colors.blue)
                             : null,
-                        onTap: () {
+                        onTap: () async {
+                          Widget screen;
+                          if (n['type'] == 'ATTESTATION_UPDATE') {
+                            screen = const AttestationScreen();
+                          } else if (n['type'] == 'APPOINTMENT_UPDATE') {
+                            final role = await loadMyRole();
+                            screen = role.isStaff
+                                ? const StaffAppointmentsScreen()
+                                : const AppointmentsScreen();
+                          } else {
+                            screen = const MyRequestsScreen();
+                          }
+                          if (!context.mounted) return;
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => n['type'] == 'ATTESTATION_UPDATE'
-                                    ? const AttestationScreen()
-                                    : const MyRequestsScreen()),
+                            MaterialPageRoute(builder: (_) => screen),
                           );
                         },
                       );

@@ -49,6 +49,9 @@ final List<TextInputFormatter> kPhoneInput = [
   LengthLimitingTextInputFormatter(14),
 ];
 
+// Marker used by the gate when the phone table cannot be read yet.
+const String kPhoneCheckSkipped = '__skipped__';
+
 Future<String?> loadMyPhone() async {
   final row = await supabase
       .from('user_phones')
@@ -122,7 +125,15 @@ class _ProfileGateState extends State<ProfileGate> {
     });
     try {
       final p = await loadMyProfileStrict();
-      final ph = await loadMyPhone();
+      String? ph;
+      try {
+        ph = await loadMyPhone();
+      } catch (e) {
+        // The phone table does not exist yet (SQL file 02 not run): do not
+        // lock everybody out, just skip the phone check for now.
+        debugPrint('Phone check skipped: $e');
+        ph = kPhoneCheckSkipped;
+      }
       if (!mounted) return;
       setState(() {
         me = p;
@@ -167,8 +178,12 @@ class _ProfileGateState extends State<ProfileGate> {
         ),
       );
     }
-    if (!isProfileComplete(me) || !isValidPhone(phone)) {
-      return ProfileSetupScreen(profile: me, phone: phone, onSaved: check);
+    final phoneOk = phone == kPhoneCheckSkipped || isValidPhone(phone);
+    if (!isProfileComplete(me) || !phoneOk) {
+      return ProfileSetupScreen(
+          profile: me,
+          phone: phone == kPhoneCheckSkipped ? null : phone,
+          onSaved: check);
     }
     return const HomeScreen(); // opens on the Requests tab
   }

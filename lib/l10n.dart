@@ -1026,4 +1026,22 @@ const Map<String, String> _t = {
       'Liste des comptes bancaires ouverte',
   'Opened the results tracker':
       'Suivi des résultats ouvert',
+  'What you give':
+      'Ce que vous donnez',
+  'Your student record, your bank account number, your passport number, your results (PDF), your passport scan and date of entry into Algeria for an attestation de bourse, and the photo of your student card.':
+      'Votre fiche étudiant, votre numéro de compte bancaire, votre numéro de passeport, vos résultats (PDF), le scan de votre passeport et votre date d\'entrée en Algérie pour une attestation de bourse, et la photo de votre carte d\'étudiant.',
+  'Who can see what':
+      'Qui peut voir quoi',
+  '• The Educational Attaché of Zimbabwe: everything in your student space.\n• The Governor of your wilaya: your student record, results, phone and bank account number. Never your passport number, passport scan or attestation.\n• The app administrator: can technically access the stored data to keep the app running.\n• Other students: nothing. They never see your documents, your inscription number, your phone or your bank account.':
+      '• L\'Attaché d\'éducation du Zimbabwe : tout ce qui est dans votre espace étudiant.\n• Le Gouverneur de votre wilaya : votre fiche étudiant, vos résultats, votre téléphone et votre numéro de compte bancaire. Jamais votre numéro de passeport, le scan du passeport ni l\'attestation.\n• L\'administrateur de l\'application : peut techniquement accéder aux données enregistrées pour faire fonctionner l\'application.\n• Les autres étudiants : rien. Ils ne voient jamais vos documents, votre numéro d\'inscription, votre téléphone ni votre compte bancaire.',
+  'How it is protected':
+      'Comment c\'est protégé',
+  'Files are kept in private storage. Every time the Educational Attaché or a Governor opens your results, bank account, passport number or passport scan, it is recorded with the date. Links to a file stop working after at most one hour.':
+      'Les fichiers sont gardés dans un stockage privé. Chaque fois que l\'Attaché d\'éducation ou un Gouverneur ouvre vos résultats, votre compte bancaire, votre numéro de passeport ou le scan du passeport, c\'est enregistré avec la date. Les liens vers un fichier cessent de fonctionner après une heure au maximum.',
+  'How long it is kept':
+      'Combien de temps c\'est gardé',
+  'Your passport scan is deleted after your attestation is issued. The rest stays until you delete it or delete your account. Deleting your account deletes all your files.':
+      'Le scan de votre passeport est supprimé après la délivrance de votre attestation. Le reste est gardé jusqu\'à ce que vous le supprimiez ou supprimiez votre compte. La suppression de votre compte supprime tous vos fichiers.',
+  'This cannot be undone.\n\nDeleted: your profile, phone number, all your photos and files (also the photos you sent in chats, your results, passport and attestations), your student record, bank account and passport numbers, appointments, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chat text messages and ratings (you will show as "UniBridge user").\n\nType DELETE to confirm.':
+      'Cette action est définitive.\n\nSupprimés : votre profil, votre numéro de téléphone, toutes vos photos et fichiers (aussi les photos envoyées dans les discussions, vos résultats, passeport et attestations), votre fiche étudiant, vos numéros de compte bancaire et de passeport, vos rendez-vous, annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : les transactions terminées, les messages texte et les notes (vous apparaîtrez comme « UniBridge user »).\n\nTapez DELETE pour confirmer.',
 };
