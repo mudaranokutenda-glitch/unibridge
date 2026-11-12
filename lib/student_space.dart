@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,6 +8,7 @@ import 'config.dart';
 import 'consent.dart';
 import 'wilayas.dart';
 import 'profile_setup.dart';
+import 'student_info.dart';
 import 'l10n.dart';
 
 // ---------------- Student space: record, results, attestation ----------------
@@ -134,6 +136,35 @@ class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => open(const AttestationScreen()),
           ),
+          ListTile(
+            leading: const Icon(Icons.event_outlined),
+            title: Text(tr('Appointments')),
+            subtitle: Text(tr('Meet the Educational Attaché')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => open(const AppointmentsScreen()),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.contact_phone_outlined),
+            title: Text(tr('Contacts')),
+            subtitle: Text(tr('The Educational Attaché and your Governor')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => open(const ContactsScreen()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book_outlined),
+            title: Text(tr('Guide for new students')),
+            subtitle: Text(tr('Police, bank, bourse, medical')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => open(const GuideScreen()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: Text(tr('Help')),
+            subtitle: Text(tr('Frequently asked questions')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => open(const HelpScreen()),
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
@@ -166,6 +197,11 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
   final program = TextEditingController();
   final phone = TextEditingController();
   final inscription = TextEditingController();
+  // Private: only me, the Educational Attaché and my Governor (bank account);
+  // only me and the Educational Attaché (passport number). Separate tables.
+  final bankAccount = TextEditingController();
+  final passportNumber = TextEditingController();
+  String? gender; // MALE or FEMALE
   String? level;
   String? wilaya;
   String? academicYear;
@@ -207,9 +243,29 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
           academicYear = r['academic_year']?.toString();
           startYear = r['start_year'] as int?;
           finishYear = r['expected_finish_year'] as int?;
+          gender = const ['MALE', 'FEMALE'].contains(r['gender'])
+              ? r['gender']
+              : null;
         }
         loading = false;
       });
+      final me = supabase.auth.currentUser!.id;
+      final bank = await supabase
+          .from('bank_accounts')
+          .select('account_number')
+          .eq('user_id', me)
+          .maybeSingle();
+      final passport = await supabase
+          .from('passport_numbers')
+          .select('passport_number')
+          .eq('user_id', me)
+          .maybeSingle();
+      if (mounted) {
+        setState(() {
+          bankAccount.text = '${bank?['account_number'] ?? ''}';
+          passportNumber.text = '${passport?['passport_number'] ?? ''}';
+        });
+      }
       // No phone in the record yet: start with the one from my profile.
       if (phone.text.isEmpty) {
         final p = await loadMyPhone();
@@ -238,6 +294,16 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
         'wilaya': wilaya,
         'inscription_number': inscription.text.trim(),
         'expected_finish_year': finishYear,
+        'gender': gender,
+      });
+      final me = supabase.auth.currentUser!.id;
+      await supabase.from('bank_accounts').upsert({
+        'user_id': me,
+        'account_number': bankAccount.text.trim(),
+      });
+      await supabase.from('passport_numbers').upsert({
+        'user_id': me,
+        'passport_number': passportNumber.text.trim().toUpperCase(),
       });
       exists = true;
       if (mounted) showSnack(context, tr('Record saved.'));
@@ -301,6 +367,9 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
                   const SizedBox(height: 12),
                   text(firstName, tr('First name')),
                   text(lastName, tr('Last name')),
+                  dropdown<String>(tr('Gender'), gender, const ['MALE', 'FEMALE'],
+                      (v) => setState(() => gender = v),
+                      show: (v) => v == 'MALE' ? tr('Male') : tr('Female')),
                   text(program, tr('Program (e.g. Civil engineering)')),
                   dropdown<String>(tr('Level'), level, kStudyLevels,
                       (v) => setState(() => level = v),
@@ -332,6 +401,51 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
                           ? null
                           : tr('Use +213 or +263 followed by 8 to 10 digits.')),
                   text(inscription, tr('Inscription number')),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      controller: bankAccount,
+                      keyboardType: TextInputType.number,
+                      maxLength: 20, // shows the 0/20 counter
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(20),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: tr('Bank account number (20 digits)'),
+                        helperText: tr(
+                            'Only the Educational Attaché and your Governor can see your bank account number.'),
+                        helperMaxLines: 3,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      validator: (v) => RegExp(r'^[0-9]{20}$').hasMatch(v ?? '')
+                          ? null
+                          : tr('Exactly 20 digits'),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      controller: passportNumber,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
+                        LengthLimitingTextInputFormatter(12),
+                        TextInputFormatter.withFunction((oldValue, newValue) =>
+                            newValue.copyWith(text: newValue.text.toUpperCase())),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: tr('Passport number'),
+                        helperText: tr(
+                            'Only you and the Educational Attaché can see your passport number.'),
+                        helperMaxLines: 3,
+                      ),
+                      validator: (v) =>
+                          RegExp(r'^[A-Z0-9]{6,12}$').hasMatch((v ?? '').toUpperCase())
+                              ? null
+                              : tr('6 to 12 letters and digits'),
+                    ),
+                  ),
                   if (startYear != null &&
                       finishYear != null &&
                       finishYear! < startYear!)

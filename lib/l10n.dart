@@ -514,4 +514,158 @@ const Map<String, String> _t = {
       'Refuser',
   'Accept':
       'Accepter',
+  'Gender':
+      'Sexe',
+  'Male':
+      'Homme',
+  'Female':
+      'Femme',
+  'Bank account number (20 digits)':
+      'Numéro de compte bancaire (20 chiffres)',
+  'Only the Educational Attaché and your Governor can see your bank account number.':
+      'Seuls l\'Attaché d\'éducation et votre Gouverneur peuvent voir votre numéro de compte bancaire.',
+  'Exactly 20 digits':
+      'Exactement 20 chiffres',
+  'Passport number':
+      'Numéro de passeport',
+  'Only you and the Educational Attaché can see your passport number.':
+      'Seuls vous et l\'Attaché d\'éducation pouvez voir votre numéro de passeport.',
+  '6 to 12 letters and digits':
+      '6 à 12 lettres et chiffres',
+  'Could not open it.':
+      'Impossible de l\'ouvrir.',
+  'Call':
+      'Appeler',
+  'Contacts':
+      'Contacts',
+  'Manage contacts':
+      'Gérer les contacts',
+  'Contact the Educational Attaché':
+      'Contacter l\'Attaché d\'éducation',
+  'No contact yet.':
+      'Aucun contact pour l\'instant.',
+  'Contact your Governor':
+      'Contacter votre Gouverneur',
+  'Choose your wilaya in your profile first.':
+      'Choisissez d\'abord votre wilaya dans votre profil.',
+  'Governors\' contacts':
+      'Contacts des Gouverneurs',
+  'Add a contact':
+      'Ajouter un contact',
+  'Edit contact':
+      'Modifier le contact',
+  'Delete this contact?':
+      'Supprimer ce contact ?',
+  'Educational Attaché':
+      'Attaché d\'éducation',
+  'Governor':
+      'Gouverneur',
+  'Write a name.':
+      'Écrivez un nom.',
+  'Choose the wilaya.':
+      'Choisissez la wilaya.',
+  'Give a phone number or an email.':
+      'Donnez un numéro de téléphone ou un e-mail.',
+  'Kind':
+      'Type',
+  'Phone':
+      'Téléphone',
+  'Order':
+      'Ordre',
+  'Guide for new students':
+      'Guide pour les nouveaux étudiants',
+  'Coming soon':
+      'Bientôt disponible',
+  '{count} items':
+      '{count} éléments',
+  'Police':
+      'Police',
+  'Bourse':
+      'Bourse',
+  'Medical':
+      'Médical',
+  'Add':
+      'Ajouter',
+  'Open the PDF':
+      'Ouvrir le PDF',
+  'Write a title.':
+      'Écrivez un titre.',
+  'Delete this item?':
+      'Supprimer cet élément ?',
+  'Title':
+      'Titre',
+  'Text':
+      'Texte',
+  'PDF attached':
+      'PDF joint',
+  'No PDF (optional)':
+      'Pas de PDF (facultatif)',
+  'Remove':
+      'Retirer',
+  'Help':
+      'Aide',
+  'Search the questions':
+      'Rechercher dans les questions',
+  'No questions yet.':
+      'Aucune question pour l\'instant.',
+  'Nothing found.':
+      'Aucun résultat.',
+  'Write the question and the answer.':
+      'Écrivez la question et la réponse.',
+  'Delete this question?':
+      'Supprimer cette question ?',
+  'Question':
+      'Question',
+  'Answer':
+      'Réponse',
+  'Waiting for an answer':
+      'En attente de réponse',
+  'Confirmed':
+      'Confirmé',
+  'Another time proposed':
+      'Autre horaire proposé',
+  'Declined':
+      'Refusé',
+  'Appointments':
+      'Rendez-vous',
+  'Ask for an appointment':
+      'Demander un rendez-vous',
+  'Reason':
+      'Motif',
+  'Write the reason (at least 3 letters).':
+      'Écrivez le motif (au moins 3 lettres).',
+  'Request sent to the Educational Attaché.':
+      'Demande envoyée à l\'Attaché d\'éducation.',
+  'Ask the Educational Attaché for an appointment: choose a date, a time and the reason.':
+      'Demandez un rendez-vous à l\'Attaché d\'éducation : choisissez une date, une heure et le motif.',
+  'Asked for: {date}':
+      'Demandé pour : {date}',
+  'Proposed: {date}':
+      'Proposé : {date}',
+  'Note: {note}':
+      'Note : {note}',
+  'Cancel this appointment?':
+      'Annuler ce rendez-vous ?',
+  'Cancel appointment':
+      'Annuler le rendez-vous',
+  'Accept this time':
+      'Accepter cet horaire',
+  'Propose another time':
+      'Proposer un autre horaire',
+  'Note for the student':
+      'Note pour l\'étudiant',
+  'Note for the student (optional)':
+      'Note pour l\'étudiant (facultatif)',
+  'Only open appointments':
+      'Rendez-vous en cours seulement',
+  'No appointments.':
+      'Aucun rendez-vous.',
+  'Meet the Educational Attaché':
+      'Rencontrer l\'Attaché d\'éducation',
+  'The Educational Attaché and your Governor':
+      'L\'Attaché d\'éducation et votre Gouverneur',
+  'Police, bank, bourse, medical':
+      'Police, banque, bourse, médical',
+  'Frequently asked questions':
+      'Questions fréquentes',
 };
