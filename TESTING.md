@@ -215,7 +215,7 @@ You need these accounts:
 Lines in **bold** are security tests: they MUST fail for the wrong person.
 
 ### SQL tests (SQL Editor)
-For each file in `sql/tests/` (see `sql/tests/README.md`): replace the ids, run, and check that every line says PASS.
+For each file in `sql/tests/` (read `sql/tests/README.md` first): replace the ids, run, and read the **RESULT SUMMARY** (it is shown as an error on purpose, which also undoes everything). Every line must say PASS. A SKIP is not a pass, and "Success. No rows returned" with no result lines means nothing was checked.
 - [ ] 2026-11-11-02-phone-tests.sql
 - [ ] 2026-11-11-04-05-chat-tests.sql
 - [ ] 2026-11-11-06-07-notifications-matching-tests.sql
@@ -223,6 +223,8 @@ For each file in `sql/tests/` (see `sql/tests/README.md`): replace the ids, run,
 - [ ] 2026-11-11-12-attestation-tests.sql
 - [ ] 2026-11-11-13-staff-tools-tests.sql
 - [ ] 2026-11-11-14-governor-tests.sql
+- [ ] 2026-11-11-18-storage-and-anon-tests.sql
+- [ ] 2026-11-11-19-hardening-tests.sql (needs SQL files 07, 11, 15, 17)
 
 ### Stage 1. Login, profile, language
 - [ ] G1. Sign-up shows only name, email and password (no inscription number). Google sign-in still works.
