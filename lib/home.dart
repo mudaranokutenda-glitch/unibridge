@@ -9,6 +9,7 @@ import 'marketplace.dart';
 import 'chat.dart';
 import 'rates.dart';
 import 'student_space.dart';
+import 'staff_tools.dart';
 import 'notifications.dart';
 import 'posters.dart';
 import 'request_row.dart';
@@ -114,6 +115,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   List<Map<String, dynamic>> myRequests = []; // I created it or I matched it
   Set<String> ratedIds = {}; // requests I already rated
   List<Map<String, dynamic>> suggestions = []; // suggested matches for me
+  Map<String, dynamic>? recentAlert; // emergency alert of the last 3 days
+  String? hiddenAlertId; // the alert I closed
   String? respondingTo; // suggestion being accepted / declined
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
@@ -227,6 +230,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     loadRequests();
+    // An emergency alert arrived while the app is open: show the banner.
+    onEmergencyAlertReceived = () => reloadSoon();
     requestsChannel = supabase
         .channel('home-requests')
         .onPostgresChanges(
@@ -262,6 +267,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    onEmergencyAlertReceived = null;
     reloadTimer?.cancel();
     final channel = requestsChannel;
     if (channel != null) supabase.removeChannel(channel);
@@ -302,6 +308,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         debugPrint('Could not load suggestions: $e');
       }
       final rated = await fetchMyRatedRequestIds();
+      final alert = await loadRecentAlert();
       // My own profile is loaded too, for the profile bar at the top.
       final loadedProfiles = await fetchPublicProfiles([
         myId,
@@ -315,6 +322,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         myRequests = mine;
         suggestions = loadedSuggestions;
         ratedIds = rated;
+        recentAlert = alert;
         profiles = loadedProfiles;
         loading = false;
       });
@@ -430,6 +438,12 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         // Room at the bottom so the + button never covers the last row.
         padding: const EdgeInsetsDirectional.only(bottom: 88),
         children: [
+          if (recentAlert != null && recentAlert!['id'] != hiddenAlertId)
+            AlertBanner(
+              alert: recentAlert!,
+              onClose: () =>
+                  setState(() => hiddenAlertId = recentAlert!['id']?.toString()),
+            ),
           const PosterCarousel(),
           if (loading)
             const Padding(

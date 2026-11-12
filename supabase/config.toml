@@ -462,3 +462,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/new-request-push/deno.json"
 entrypoint = "./functions/new-request-push/index.ts"
+
+[functions.emergency-alert]
+enabled = true
+verify_jwt = true
+import_map = "./functions/emergency-alert/deno.json"
+entrypoint = "./functions/emergency-alert/index.ts"

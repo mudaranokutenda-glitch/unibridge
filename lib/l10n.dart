@@ -674,4 +674,356 @@ const Map<String, String> _t = {
       'La date d\'entrée en Algérie est obligatoire.',
   'You need two things: the date you entered Algeria, and a clear scan or photo of your passport (photo page). The Educational Attaché checks it and issues your attestation here. Your passport scan is deleted after the attestation is issued.':
       'Il vous faut deux choses : la date de votre entrée en Algérie et un scan ou une photo nette de votre passeport (page photo). L\'Attaché d\'éducation le vérifie et délivre votre attestation ici. Le scan de votre passeport est supprimé après la délivrance de l\'attestation.',
+  'Your documents':
+      'Vos documents',
+  'Please read this before you upload a personal document.':
+      'Veuillez lire ceci avant d\'envoyer un document personnel.',
+  'I have read this and I agree.':
+      'J\'ai lu et j\'accepte.',
+  'Continue':
+      'Continuer',
+  'Not now':
+      'Pas maintenant',
+  'Delete this poster?':
+      'Supprimer cette affiche ?',
+  'Posters':
+      'Affiches',
+  'Add poster':
+      'Ajouter une affiche',
+  '{count} of 4 active. Each active poster has its own position (1 is shown first). Images should be 16:9.':
+      '{count} sur 4 actives. Chaque affiche active a sa propre position (1 est affichée en premier). Les images doivent être en 16:9.',
+  'Active, position {n}':
+      'Active, position {n}',
+  'Not active':
+      'Inactive',
+  'Choose an image.':
+      'Choisissez une image.',
+  'The link must start with https://':
+      'Le lien doit commencer par https://',
+  'Another active poster already uses position {n}. Choose another position or turn that poster off first.':
+      'Une autre affiche active utilise déjà la position {n}. Choisissez une autre position ou désactivez d\'abord cette affiche.',
+  'Edit poster':
+      'Modifier l\'affiche',
+  'Tap to choose an image (16:9)':
+      'Touchez pour choisir une image (16:9)',
+  'Link (optional)':
+      'Lien (facultatif)',
+  'Start: {d}':
+      'Début : {d}',
+  'End: {d}':
+      'Fin : {d}',
+  'Position':
+      'Position',
+  'Active':
+      'Active',
+  'This cannot be undone.\n\nDeleted: your profile, all your photos and files (also the photos you sent in chats, your results, passport and attestations), your student record, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chat text messages and ratings (you will show as "UniBridge user").\n\nType DELETE to confirm.':
+      'Cette action est définitive.\n\nSupprimés : votre profil, toutes vos photos et fichiers (aussi les photos envoyées dans les discussions, vos résultats, passeport et attestations), votre fiche étudiant, vos annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : les transactions terminées, les messages texte et les notes (vous apparaîtrez comme « UniBridge user »).\n\nTapez DELETE pour confirmer.',
+  'Could not open the file: {error}':
+      'Impossible d\'ouvrir le fichier : {error}',
+  'No student record':
+      'Pas de fiche étudiant',
+  'Staff ({role})':
+      'Personnel ({role})',
+  'Governor of {wilaya}':
+      'Gouverneur de {wilaya}',
+  'Students':
+      'Étudiants',
+  'Attestation requests':
+      'Demandes d\'attestation',
+  'Final list of students':
+      'Liste finale des étudiants',
+  'Access log':
+      'Journal d\'accès',
+  'Only requests still to do':
+      'Seulement les demandes à traiter',
+  'No requests.':
+      'Aucune demande.',
+  'Please choose a PDF file.':
+      'Veuillez choisir un fichier PDF.',
+  'This file is too big (max 10 MB).':
+      'Ce fichier est trop volumineux (max 10 Mo).',
+  'Attestation issued. The student was notified.':
+      'Attestation délivrée. L\'étudiant a été prévenu.',
+  'Reject request':
+      'Refuser la demande',
+  'Note for the student (required)':
+      'Note pour l\'étudiant (obligatoire)',
+  'Reject':
+      'Refuser',
+  'Request rejected. The student was notified.':
+      'Demande refusée. L\'étudiant a été prévenu.',
+  'Delete the passport scan now?':
+      'Supprimer le scan du passeport maintenant ?',
+  'Passport scan deleted.':
+      'Scan du passeport supprimé.',
+  'Attestation request':
+      'Demande d\'attestation',
+  'Status':
+      'Statut',
+  'Sent on':
+      'Envoyé le',
+  'Open passport (recorded in the access log)':
+      'Ouvrir le passeport (enregistré dans le journal d\'accès)',
+  'Passport scan deleted on {date}':
+      'Scan du passeport supprimé le {date}',
+  'Marked as being reviewed.':
+      'Marquée comme en cours d\'examen.',
+  'Mark as being reviewed':
+      'Marquer comme en cours d\'examen',
+  'Upload attestation (PDF) and issue':
+      'Envoyer l\'attestation (PDF) et la délivrer',
+  'Reject with a note':
+      'Refuser avec une note',
+  'Open issued attestation':
+      'Ouvrir l\'attestation délivrée',
+  'Delete passport scan now':
+      'Supprimer le scan du passeport maintenant',
+  'Otherwise it is deleted automatically 30 days after the attestation is issued.':
+      'Sinon, il est supprimé automatiquement 30 jours après la délivrance de l\'attestation.',
+  'Academic year':
+      'Année universitaire',
+  'All years':
+      'Toutes les années',
+  '{count} students':
+      '{count} étudiants',
+  'Choose wilaya and year to compile':
+      'Choisissez la wilaya et l\'année pour compiler',
+  'Compile results PDF':
+      'Compiler les résultats en PDF',
+  'No students.':
+      'Aucun étudiant.',
+  'Program':
+      'Filière',
+  'Level':
+      'Niveau',
+  'Current academic year':
+      'Année universitaire en cours',
+  'Start year':
+      'Année de début',
+  'Expected finish year':
+      'Année de fin prévue',
+  'Results':
+      'Résultats',
+  'Opening a file is recorded in the access log.':
+      'L\'ouverture d\'un fichier est enregistrée dans le journal d\'accès.',
+  'No results uploaded yet.':
+      'Aucun résultat envoyé pour l\'instant.',
+  'Compile results':
+      'Compiler les résultats',
+  'The PDF has a cover page with the list of students, then each student\'s results. Big wilayas are split into several parts. Each link works for 1 hour.':
+      'Le PDF a une page de garde avec la liste des étudiants, puis les résultats de chaque étudiant. Les grandes wilayas sont divisées en plusieurs parties. Chaque lien fonctionne pendant 1 heure.',
+  '{count} students, {parts} part(s).':
+      '{count} étudiants, {parts} partie(s).',
+  'Part {n}':
+      'Partie {n}',
+  'Ready. Tap Open.':
+      'Prêt. Touchez Ouvrir.',
+  'Building... this can take a minute.':
+      'Création en cours... cela peut prendre une minute.',
+  'Not built yet':
+      'Pas encore créé',
+  'Build':
+      'Créer',
+  'Could not build: {error}':
+      'Création impossible : {error}',
+  'This export contains bank account numbers. It will be recorded in the access log. Continue?':
+      'Cet export contient des numéros de compte bancaire. Il sera enregistré dans le journal d\'accès. Continuer ?',
+  'Export':
+      'Exporter',
+  'Students sorted by wilaya and name. Columns: number, last name, first name, inscription number, wilaya, program, level, academic year, start year, expected finish year, phone, and the bank account if you choose it. The link works for 1 hour.':
+      'Étudiants triés par wilaya et par nom. Colonnes : numéro, nom, prénom, numéro d\'inscription, wilaya, filière, niveau, année universitaire, année de début, année de fin prévue, téléphone, et le compte bancaire si vous le choisissez. Le lien fonctionne pendant 1 heure.',
+  'Include the bank account column':
+      'Ajouter la colonne du compte bancaire',
+  'Recorded in the access log.':
+      'Enregistré dans le journal d\'accès.',
+  'Building...':
+      'Création...',
+  'Export as PDF':
+      'Exporter en PDF',
+  'Export as CSV (Excel)':
+      'Exporter en CSV (Excel)',
+  'Nothing recorded yet.':
+      'Rien d\'enregistré pour l\'instant.',
+  'Automatic cleanup':
+      'Nettoyage automatique',
+  'deleted account':
+      'compte supprimé',
+  'Type at least 2 letters or choose a wilaya.':
+      'Tapez au moins 2 lettres ou choisissez une wilaya.',
+  'Search students':
+      'Rechercher des étudiants',
+  'Name or inscription number':
+      'Nom ou numéro d\'inscription',
+  'Searching...':
+      'Recherche...',
+  'Search':
+      'Rechercher',
+  'Search by name, inscription number or wilaya. At most 50 results.':
+      'Recherchez par nom, numéro d\'inscription ou wilaya. 50 résultats au maximum.',
+  'Student not found':
+      'Étudiant introuvable',
+  'Opening this page is recorded in the access log.':
+      'L\'ouverture de cette page est enregistrée dans le journal d\'accès.',
+  'Contact':
+      'Contact',
+  'Student record':
+      'Fiche étudiant',
+  'Private information':
+      'Informations privées',
+  'Bank account':
+      'Compte bancaire',
+  'Dashboard':
+      'Tableau de bord',
+  'Total students':
+      'Total des étudiants',
+  '{count} with a student record':
+      '{count} avec une fiche étudiant',
+  'Write a title and a message.':
+      'Écrivez un titre et un message.',
+  'Send this emergency alert to EVERY user now? Their phones will ring with the alarm sound.':
+      'Envoyer cette alerte d\'urgence à TOUS les utilisateurs maintenant ? Leurs téléphones sonneront avec le son d\'alarme.',
+  'Send to everyone':
+      'Envoyer à tout le monde',
+  'Alert sent to {count} phones.':
+      'Alerte envoyée à {count} téléphones.',
+  'Emergency alert':
+      'Alerte d\'urgence',
+  'Use this only for real emergencies. The alert goes to every user as a high-priority notification and is saved in the app.':
+      'À utiliser uniquement pour de vraies urgences. L\'alerte est envoyée à tous les utilisateurs comme notification prioritaire et elle est enregistrée dans l\'application.',
+  'Message':
+      'Message',
+  'Send the alert':
+      'Envoyer l\'alerte',
+  'Past alerts':
+      'Alertes précédentes',
+  'Alerts':
+      'Alertes',
+  'No alerts.':
+      'Aucune alerte.',
+  'Hide':
+      'Masquer',
+  'Results tracker':
+      'Suivi des résultats',
+  'Semester':
+      'Semestre',
+  '{done} of {total} have uploaded their results':
+      '{done} sur {total} ont envoyé leurs résultats',
+  'Uploaded on {date}':
+      'Envoyé le {date}',
+  'Not uploaded yet':
+      'Pas encore envoyé',
+  'No student record yet':
+      'Pas encore de fiche étudiant',
+  'Everyone has filled in their student record.':
+      'Tout le monde a rempli sa fiche étudiant.',
+  '{count} users of your wilaya have not filled in their student record.':
+      '{count} utilisateurs de votre wilaya n\'ont pas rempli leur fiche étudiant.',
+  'No phone number':
+      'Pas de numéro de téléphone',
+  'Bank accounts':
+      'Comptes bancaires',
+  'View only. Opening this list is recorded in the access log.':
+      'Consultation seulement. L\'ouverture de cette liste est enregistrée dans le journal d\'accès.',
+  'Not given yet':
+      'Pas encore donné',
+  'Choose PDF':
+      'Choisir un PDF',
+  'Could not open the file.':
+      'Impossible d\'ouvrir le fichier.',
+  'My student record':
+      'Ma fiche étudiant',
+  'Program, level, year, wilaya':
+      'Filière, niveau, année, wilaya',
+  'My results':
+      'Mes résultats',
+  'Upload your results (PDF)':
+      'Envoyez vos résultats (PDF)',
+  'Attestation de bourse':
+      'Attestation de bourse',
+  'Ask for it and download it':
+      'La demander et la télécharger',
+  'Who can see my documents':
+      'Qui peut voir mes documents',
+  'You will be asked before your first upload.':
+      'On vous le demandera avant votre premier envoi.',
+  'You agreed on {date}.':
+      'Vous avez accepté le {date}.',
+  'Record saved.':
+      'Fiche enregistrée.',
+  'Required':
+      'Obligatoire',
+  'First name':
+      'Prénom',
+  'Last name':
+      'Nom',
+  'Program (e.g. Civil engineering)':
+      'Filière (ex. Génie civil)',
+  'The finish year cannot be before the start year.':
+      'L\'année de fin ne peut pas être avant l\'année de début.',
+  'Save my record':
+      'Enregistrer ma fiche',
+  'Upload results':
+      'Envoyer des résultats',
+  'PDF only, max 10 MB.':
+      'PDF uniquement, max 10 Mo.',
+  'Results uploaded.':
+      'Résultats envoyés.',
+  'Could not upload: {error}':
+      'Envoi impossible : {error}',
+  'Delete this file?':
+      'Supprimer ce fichier ?',
+  'Uploading...':
+      'Envoi...',
+  'Please choose a photo (JPG, PNG) or a PDF.':
+      'Veuillez choisir une photo (JPG, PNG) ou un PDF.',
+  'Request sent.':
+      'Demande envoyée.',
+  'You already have a request in progress':
+      'Vous avez déjà une demande en cours',
+  'Ask for an attestation':
+      'Demander une attestation',
+  'Download my attestation':
+      'Télécharger mon attestation',
+  'All wilayas':
+      'Toutes les wilayas',
+  'Semester 1':
+      'Semestre 1',
+  'Semester 2':
+      'Semestre 2',
+  'Whole year':
+      'Année entière',
+  'Preparatory / language year':
+      'Année préparatoire / de langue',
+  'Engineering':
+      'Ingénieur',
+  'Doctorate':
+      'Doctorat',
+  'Sent, waiting':
+      'Envoyée, en attente',
+  'Being reviewed':
+      'En cours d\'examen',
+  'Issued':
+      'Délivrée',
+  'Not accepted':
+      'Non acceptée',
+  'Opened results':
+      'Résultats ouverts',
+  'Opened passport':
+      'Passeport ouvert',
+  'Deleted passport':
+      'Passeport supprimé',
+  'Compiled results':
+      'Résultats compilés',
+  'Exported final list':
+      'Liste finale exportée',
+  'Exported final list with bank accounts':
+      'Liste finale exportée avec les comptes bancaires',
+  'Opened student details (bank, passport number)':
+      'Détails d\'un étudiant ouverts (banque, numéro de passeport)',
+  'Opened a bank account':
+      'Compte bancaire ouvert',
+  'Opened the bank account list':
+      'Liste des comptes bancaires ouverte',
+  'Opened the results tracker':
+      'Suivi des résultats ouvert',
 };

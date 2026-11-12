@@ -8,6 +8,8 @@ import 'wilayas.dart';
 import 'profiles.dart';
 import 'student_space.dart';
 import 'posters.dart';
+import 'student_info.dart';
+import 'staff_tools.dart';
 import 'l10n.dart';
 
 // ---------------- Staff screens (attache, admin, rep) ----------------
@@ -69,10 +71,11 @@ class StaffSection extends StatelessWidget {
         Text(
           role.isStaff
               ? tr('Staff ({role})', {'role': role.role})
-              : tr('Representative of {wilaya}', {'wilaya': role.repWilaya}),
+              : tr('Governor of {wilaya}', {'wilaya': role.repWilaya}),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
+        StaffToolsSection(role: role),
         button(Icons.groups_outlined, tr('Students'), StudentsScreen(role: role)),
         if (role.isStaff) ...[
           button(Icons.workspace_premium_outlined, tr('Attestation requests'),
@@ -610,6 +613,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           row(tr('Expected finish year'), s['expected_finish_year']),
           row(tr('Wilaya'), s['wilaya']),
           row(tr('Phone'), s['phone']),
+          if ((s['phone'] ?? '').toString().isNotEmpty)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ContactActions(phone: '${s['phone']}'),
+            ),
           const Divider(height: 32),
           Text(tr('Results'), style: Theme.of(context).textTheme.titleMedium),
           Text(tr('Opening a file is recorded in the access log.'),
@@ -749,12 +757,25 @@ class FinalListScreen extends StatefulWidget {
 
 class _FinalListScreenState extends State<FinalListScreen> {
   String? building;
+  String? wilaya; // null = all wilayas
+  bool includeBank = false;
 
   Future<void> export(String format) async {
+    if (includeBank &&
+        !await confirmDialog(
+            context,
+            tr('This export contains bank account numbers. It will be recorded in the access log. Continue?'),
+            okLabel: tr('Export'))) {
+      return;
+    }
     setState(() => building = format);
     try {
-      final res = await callFunction(
-          'staff-reports', {'action': 'final_list', 'format': format});
+      final res = await callFunction('staff-reports', {
+        'action': 'final_list',
+        'format': format,
+        'wilaya': wilaya,
+        'include_bank': includeBank,
+      });
       if (mounted) await openLink(context, res['url'] as String);
     } catch (e) {
       if (mounted) showSnack(context, tr('Could not build: {error}', {'error': e}));
@@ -771,8 +792,21 @@ class _FinalListScreenState extends State<FinalListScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(tr(
-              'All students, sorted by wilaya and name. Columns: number, last name, first name, inscription number, wilaya, program, level, academic year, start year, expected finish year, phone. The link works for 1 hour.')),
+              'Students sorted by wilaya and name. Columns: number, last name, first name, inscription number, wilaya, program, level, academic year, start year, expected finish year, phone, and the bank account if you choose it. The link works for 1 hour.')),
           const SizedBox(height: 16),
+          WilayaDropdown(
+            value: wilaya,
+            allowAll: true,
+            onChanged: (v) => setState(() => wilaya = v),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(tr('Include the bank account column')),
+            subtitle: Text(tr('Recorded in the access log.')),
+            value: includeBank,
+            onChanged: (v) => setState(() => includeBank = v),
+          ),
+          const SizedBox(height: 8),
           ElevatedButton.icon(
             onPressed: building != null ? null : () => export('pdf'),
             icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -798,6 +832,11 @@ const Map<String, String> kLogKinds = {
   'PASSPORT_DELETED': 'Deleted passport',
   'RESULTS_COMPILED': 'Compiled results',
   'FINAL_LIST_EXPORTED': 'Exported final list',
+  'FINAL_LIST_EXPORTED_WITH_BANK': 'Exported final list with bank accounts',
+  'STUDENT_DETAILS_VIEWED': 'Opened student details (bank, passport number)',
+  'BANK_ACCOUNT_VIEWED': 'Opened a bank account',
+  'BANK_LIST_VIEWED': 'Opened the bank account list',
+  'RESULTS_TRACKER_VIEWED': 'Opened the results tracker',
 };
 
 class AccessLogScreen extends StatefulWidget {

@@ -9,8 +9,11 @@ import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 //   { action: "compile", wilaya: "16 - Alger", academic_year: "2025-2026", part: 1 }
 //       attache, admin, or the rep of that wilaya.
 //       Cover page with the list of students, then each student's results.
-//   { action: "final_list", format: "pdf" | "csv" }
-//       attache and admin only. All students.
+//   { action: "final_list", format: "pdf" | "csv", wilaya?: "16 - Alger",
+//     include_bank?: true }
+//       attache and admin only. All students, or one wilaya. With
+//       include_bank, the bank account column is added and the export is
+//       written to access_log as FINAL_LIST_EXPORTED_WITH_BANK.
 //
 // LIMITS (Supabase Edge Functions): about 256 MB of memory, a short CPU
 // time per request and a wall-clock limit. Merging big PDFs is heavy, so a
@@ -269,35 +272,62 @@ Deno.serve(async (req) => {
       if (!isStaff) return json({ error: "Not allowed" }, 403);
       const format = body.format === "csv" ? "csv" : "pdf";
 
-      const { data: students, error } = await admin
-        .from("student_records")
-        .select("*")
+      const includeBank = body.include_bank === true;
+      const wilayaFilter = typeof body.wilaya === "string" && body.wilaya ? body.wilaya : null;
+
+      let query = admin.from("student_records").select("*");
+      if (wilayaFilter) query = query.eq("wilaya", wilayaFilter);
+      const { data: students, error } = await query
         .order("wilaya")
         .order("last_name")
         .order("first_name");
       if (error) return json({ error: error.message }, 500);
 
+      // Bank accounts (only when asked; the export is logged below).
+      const bank = new Map<string, string>();
+      if (includeBank && (students ?? []).length > 0) {
+        const ids = students.map((s) => s.user_id);
+        for (let i = 0; i < ids.length; i += 500) {
+          const { data: accounts, error: bErr } = await admin
+            .from("bank_accounts")
+            .select("user_id, account_number")
+            .in("user_id", ids.slice(i, i + 500));
+          if (bErr) return json({ error: bErr.message }, 500);
+          for (const a of accounts ?? []) bank.set(a.user_id, a.account_number);
+        }
+      }
+
       // Columns of the final list. The attaché decides: change them here.
+      // (narrower columns when the bank account is added, to fit the page)
+      const w = includeBank
+        ? { name: 72, wilaya: 85, program: 75 }
+        : { name: 90, wilaya: 95, program: 110 };
       const columns = [
         { label: "No.", width: 26, get: (_s, i) => String(i + 1) },
-        { label: "Last name", width: 90, get: (s) => s.last_name },
-        { label: "First name", width: 90, get: (s) => s.first_name },
+        { label: "Last name", width: w.name, get: (s) => s.last_name },
+        { label: "First name", width: w.name, get: (s) => s.first_name },
         { label: "Inscription", width: 70, get: (s) => s.inscription_number },
-        { label: "Wilaya", width: 95, get: (s) => s.wilaya },
-        { label: "Program", width: 110, get: (s) => s.program },
+        { label: "Wilaya", width: w.wilaya, get: (s) => s.wilaya },
+        { label: "Program", width: w.program, get: (s) => s.program },
         { label: "Level", width: 60, get: (s) => s.level },
         { label: "Year", width: 52, get: (s) => s.academic_year },
         { label: "Start", width: 34, get: (s) => String(s.start_year) },
         { label: "Finish", width: 36, get: (s) => String(s.expected_finish_year) },
         { label: "Phone", width: 80, get: (s) => s.phone },
+        ...(includeBank
+          ? [{ label: "Bank account", width: 112, get: (s) => bank.get(s.user_id) ?? "" }]
+          : []),
       ];
       const rows = (students ?? []).map((s, i) => columns.map((c) => String(c.get(s, i) ?? "")));
 
-      await admin.from("access_log").insert({
+      // Every export is logged; the one with bank accounts has its own kind.
+      const { error: logErr } = await admin.from("access_log").insert({
         actor_id: callerId,
         actor_role: me.role,
-        kind: "FINAL_LIST_EXPORTED",
+        kind: includeBank ? "FINAL_LIST_EXPORTED_WITH_BANK" : "FINAL_LIST_EXPORTED",
+        wilaya: wilayaFilter,
       });
+      if (logErr) return json({ error: `Could not write the access log: ${logErr.message}` }, 500);
 
       await removeOldFiles(admin, callerId, "final_list_");
       let bytes: Uint8Array;
@@ -311,7 +341,8 @@ Deno.serve(async (req) => {
         const font = await pdf.embedFont(StandardFonts.Helvetica);
         const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
         drawTable(pdf, font, bold, "Final list of students",
-          `${rows.length} students - built ${stamp} UTC`, columns, rows, true);
+          `${wilayaFilter ?? "All wilayas"} - ${rows.length} students - built ${stamp} UTC`,
+          columns, rows, true);
         bytes = await pdf.save();
       }
       const url = await storeAndSign(
