@@ -512,6 +512,7 @@ class EditMyProfileScreen extends StatefulWidget {
 class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
   String? wilaya; // one of the 58, or null = not chosen
   final locationController = TextEditingController();
+  final phoneController = TextEditingController();
   Map<String, dynamic>? me;
   MyRole role = MyRole.student;
   Uint8List? newPhotoBytes;
@@ -624,10 +625,17 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     final profiles = await fetchPublicProfiles([myId]);
     final p = profiles[myId];
     final loadedRole = await loadMyRole();
+    String? phone;
+    try {
+      phone = await loadMyPhone();
+    } catch (e) {
+      debugPrint('Could not load phone: $e');
+    }
     if (!mounted) return;
     setState(() {
       me = p;
       role = loadedRole;
+      phoneController.text = phone ?? '';
       wilaya = validWilaya(p?['wilaya']);
       locationController.text = (p?['location'] ?? '').toString();
       loading = false;
@@ -647,6 +655,11 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     });
     try {
       final myId = supabase.auth.currentUser!.id;
+      if (!isValidPhone(phoneController.text)) {
+        setState(() => errorMessage =
+            tr('Use +213 or +263 followed by 8 to 10 digits.'));
+        return;
+      }
       final updates = <String, dynamic>{
         'wilaya': wilaya ?? 'OTHER',
         'location': locationController.text.trim().isEmpty
@@ -660,6 +673,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       }
 
       await supabase.from('profiles').update(updates).eq('id', myId);
+      await saveMyPhone(phoneController.text);
       // This screen is a tab now, so stay here and show the new card.
       newPhotoBytes = null;
       await load();
@@ -712,7 +726,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  tr('Your name and student ID come from sign-up and can\'t be changed here. Your student ID is never shown to other users.'),
+                  tr('Your name comes from sign-up and can\'t be changed here.'),
                   style: TextStyle(fontSize: 12, color: kMutedText),
                 ),
                 const SizedBox(height: 20),
@@ -726,6 +740,12 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   decoration: InputDecoration(
                     labelText: tr('Location (city / area)'),
                   ),
+                ),
+                const SizedBox(height: 12),
+                PhoneField(
+                  controller: phoneController,
+                  enabled: !saving,
+                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 20),
                 if (errorMessage != null)

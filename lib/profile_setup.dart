@@ -1,5 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
@@ -35,12 +35,43 @@ Future<String> uploadProfilePhoto(Uint8List bytes) async {
   return supabase.storage.from('listings').getPublicUrl(fileName);
 }
 
+// ---------------- Phone number (private table user_phones) ----------------
+// Only I, the Educational Attaché / admin and the Governor of my wilaya can
+// read it (database rules in sql/2026-11-11-02-phone.sql).
+
+final RegExp kPhonePattern = RegExp(r'^\+(263|213)[0-9]{8,10}$');
+
+bool isValidPhone(String? v) => kPhonePattern.hasMatch((v ?? '').trim());
+
+// Only "+" and digits can be typed.
+final List<TextInputFormatter> kPhoneInput = [
+  FilteringTextInputFormatter.allow(RegExp(r'[+0-9]')),
+  LengthLimitingTextInputFormatter(14),
+];
+
+Future<String?> loadMyPhone() async {
+  final row = await supabase
+      .from('user_phones')
+      .select('phone')
+      .eq('user_id', supabase.auth.currentUser!.id)
+      .maybeSingle();
+  return row?['phone']?.toString();
+}
+
+Future<void> saveMyPhone(String phone) async {
+  await supabase.from('user_phones').upsert({
+    'user_id': supabase.auth.currentUser!.id,
+    'phone': phone.trim(),
+  });
+}
+
 // ---------------- Is my profile complete? ----------------
 
 bool hasProfilePhoto(Map<String, dynamic>? p) =>
     (p?['profile_picture_url'] ?? '').toString().trim().isNotEmpty;
 
 // Complete = a photo AND a wilaya from the fixed list of 58.
+// (The gate also checks the phone number, see ProfileGate.)
 bool isProfileComplete(Map<String, dynamic>? p) =>
     hasProfilePhoto(p) && validWilaya(p?['wilaya']) != null;
 
@@ -76,6 +107,7 @@ class _ProfileGateState extends State<ProfileGate> {
   bool loading = true;
   bool failed = false;
   Map<String, dynamic>? me;
+  String? phone;
 
   @override
   void initState() {
@@ -90,9 +122,11 @@ class _ProfileGateState extends State<ProfileGate> {
     });
     try {
       final p = await loadMyProfileStrict();
+      final ph = await loadMyPhone();
       if (!mounted) return;
       setState(() {
         me = p;
+        phone = ph;
         loading = false;
       });
     } catch (e) {
@@ -133,8 +167,8 @@ class _ProfileGateState extends State<ProfileGate> {
         ),
       );
     }
-    if (!isProfileComplete(me)) {
-      return ProfileSetupScreen(profile: me, onSaved: check);
+    if (!isProfileComplete(me) || !isValidPhone(phone)) {
+      return ProfileSetupScreen(profile: me, phone: phone, onSaved: check);
     }
     return const HomeScreen(); // opens on the Requests tab
   }
@@ -144,10 +178,11 @@ class _ProfileGateState extends State<ProfileGate> {
 
 class ProfileSetupScreen extends StatefulWidget {
   final Map<String, dynamic>? profile;
+  final String? phone;
   // Called after a successful save; the gate then checks again.
   final Future<void> Function() onSaved;
   const ProfileSetupScreen(
-      {super.key, required this.profile, required this.onSaved});
+      {super.key, required this.profile, this.phone, required this.onSaved});
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -157,6 +192,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Uint8List? newPhotoBytes;
   String? wilaya;
   final locationController = TextEditingController();
+  final phoneController = TextEditingController();
   bool saving = false;
   String? errorMessage;
 
@@ -165,16 +201,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.initState();
     wilaya = validWilaya(widget.profile?['wilaya']);
     locationController.text = (widget.profile?['location'] ?? '').toString();
+    phoneController.text = widget.phone ?? '';
   }
 
   @override
   void dispose() {
     locationController.dispose();
+    phoneController.dispose();
     super.dispose();
   }
 
   bool get hasPhoto => newPhotoBytes != null || hasProfilePhoto(widget.profile);
-  bool get canSave => hasPhoto && wilaya != null && !saving;
+  bool get canSave =>
+      hasPhoto && wilaya != null && isValidPhone(phoneController.text) && !saving;
 
   Future<void> pickPhoto() async {
     final bytes = await pickProfilePhotoBytes();
@@ -197,6 +236,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         updates['profile_picture_url'] = await uploadProfilePhoto(newPhotoBytes!);
       }
       await supabase.from('profiles').update(updates).eq('id', myId);
+      await saveMyPhone(phoneController.text);
 
       // Check that it was really saved (if the account has no profile row,
       // the update changes nothing and gives no error).
@@ -237,7 +277,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           padding: const EdgeInsets.all(24),
           children: [
             Text(
-              tr('Add a photo and your wilaya so other students can trust you.'),
+              tr('Add a photo, your wilaya and your phone number.'),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -287,6 +327,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               onChanged: saving ? null : (v) => setState(() => wilaya = v),
             ),
             const SizedBox(height: 12),
+            PhoneField(
+              controller: phoneController,
+              enabled: !saving,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: locationController,
               enabled: !saving,
@@ -313,6 +359,38 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------- Phone field (set-up page and My profile) ----------------
+
+class PhoneField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+  const PhoneField(
+      {super.key, required this.controller, this.enabled = true, this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = controller.text.trim();
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.phone,
+      inputFormatters: kPhoneInput,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: tr('Phone number (required)'),
+        hintText: '+213555123456',
+        helperText: tr(
+            'Starts with +213 or +263. Only you, the Educational Attaché and your Governor can see it.'),
+        helperMaxLines: 3,
+        errorText: text.isEmpty || isValidPhone(text)
+            ? null
+            : tr('Use +213 or +263 followed by 8 to 10 digits.'),
       ),
     );
   }

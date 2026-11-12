@@ -51,9 +51,8 @@ class UniBridgeApp extends StatelessWidget {
             brightness: Brightness.dark,
           ),
           themeMode: themeMode,
-          // Arabic switches the whole layout to right-to-left.
           locale: Locale(language),
-          supportedLocales: const [Locale('en'), Locale('fr'), Locale('ar')],
+          supportedLocales: const [Locale('en'), Locale('fr')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           // The lock covers every screen, so it also works after hot restart
           // and on screens opened from notifications.

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
 import 'consent.dart';
 import 'wilayas.dart';
+import 'profile_setup.dart';
 import 'l10n.dart';
 
 // ---------------- Student space: record, results, attestation ----------------
@@ -199,7 +200,7 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
           firstName.text = '${r['first_name'] ?? ''}';
           lastName.text = '${r['last_name'] ?? ''}';
           program.text = '${r['program'] ?? ''}';
-          phone.text = '${r['phone'] ?? ''}';
+          phone.text = '${r['phone'] ?? ''}'.replaceAll(' ', '');
           inscription.text = '${r['inscription_number'] ?? ''}';
           level = kStudyLevels.contains(r['level']) ? r['level'] : null;
           wilaya = validWilaya(r['wilaya']);
@@ -209,6 +210,11 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
         }
         loading = false;
       });
+      // No phone in the record yet: start with the one from my profile.
+      if (phone.text.isEmpty) {
+        final p = await loadMyPhone();
+        if (p != null && mounted) setState(() => phone.text = p);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -289,7 +295,7 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    tr('Only you, the educational attaché and the representative of your wilaya can see this. Other students never see your inscription number or phone.'),
+                    tr('Only you, the Educational Attaché and the Governor of your wilaya can see this. Other students never see your inscription number or phone.'),
                     style: const TextStyle(fontSize: 12, color: kMutedText),
                   ),
                   const SizedBox(height: 12),
@@ -320,12 +326,11 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
                       validator: (v) => v == null ? tr('Required') : null,
                     ),
                   ),
-                  text(phone, tr('Phone (e.g. +213 555 12 34 56)'),
+                  text(phone, tr('Phone (e.g. +213555123456)'),
                       keyboard: TextInputType.phone,
-                      validator: (v) =>
-                          RegExp(r'^\+?[0-9 ]{8,20}$').hasMatch(v?.trim() ?? '')
-                              ? null
-                              : tr('Digits only, 8 to 20')),
+                      validator: (v) => isValidPhone(v)
+                          ? null
+                          : tr('Use +213 or +263 followed by 8 to 10 digits.')),
                   text(inscription, tr('Inscription number')),
                   if (startYear != null &&
                       finishYear != null &&

@@ -6,7 +6,6 @@ import 'l10n.dart';
 
 // ---------------- WhatsApp-style rows for the request lists ----------------
 // Used by Open requests (home.dart) and My requests (requests.dart).
-// Directional padding/alignment so Arabic (right to left) mirrors correctly.
 
 const double kRowAvatarRadius = 26;
 const double _rowStartPadding = 16;
@@ -258,7 +257,6 @@ class MyProfileBar extends StatelessWidget {
                     ],
                   ),
                 ),
-                // chevron_right flips by itself in Arabic.
                 Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
               ],
             ),

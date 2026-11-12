@@ -26,7 +26,6 @@ class _AuthScreenState extends State<AuthScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final fullNameController = TextEditingController();
-  final inscriptionController = TextEditingController();
 
   Future<void> submit() async {
     setState(() {
@@ -40,7 +39,6 @@ class _AuthScreenState extends State<AuthScreen> {
           password: passwordController.text,
           data: {
             'full_name': fullNameController.text.trim(),
-            'inscription_number': inscriptionController.text.trim(),
           },
         );
       } else {
@@ -121,12 +119,6 @@ class _AuthScreenState extends State<AuthScreen> {
               TextField(
                 controller: fullNameController,
                 decoration: InputDecoration(labelText: tr('Full name')),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: inscriptionController,
-                decoration:
-                    InputDecoration(labelText: tr('Inscription number')),
               ),
               const SizedBox(height: 12),
             ],
