@@ -450,3 +450,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/purge-passports/deno.json"
 entrypoint = "./functions/purge-passports/index.ts"
+
+[functions.chat-cleanup]
+enabled = true
+verify_jwt = false
+import_map = "./functions/chat-cleanup/deno.json"
+entrypoint = "./functions/chat-cleanup/index.ts"

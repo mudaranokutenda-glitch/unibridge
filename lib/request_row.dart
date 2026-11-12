@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'profiles.dart';
 import 'profile_setup.dart';
 import 'wilayas.dart';
@@ -33,8 +34,12 @@ String formatAmount(dynamic amount, dynamic currency) {
   return '$text ${currency ?? ''}'.trim();
 }
 
-Widget _nameWithTick(BuildContext context, String name, bool verified,
-    {double fontSize = 16}) {
+Widget _nameWithTick(
+  BuildContext context,
+  String name,
+  bool verified, {
+  double fontSize = 16,
+}) {
   return Row(
     children: [
       Flexible(
@@ -65,6 +70,8 @@ class RequestRow extends StatelessWidget {
   // Small button on the far end (Match / Cancel), optional.
   final Widget? action;
   final VoidCallback? onTap;
+  // Cancelled: red accent on the start side and a red status.
+  final bool danger;
 
   const RequestRow({
     super.key,
@@ -76,6 +83,7 @@ class RequestRow extends StatelessWidget {
     this.placeholderTitle,
     this.action,
     this.onTap,
+    this.danger = false,
   });
 
   @override
@@ -86,58 +94,86 @@ class RequestRow extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(
-            _rowStartPadding, 10, 12, 10),
-        child: Row(
-          children: [
-            p != null
-                ? avatar(p, radius: kRowAvatarRadius)
-                : CircleAvatar(
-                    radius: kRowAvatarRadius,
-                    backgroundColor: scheme.surfaceContainerHighest,
-                    foregroundColor: scheme.onSurfaceVariant,
-                    child: Icon(placeholderIcon),
-                  ),
-            const SizedBox(width: _avatarGap),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        decoration: danger
+            ? BoxDecoration(
+                border: BorderDirectional(
+                  start: BorderSide(color: scheme.error, width: 3),
+                ),
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            _rowStartPadding,
+            10,
+            12,
+            10,
+          ),
+          child: Row(
+            children: [
+              p != null
+                  ? avatar(p, radius: kRowAvatarRadius)
+                  : CircleAvatar(
+                      radius: kRowAvatarRadius,
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      foregroundColor: scheme.onSurfaceVariant,
+                      child: Icon(placeholderIcon),
+                    ),
+              const SizedBox(width: _avatarGap),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    p != null
+                        ? _nameWithTick(
+                            context,
+                            publicDisplayName(p),
+                            p['is_verified'] == true,
+                          )
+                        : Text(
+                            placeholderTitle ?? tr('UniBridge user'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: muted,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  p != null
-                      ? _nameWithTick(
-                          context, publicDisplayName(p), p['is_verified'] == true)
-                      : Text(
-                          placeholderTitle ?? tr('UniBridge user'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
+                  Text(
+                    amount,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle,
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: muted),
+                  Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: danger ? scheme.error : scheme.onSurfaceVariant,
+                      fontWeight: danger ? FontWeight.w600 : null,
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(amount,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 2),
-                Text(status,
-                    style: TextStyle(
-                        fontSize: 12, color: scheme.onSurfaceVariant)),
-              ],
-            ),
-            if (action != null) ...[
-              const SizedBox(width: 8),
-              action!,
+              if (action != null) ...[const SizedBox(width: 8), action!],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -192,8 +228,12 @@ class MyProfileBar extends StatelessWidget {
   // true while the first load is running (then no "Complete your profile").
   final bool loading;
   final VoidCallback onTap;
-  const MyProfileBar(
-      {super.key, required this.profile, required this.onTap, this.loading = false});
+  const MyProfileBar({
+    super.key,
+    required this.profile,
+    required this.onTap,
+    this.loading = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -246,14 +286,22 @@ class MyProfileBar extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _nameWithTick(context, publicDisplayName(p), verified,
-                          fontSize: 15),
+                      _nameWithTick(
+                        context,
+                        publicDisplayName(p),
+                        verified,
+                        fontSize: 15,
+                      ),
                       if (details.isNotEmpty)
-                        Text(details,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12, color: scheme.onSurfaceVariant)),
+                        Text(
+                          details,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
                     ],
                   ),
                 ),

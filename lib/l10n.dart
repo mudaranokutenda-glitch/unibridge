@@ -474,4 +474,10 @@ const Map<String, String> _t = {
       'Téléphone (ex. +213555123456)',
   'Only you, the Educational Attaché and the Governor of your wilaya can see this. Other students never see your inscription number or phone.':
       'Seuls vous, l\'Attaché d\'éducation et le Gouverneur de votre wilaya pouvez voir ceci. Les autres étudiants ne voient jamais votre numéro d\'inscription ni votre téléphone.',
+  '[Location]':
+      '[Position]',
+  'This chat is closed.':
+      'Cette discussion est fermée.',
+  'Rate':
+      'Noter',
 };

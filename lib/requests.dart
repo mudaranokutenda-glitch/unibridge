@@ -113,6 +113,7 @@ class MyRequestsScreen extends StatefulWidget {
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
   List<Map<String, dynamic>> myRequests = [];
   Map<String, Map<String, dynamic>> profiles = {};
+  Set<String> ratedIds = {};
   bool loading = true;
 
   @override
@@ -128,15 +129,18 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         .from('transaction_requests')
         .select()
         .or('creator_id.eq.$myId,matched_with_id.eq.$myId')
+        .isFilter('archived_at', null)
         .order('updated_at', ascending: false);
     final loaded = List<Map<String, dynamic>>.from(data);
     final loadedProfiles = await fetchPublicProfiles(
       loaded.map((r) => otherPartyId(r, myId)),
     );
+    final rated = await fetchMyRatedRequestIds();
     if (!mounted) return;
     setState(() {
       myRequests = loaded;
       profiles = loadedProfiles;
+      ratedIds = rated;
       loading = false;
     });
   }
@@ -164,6 +168,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                       myRequests[index],
                       profiles,
                       onChanged: load,
+                      ratedIds: ratedIds,
                     ),
                   ),
       ),
@@ -179,6 +184,7 @@ Widget myRequestRow(
   Map<String, dynamic> r,
   Map<String, Map<String, dynamic>> profiles, {
   required VoidCallback onChanged,
+  Set<String> ratedIds = const {},
 }) {
   final myId = supabase.auth.currentUser!.id;
   final status = r['status'];
@@ -186,7 +192,19 @@ Widget myRequestRow(
   final other = otherId == null ? null : profiles[otherId];
   final hasChat =
       otherId != null && status != 'OPEN' && status != 'CANCELLED';
+  Future<void> openChat() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ChatScreen(requestId: r['id'])),
+    );
+    onChanged();
+  }
+
+  // Completed and not rated by me yet: ask me to rate the other person.
+  final mustRate = status == 'COMPLETED' &&
+      otherId != null &&
+      !ratedIds.contains(r['id'].toString());
   return RequestRow(
+    danger: status == 'CANCELLED',
     person: other,
     placeholderIcon:
         status == 'CANCELLED' ? Icons.block : Icons.hourglass_empty,
@@ -211,18 +229,25 @@ Widget myRequestRow(
               onChanged();
             },
           )
-        : null,
-    onTap: hasChat
-        ? () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ChatScreen(requestId: r['id']),
-              ),
-            );
-            onChanged();
-          }
-        : null,
+        : mustRate
+            ? SmallRowButton(label: tr('Rate'), onPressed: openChat)
+            : null,
+    onTap: hasChat ? openChat : null,
   );
+}
+
+// Ids of the requests I have already rated.
+Future<Set<String>> fetchMyRatedRequestIds() async {
+  try {
+    final rows = await supabase
+        .from('ratings')
+        .select('request_id')
+        .eq('rater_id', supabase.auth.currentUser!.id);
+    return {for (final r in rows) r['request_id'].toString()};
+  } catch (e) {
+    debugPrint('Could not load my ratings: $e');
+    return {};
+  }
 }
 
 // ---------------- Cancel my request ----------------

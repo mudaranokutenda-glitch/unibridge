@@ -97,6 +97,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
     with WidgetsBindingObserver {
   List<Map<String, dynamic>> requests = []; // other people's open requests
   List<Map<String, dynamic>> myRequests = []; // I created it or I matched it
+  Set<String> ratedIds = {}; // requests I already rated
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
 
@@ -255,11 +256,13 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
             .select()
             .eq('status', 'OPEN')
             .neq('creator_id', myId)
+            .isFilter('archived_at', null)
             .order('created_at', ascending: false),
         supabase
             .from('transaction_requests')
             .select()
             .or('creator_id.eq.$myId,matched_with_id.eq.$myId')
+            .isFilter('archived_at', null)
             .order('updated_at', ascending: false),
       ]);
       // Hide requests from people I blocked or who blocked me.
@@ -268,6 +271,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
           .where((r) => !hidden.contains(r['creator_id']))
           .toList();
       final mine = List<Map<String, dynamic>>.from(results[1]);
+      final rated = await fetchMyRatedRequestIds();
       // My own profile is loaded too, for the profile bar at the top.
       final loadedProfiles = await fetchPublicProfiles([
         myId,
@@ -278,6 +282,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       setState(() {
         requests = loaded;
         myRequests = mine;
+        ratedIds = rated;
         profiles = loadedProfiles;
         loading = false;
       });
@@ -407,6 +412,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
               ...withDividers([
                 for (final r in myRequests)
                   myRequestRow(context, r, profiles,
+                      ratedIds: ratedIds,
                       onChanged: () => loadRequests(quiet: true)),
               ]),
             sectionHeader(tr('Open requests')),

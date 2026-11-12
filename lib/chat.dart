@@ -1,11 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
 import 'profiles.dart';
 import 'l10n.dart';
@@ -27,8 +23,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? otherProfile;
   bool actionLoading = false;
   bool sendingPhoto = false;
-  bool sendingLocation = false;
-  bool downloading = false;
   bool chatBlocked = false;
 
   bool hasRated = false;
@@ -189,148 +183,6 @@ class _ChatScreenState extends State<ChatScreen> {
         .showSnackBar(SnackBar(content: Text(text)));
   }
 
-  // Reads the phone's position ONE time (no tracking) and sends it as a
-  // LOCATION message. The Google Maps link is stored in attachment_url.
-  Future<void> sendLocation() async {
-    final otherName =
-        otherProfile == null ? tr('the other person') : publicDisplayName(otherProfile!);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(tr('Share location')),
-        content: Text(tr('Send your current location to {name}?', {'name': otherName})),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(tr('Cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(tr('Send')),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-
-    setState(() => sendingLocation = true);
-    try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        showError(tr('Please turn on location (GPS) on your phone.'));
-        return;
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        showError(tr('Location permission was refused.'));
-        return;
-      }
-
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
-      final mapsUrl =
-          'https://www.google.com/maps?q=${pos.latitude},${pos.longitude}';
-
-      await supabase.from('messages').insert({
-        'request_id': widget.requestId,
-        'sender_id': supabase.auth.currentUser!.id,
-        'type': 'LOCATION',
-        'content': '📍 Location',
-        'attachment_url': mapsUrl,
-      });
-      await notifyOtherPerson('📍 Location');
-    } catch (e) {
-      showError(tr('Could not send location: {error}', {'error': e}));
-    } finally {
-      if (mounted) setState(() => sendingLocation = false);
-    }
-  }
-
-  String twoDigits(int n) => n.toString().padLeft(2, '0');
-
-  String formatTime(dynamic iso) {
-    final d = DateTime.tryParse(iso?.toString() ?? '')?.toLocal();
-    if (d == null) return '';
-    return '${d.year}-${twoDigits(d.month)}-${twoDigits(d.day)} '
-        '${twoDigits(d.hour)}:${twoDigits(d.minute)}';
-  }
-
-  // Builds a plain text copy of the whole chat and lets the user choose
-  // where to save it (Android "Save as" screen).
-  Future<void> downloadChat() async {
-    setState(() => downloading = true);
-    try {
-      final messages = await supabase
-          .from('messages')
-          .select()
-          .eq('request_id', widget.requestId)
-          .order('created_at', ascending: true);
-
-      final myId = supabase.auth.currentUser!.id;
-      final otherName = otherProfile == null
-          ? 'Other person'
-          : publicDisplayName(otherProfile!);
-
-      final lines = <String>[
-        'UniBridge chat',
-        'Request: ${widget.requestId}',
-        'With: $otherName',
-        'Saved: ${formatTime(DateTime.now().toIso8601String())}',
-        '',
-      ];
-      for (final m in messages) {
-        final time = formatTime(m['created_at']);
-        final content = (m['content'] ?? '').toString();
-        if (m['type'] == 'SYSTEM') {
-          lines.add('$time · --- $content ---');
-          continue;
-        }
-        final who = m['sender_id'] == myId ? 'Me' : otherName;
-        final String text;
-        if (m['type'] == 'IMAGE') {
-          text = '[Photo]';
-        } else if (m['type'] == 'LOCATION') {
-          text = '[Location: ${m['attachment_url'] ?? ''}]';
-        } else {
-          text = content;
-        }
-        lines.add('$time · $who: $text');
-      }
-
-      final now = DateTime.now();
-      final fileName = 'unibridge-chat-${now.year}${twoDigits(now.month)}'
-          '${twoDigits(now.day)}-${twoDigits(now.hour)}${twoDigits(now.minute)}.txt';
-      final saved = await FilePicker.saveFile(
-        dialogTitle: 'Save chat',
-        fileName: fileName,
-        bytes: utf8.encode(lines.join('\n')),
-        mimeType: 'text/plain',
-      );
-      if (saved != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Chat saved.'))),
-        );
-      }
-    } catch (e) {
-      showError(tr('Could not save the chat: {error}', {'error': e}));
-    } finally {
-      if (mounted) setState(() => downloading = false);
-    }
-  }
-
-  Future<void> openMap(String url) async {
-    final ok = await launchUrl(Uri.parse(url),
-        mode: LaunchMode.externalApplication);
-    if (!ok) showError(tr('Could not open the map.'));
-  }
-
   Future<void> confirm(String role) async {
     setState(() => actionLoading = true);
     try {
@@ -452,11 +304,6 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(tr('Chat')),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download_outlined),
-            tooltip: tr('Download chat as text'),
-            onPressed: downloading ? null : downloadChat,
-          ),
           if (status != null && status != 'COMPLETED' && status != 'DISPUTED')
             IconButton(
               icon: const Icon(Icons.flag_outlined),
@@ -482,8 +329,21 @@ class _ChatScreenState extends State<ChatScreen> {
               color: scheme.primaryContainer,
               padding: const EdgeInsets.all(12),
               child: hasRated
-                  ? Text(tr('✅ Transaction completed — thanks for rating!'),
-                      textAlign: TextAlign.center)
+                  ? Column(
+                      children: [
+                        Text(tr('✅ Transaction completed — thanks for rating!'),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.lock_outline, size: 16),
+                            const SizedBox(width: 6),
+                            Text(tr('This chat is closed.')),
+                          ],
+                        ),
+                      ],
+                    )
                   : Column(
                       children: [
                         Text(tr('✅ Transaction completed'),
@@ -579,8 +439,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     final isMine = m['sender_id'] == myId;
                     final isPhoto = m['type'] == 'IMAGE' &&
                         m['attachment_url'] != null;
-                    final isLocation = m['type'] == 'LOCATION' &&
-                        m['attachment_url'] != null;
+                    // Location sharing was removed: old ones show as text.
+                    final isLocation = m['type'] == 'LOCATION';
                     if (isSystem) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -615,16 +475,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 path: m['attachment_url'],
                               )
                             : isLocation
-                                ? InkWell(
-                                    onTap: () => openMap(m['attachment_url']),
-                                    child: Text(
-                                      isMine
-                                          ? tr('📍 My location (tap to open map)')
-                                          : tr('📍 Location (tap to open map)'),
-                                      style: const TextStyle(
-                                          decoration: TextDecoration.underline),
-                                    ),
-                                  )
+                                ? Text(tr('[Location]'))
                                 : Text(m['content'] ?? ''),
                       ),
                     );
@@ -661,17 +512,6 @@ class _ChatScreenState extends State<ChatScreen> {
                           : const Icon(Icons.photo_camera_outlined),
                       tooltip: tr('Send a photo'),
                       onPressed: sendingPhoto ? null : sendPhoto,
-                    ),
-                    IconButton(
-                      icon: sendingLocation
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.location_on_outlined),
-                      tooltip: tr('Share my location'),
-                      onPressed: sendingLocation ? null : sendLocation,
                     ),
                     Expanded(
                       child: TextField(
