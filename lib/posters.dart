@@ -13,17 +13,27 @@ import 'l10n.dart';
 // and end dates (sql/2026-11-05-07-posters.sql). Hidden when there are none.
 
 class PosterCarousel extends StatefulWidget {
-  const PosterCarousel({super.key});
+  // Time between two automatic slides.
+  final Duration interval;
+  const PosterCarousel({super.key, this.interval = const Duration(seconds: 3)});
 
   @override
   State<PosterCarousel> createState() => _PosterCarouselState();
 }
 
 class _PosterCarouselState extends State<PosterCarousel> {
-  final controller = PageController();
+  // With 2+ posters the PageView has very many pages that repeat the
+  // posters, so "next" after the last poster slides forward to the first.
+  static const int _loopPages = 10000;
+
+  PageController? controller;
   List<Map<String, dynamic>> posters = [];
-  int page = 0;
-  Timer? timer;
+  int page = 0; // index of the poster shown (0 .. posters.length - 1)
+  Timer? slideTimer;
+  Timer? resumeTimer;
+  bool touching = false;
+
+  bool get loops => posters.length > 1;
 
   @override
   void initState() {
@@ -33,8 +43,9 @@ class _PosterCarouselState extends State<PosterCarousel> {
 
   @override
   void dispose() {
-    timer?.cancel();
-    controller.dispose();
+    slideTimer?.cancel();
+    resumeTimer?.cancel();
+    controller?.dispose();
     super.dispose();
   }
 
@@ -49,23 +60,45 @@ class _PosterCarouselState extends State<PosterCarousel> {
           .gte('ends_on', today)
           .order('position');
       if (!mounted) return;
-      setState(() => posters = List<Map<String, dynamic>>.from(data));
-      startTimer();
+      final loaded = List<Map<String, dynamic>>.from(data);
+      controller?.dispose();
+      setState(() {
+        posters = loaded;
+        page = 0;
+        // Start in the middle so the user can also swipe backwards.
+        controller = PageController(
+            initialPage: loops ? (_loopPages ~/ 2) * posters.length : 0);
+      });
+      startAutoSlide();
     } catch (e) {
       // Before the posters SQL is run there is simply no carousel.
       debugPrint('Could not load posters: $e');
     }
   }
 
-  // Slides by itself every 4 seconds. Restarts after the user swipes.
-  void startTimer() {
-    timer?.cancel();
-    if (posters.length < 2) return;
-    timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!controller.hasClients) return;
-      final next = (page + 1) % posters.length;
-      controller.animateToPage(next,
-          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+  void startAutoSlide() {
+    slideTimer?.cancel();
+    if (!loops || touching) return;
+    slideTimer = Timer.periodic(widget.interval, (_) {
+      final c = controller;
+      if (c == null || !c.hasClients || touching) return;
+      c.nextPage(
+          duration: const Duration(milliseconds: 450), curve: Curves.easeInOut);
+    });
+  }
+
+  // Finger down: stop sliding. Finger up: start again after one interval.
+  void onTouchStart() {
+    touching = true;
+    slideTimer?.cancel();
+    resumeTimer?.cancel();
+  }
+
+  void onTouchEnd() {
+    touching = false;
+    resumeTimer?.cancel();
+    resumeTimer = Timer(widget.interval, () {
+      if (mounted) startAutoSlide();
     });
   }
 
@@ -89,27 +122,29 @@ class _PosterCarouselState extends State<PosterCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    if (posters.isEmpty) return const SizedBox.shrink();
+    final c = controller;
+    if (posters.isEmpty || c == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 4),
       child: Column(
         children: [
           AspectRatio(
             aspectRatio: 16 / 9,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: NotificationListener<ScrollStartNotification>(
-                onNotification: (n) {
-                  if (n.dragDetails != null) startTimer();
-                  return false;
-                },
+              // Listener only watches the finger; taps and swipes still work.
+              child: Listener(
+                onPointerDown: (_) => onTouchStart(),
+                onPointerUp: (_) => onTouchEnd(),
+                onPointerCancel: (_) => onTouchEnd(),
                 child: PageView.builder(
-                  controller: controller,
-                  itemCount: posters.length,
-                  onPageChanged: (i) => setState(() => page = i),
+                  controller: c,
+                  itemCount: loops ? _loopPages * posters.length : 1,
+                  onPageChanged: (i) =>
+                      setState(() => page = i % posters.length),
                   itemBuilder: (context, i) {
-                    final p = posters[i];
+                    final p = posters[i % posters.length];
                     return GestureDetector(
                       onTap: () => openPoster(p),
                       child: Image.network(
@@ -127,19 +162,20 @@ class _PosterCarouselState extends State<PosterCarousel> {
               ),
             ),
           ),
-          if (posters.length > 1)
+          if (loops)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsetsDirectional.only(top: 6),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var i = 0; i < posters.length; i++)
-                    Container(
-                      width: 8,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      width: i == page ? 16 : 8,
                       height: 8,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(4),
                         color: i == page
                             ? scheme.primary
                             : scheme.outlineVariant,

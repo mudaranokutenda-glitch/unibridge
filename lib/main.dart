@@ -8,7 +8,7 @@ import 'firebase_options.dart';
 import 'config.dart';
 import 'push.dart';
 import 'auth.dart';
-import 'home.dart';
+import 'profile_setup.dart';
 import 'app_lock.dart';
 import 'l10n.dart';
 
@@ -60,7 +60,7 @@ class UniBridgeApp extends StatelessWidget {
           builder: (context, child) => AppLock(child: child!),
           home: supabase.auth.currentSession == null
               ? const AuthScreen()
-              : const HomeScreen(),
+              : const ProfileGate(),
         ),
       ),
     );

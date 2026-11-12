@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'config.dart';
 import 'push.dart';
-import 'home.dart';
+import 'profile_setup.dart';
 import 'legal.dart';
 import 'l10n.dart';
 
@@ -53,7 +53,7 @@ class _AuthScreenState extends State<AuthScreen> {
         await setupPushNotifications();
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => const ProfileGate()),
           );
         }
       }
@@ -95,7 +95,7 @@ class _AuthScreenState extends State<AuthScreen> {
         await setupPushNotifications();
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => const ProfileGate()),
           );
         }
       }

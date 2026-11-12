@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'push.dart';
 import 'profiles.dart';
@@ -9,6 +10,7 @@ import 'chat.dart';
 import 'rates.dart';
 import 'notifications.dart';
 import 'posters.dart';
+import 'request_row.dart';
 import 'l10n.dart';
 
 // ---------------- Home: bottom navigation with 4 tabs ----------------
@@ -44,11 +46,12 @@ class _HomeScreenState extends State<HomeScreen> {
           key: ValueKey(language),
           child: IndexedStack(
             index: tab,
-            children: const [
-              OpenRequestsScreen(),
-              MarketplaceScreen(),
-              ExchangeRatesScreen(),
-              EditMyProfileScreen(),
+            children: [
+              // Tapping my profile bar on the Requests tab opens the Profile tab.
+              OpenRequestsScreen(onOpenProfile: () => setState(() => tab = 3)),
+              const MarketplaceScreen(),
+              const ExchangeRatesScreen(),
+              const EditMyProfileScreen(),
             ],
           ),
         ),
@@ -84,13 +87,16 @@ class _HomeScreenState extends State<HomeScreen> {
 // ---------------- Requests tab: browse + create requests ----------------
 
 class OpenRequestsScreen extends StatefulWidget {
-  const OpenRequestsScreen({super.key});
+  final VoidCallback? onOpenProfile;
+  const OpenRequestsScreen({super.key, this.onOpenProfile});
   @override
   State<OpenRequestsScreen> createState() => _OpenRequestsScreenState();
 }
 
-class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
-  List<Map<String, dynamic>> requests = [];
+class _OpenRequestsScreenState extends State<OpenRequestsScreen>
+    with WidgetsBindingObserver {
+  List<Map<String, dynamic>> requests = []; // other people's open requests
+  List<Map<String, dynamic>> myRequests = []; // I created it or I matched it
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
 
@@ -140,7 +146,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
       options = {...options, value: value};
     }
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsetsDirectional.only(end: 8),
       child: DropdownButton<String?>(
         value: value,
         underline: const SizedBox.shrink(),
@@ -157,7 +163,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
   Widget filterBar() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsetsDirectional.symmetric(horizontal: 16),
       child: Row(
         children: [
           filterDropdown(
@@ -194,35 +200,96 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
     );
   }
 
+  // Live updates: any change in transaction_requests reloads both lists.
+  RealtimeChannel? requestsChannel;
+  Timer? reloadTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadRequests();
+    requestsChannel = supabase
+        .channel('home-requests')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'transaction_requests',
+          callback: (_) => reloadSoon(),
+        )
+        .subscribe();
   }
 
-  Future<void> loadRequests() async {
-    setState(() => loading = true);
-    final myId = supabase.auth.currentUser!.id;
-    final data = await supabase
-        .from('transaction_requests')
-        .select()
-        .eq('status', 'OPEN')
-        .neq('creator_id', myId)
-        .order('created_at', ascending: false);
-    // Hide requests from people I blocked or who blocked me.
-    final hidden = await fetchHiddenUserIds();
-    final loaded = List<Map<String, dynamic>>.from(data)
-        .where((r) => !hidden.contains(r['creator_id']))
-        .toList();
-    final loadedProfiles = await fetchPublicProfiles(
-      loaded.map((r) => r['creator_id'] as String?),
-    );
-    if (!mounted) return;
-    setState(() {
-      requests = loaded;
-      profiles = loadedProfiles;
-      loading = false;
+  // Several changes often come together (match + status). Wait half a
+  // second and reload once.
+  void reloadSoon() {
+    reloadTimer?.cancel();
+    reloadTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) loadRequests(quiet: true);
     });
+  }
+
+  // Coming back to the app: reload, in case we missed a change while away.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) reloadSoon();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    reloadTimer?.cancel();
+    final channel = requestsChannel;
+    if (channel != null) supabase.removeChannel(channel);
+    super.dispose();
+  }
+
+  // quiet = no spinner (used by live updates, so the list does not flash).
+  Future<void> loadRequests({bool quiet = false}) async {
+    if (!quiet) setState(() => loading = true);
+    try {
+      final myId = supabase.auth.currentUser!.id;
+      final results = await Future.wait([
+        supabase
+            .from('transaction_requests')
+            .select()
+            .eq('status', 'OPEN')
+            .neq('creator_id', myId)
+            .order('created_at', ascending: false),
+        supabase
+            .from('transaction_requests')
+            .select()
+            .or('creator_id.eq.$myId,matched_with_id.eq.$myId')
+            .order('updated_at', ascending: false),
+      ]);
+      // Hide requests from people I blocked or who blocked me.
+      final hidden = await fetchHiddenUserIds();
+      final loaded = List<Map<String, dynamic>>.from(results[0])
+          .where((r) => !hidden.contains(r['creator_id']))
+          .toList();
+      final mine = List<Map<String, dynamic>>.from(results[1]);
+      // My own profile is loaded too, for the profile bar at the top.
+      final loadedProfiles = await fetchPublicProfiles([
+        myId,
+        ...loaded.map((r) => r['creator_id'] as String?),
+        ...mine.map((r) => otherPartyId(r, myId)),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        requests = loaded;
+        myRequests = mine;
+        profiles = loadedProfiles;
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      if (!quiet) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+        );
+      }
+    }
   }
 
   Future<void> matchWithRequest(String requestId) async {
@@ -235,6 +302,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
         );
       }
     } catch (e) {
+      // Maybe someone else matched it first: refresh the list.
+      loadRequests(quiet: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
@@ -263,8 +332,11 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
       ),
       body: Column(
         children: [
-          const PosterCarousel(),
-          if (!loading && requests.isNotEmpty) filterBar(),
+          MyProfileBar(
+            profile: profiles[supabase.auth.currentUser!.id],
+            loading: loading,
+            onTap: () => widget.onOpenProfile?.call(),
+          ),
           Expanded(child: requestList()),
         ],
       ),
@@ -280,63 +352,103 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen> {
     );
   }
 
+  // Small section title ("My requests", "Open requests").
+  Widget sectionHeader(String text) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 4),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+
+  Widget emptyLine(String text) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 8),
+      child: Text(
+        text,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+
+  // Rows with a thin divider between them (none after the last one).
+  List<Widget> withDividers(List<Widget> rows) => [
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const RequestRowDivider(),
+          rows[i],
+        ],
+      ];
+
+  // One scrolling page: posters, My requests, then Open requests.
   Widget requestList() {
     final visible = visibleRequests;
     return RefreshIndicator(
-        onRefresh: loadRequests,
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : visible.isEmpty
-                ? ListView(
-                    children: [
-                      const SizedBox(height: 100),
-                      Center(
-                        child: Text(requests.isEmpty
-                            ? tr('No open requests right now.')
-                            : tr('No requests match these filters.')),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) {
-                      final r = visible[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      tr(r['type'] == 'SEND' ? 'Wants to send {amount}' : 'Wants to receive {amount}',
-                                          {'amount': '${r['amount']} ${r['currency']}'}),
-                                      style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        matchWithRequest(r['id']),
-                                    child: Text(tr('Match')),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              ProfileSummary(
-                                profile: profiles[r['creator_id']],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+      onRefresh: loadRequests,
+      child: ListView(
+        // Room at the bottom so the + button never covers the last row.
+        padding: const EdgeInsetsDirectional.only(bottom: 88),
+        children: [
+          const PosterCarousel(),
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else ...[
+            sectionHeader(tr('My requests')),
+            if (myRequests.isEmpty)
+              emptyLine(tr('You have no requests yet.'))
+            else
+              ...withDividers([
+                for (final r in myRequests)
+                  myRequestRow(context, r, profiles,
+                      onChanged: () => loadRequests(quiet: true)),
+              ]),
+            sectionHeader(tr('Open requests')),
+            if (requests.isNotEmpty) filterBar(),
+            if (visible.isEmpty)
+              emptyLine(requests.isEmpty
+                  ? tr('No open requests right now.')
+                  : tr('No requests match these filters.'))
+            else
+              ...withDividers([
+                for (final r in visible) openRequestRow(r),
+              ]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget openRequestRow(Map<String, dynamic> r) {
+    final creator = profiles[r['creator_id']];
+    return RequestRow(
+      person: creator,
+      subtitle: [
+        typeLabel(r['type']),
+        ratingText(creator),
+        completedText(creator),
+      ].join(' · '),
+      amount: formatAmount(r['amount'], r['currency']),
+      status: statusLabel(r['status']),
+      action: SmallRowButton(
+        label: tr('Match'),
+        onPressed: () => matchWithRequest(r['id']),
+      ),
+      // Not matched yet, so no chat: show who created it.
+      onTap: creator == null
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      UserProfileScreen(userId: creator['id'].toString()),
+                ),
+              ),
     );
   }
 }

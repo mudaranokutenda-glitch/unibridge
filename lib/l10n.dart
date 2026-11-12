@@ -668,4 +668,31 @@ const Map<String, List<String>> _t = {
     'Seulement 3 photos sont autorisées par annonce.',
     'يُسمح بـ 3 صور فقط لكل إعلان.'
   ],
+  // Profile set-up page and profile bar
+  'Complete your profile': ['Complétez votre profil', 'أكمل ملفك الشخصي'],
+  'Set up your profile': ['Configurez votre profil', 'إعداد ملفك الشخصي'],
+  'Add a photo and your wilaya so other students can trust you.': [
+    'Ajoutez une photo et votre wilaya pour que les autres étudiants puissent vous faire confiance.',
+    'أضف صورة وولايتك حتى يتمكن الطلاب الآخرون من الوثوق بك.'
+  ],
+  'Tap to add a photo (required)': [
+    'Touchez pour ajouter une photo (obligatoire)',
+    'اضغط لإضافة صورة (إلزامي)'
+  ],
+  'Name': ['Nom', 'الاسم'],
+  'Your name is missing. Contact UniBridge support to add it.': [
+    'Votre nom est manquant. Contactez le support UniBridge pour l\'ajouter.',
+    'اسمك غير موجود. تواصل مع دعم UniBridge لإضافته.'
+  ],
+  'Wilaya (required)': ['Wilaya (obligatoire)', 'الولاية (إلزامي)'],
+  'City or area (optional)': ['Ville ou quartier (facultatif)', 'المدينة أو الحي (اختياري)'],
+  'Your profile could not be saved. Please contact UniBridge support.': [
+    'Votre profil n\'a pas pu être enregistré. Contactez le support UniBridge.',
+    'تعذّر حفظ ملفك الشخصي. يرجى التواصل مع دعم UniBridge.'
+  ],
+  'Could not load your profile. Check your connection.': [
+    'Impossible de charger votre profil. Vérifiez votre connexion.',
+    'تعذّر تحميل ملفك الشخصي. تحقق من اتصالك.'
+  ],
+  'Try again': ['Réessayer', 'حاول مرة أخرى'],
 };

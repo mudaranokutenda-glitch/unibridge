@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'config.dart';
 import 'profiles.dart';
 import 'chat.dart';
+import 'request_row.dart';
 import 'l10n.dart';
 
 // ---------------- My requests (mine + matched) ----------------
@@ -142,7 +143,6 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myId = supabase.auth.currentUser!.id;
     return Scaffold(
       appBar: AppBar(title: Text(tr('My requests'))),
       body: RefreshIndicator(
@@ -156,72 +156,75 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                       Center(child: Text(tr('You have no requests yet.'))),
                     ],
                   )
-                : ListView.builder(
+                : ListView.separated(
                     itemCount: myRequests.length,
-                    itemBuilder: (context, index) {
-                      final r = myRequests[index];
-                      final status = r['status'];
-                      final otherId = otherPartyId(r, myId);
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: ListTile(
-                          title: Text(
-                              '${typeLabel(r['type'])} • ${r['amount']} ${r['currency']}'),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(tr('Status: {status}', {'status': statusLabel(status)})),
-                              const SizedBox(height: 6),
-                              if (otherId != null)
-                                ProfileSummary(
-                                  profile: profiles[otherId],
-                                  tappable: false,
-                                )
-                              else if (status == 'CANCELLED')
-                                Text(
-                                  tr('Cancelled'),
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 12),
-                                )
-                              else
-                                Text(
-                                  tr('Waiting for someone to match'),
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 12),
-                                ),
-                            ],
-                          ),
-                          trailing: status == 'OPEN'
-                              ? IconButton(
-                                  icon: const Icon(Icons.cancel_outlined),
-                                  tooltip: tr('Cancel request'),
-                                  onPressed: () async {
-                                    await cancelMyRequest(context, r['id']);
-                                    load();
-                                  },
-                                )
-                              : status == 'CANCELLED'
-                                  ? const Icon(Icons.block, color: Colors.grey)
-                                  : const Icon(Icons.chat_bubble_outline),
-                          onTap: (status == 'OPEN' || status == 'CANCELLED')
-                              ? null
-                              : () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          ChatScreen(requestId: r['id']),
-                                    ),
-                                  );
-                                },
-                        ),
-                      );
-                    },
+                    separatorBuilder: (_, _) => const RequestRowDivider(),
+                    itemBuilder: (context, index) => myRequestRow(
+                      context,
+                      myRequests[index],
+                      profiles,
+                      onChanged: load,
+                    ),
                   ),
       ),
     );
   }
 }
+// ---------------- One row of "my requests" ----------------
+// Shared by the My requests screen and the home screen.
+// Cancel on my own open request; tap opens the chat once matched.
+
+Widget myRequestRow(
+  BuildContext context,
+  Map<String, dynamic> r,
+  Map<String, Map<String, dynamic>> profiles, {
+  required VoidCallback onChanged,
+}) {
+  final myId = supabase.auth.currentUser!.id;
+  final status = r['status'];
+  final otherId = otherPartyId(r, myId);
+  final other = otherId == null ? null : profiles[otherId];
+  final hasChat =
+      otherId != null && status != 'OPEN' && status != 'CANCELLED';
+  return RequestRow(
+    person: other,
+    placeholderIcon:
+        status == 'CANCELLED' ? Icons.block : Icons.hourglass_empty,
+    placeholderTitle: status == 'CANCELLED'
+        ? tr('Cancelled')
+        : otherId == null
+            ? tr('Waiting for someone to match')
+            : tr('UniBridge user'),
+    subtitle: other == null
+        ? typeLabel(r['type'])
+        : [typeLabel(r['type']), ratingText(other), completedText(other)]
+            .join(' · '),
+    amount: formatAmount(r['amount'], r['currency']),
+    status: statusLabel(status),
+    action: status == 'OPEN' && r['creator_id'] == myId
+        ? IconButton(
+            icon: const Icon(Icons.cancel_outlined),
+            tooltip: tr('Cancel request'),
+            visualDensity: VisualDensity.compact,
+            onPressed: () async {
+              await cancelMyRequest(context, r['id']);
+              onChanged();
+            },
+          )
+        : null,
+    onTap: hasChat
+        ? () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(requestId: r['id']),
+              ),
+            );
+            onChanged();
+          }
+        : null,
+  );
+}
+
 // ---------------- Cancel my request ----------------
 
 Future<void> cancelMyRequest(BuildContext context, String requestId) async {

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'verification.dart';
 import 'auth.dart';
@@ -11,6 +10,7 @@ import 'roles.dart';
 import 'staff.dart';
 import 'student_space.dart';
 import 'wilayas.dart';
+import 'profile_setup.dart';
 import 'l10n.dart';
 
 // ---------------- Public profile helpers ----------------
@@ -634,16 +634,10 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     });
   }
 
+  // Shared with the "Set up your profile" page (profile_setup.dart).
   Future<void> pickPhoto() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-      maxWidth: 600,
-    );
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    setState(() => newPhotoBytes = bytes);
+    final bytes = await pickProfilePhotoBytes();
+    if (bytes != null && mounted) setState(() => newPhotoBytes = bytes);
   }
 
   Future<void> save() async {
@@ -661,15 +655,8 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       };
 
       if (newPhotoBytes != null) {
-        final fileName =
-            'avatars/${myId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        await supabase.storage.from('listings').uploadBinary(
-              fileName,
-              newPhotoBytes!,
-              fileOptions: const FileOptions(contentType: 'image/jpeg'),
-            );
         updates['profile_picture_url'] =
-            supabase.storage.from('listings').getPublicUrl(fileName);
+            await uploadProfilePhoto(newPhotoBytes!);
       }
 
       await supabase.from('profiles').update(updates).eq('id', myId);
