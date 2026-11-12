@@ -480,4 +480,8 @@ const Map<String, String> _t = {
       'Cette discussion est fermée.',
   'Rate':
       'Noter',
+  'New unmatched requests':
+      'Nouvelles demandes sans correspondance',
+  'Student space':
+      'Espace étudiant',
 };

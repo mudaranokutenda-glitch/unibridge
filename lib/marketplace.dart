@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -295,7 +295,10 @@ class _ZoomableImageState extends State<_ZoomableImage> {
 // ---------------- Marketplace list (2-column grid) ----------------
 
 class MarketplaceScreen extends StatefulWidget {
-  const MarketplaceScreen({super.key});
+  // The home screen bumps this each time the Marketplace tab is opened,
+  // so new items appear without pulling down.
+  final ValueListenable<int>? reloadSignal;
+  const MarketplaceScreen({super.key, this.reloadSignal});
   @override
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
@@ -314,18 +317,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   @override
   void initState() {
     super.initState();
+    widget.reloadSignal?.addListener(reloadQuietly);
     load();
   }
 
   @override
   void dispose() {
+    widget.reloadSignal?.removeListener(reloadQuietly);
     searchController.dispose();
     super.dispose();
   }
 
-  Future<void> load() async {
+  void reloadQuietly() {
+    if (mounted) load(quiet: true);
+  }
+
+  // quiet = keep the list on screen while loading (no spinner).
+  Future<void> load({bool quiet = false}) async {
     setState(() {
-      loading = true;
+      if (!quiet) loading = true;
       errorMessage = null;
     });
     try {

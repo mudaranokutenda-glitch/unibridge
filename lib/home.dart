@@ -8,6 +8,7 @@ import 'requests.dart';
 import 'marketplace.dart';
 import 'chat.dart';
 import 'rates.dart';
+import 'student_space.dart';
 import 'notifications.dart';
 import 'posters.dart';
 import 'request_row.dart';
@@ -23,6 +24,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int tab = 0;
+  // Bumped each time the Marketplace tab is opened (it then reloads).
+  final marketplaceReload = ValueNotifier<int>(0);
+
+  void selectTab(int i) {
+    setState(() => tab = i);
+    if (i == 1) marketplaceReload.value++;
+  }
+
+  @override
+  void dispose() {
+    marketplaceReload.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -48,9 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
             index: tab,
             children: [
               // Tapping my profile bar on the Requests tab opens the Profile tab.
-              OpenRequestsScreen(onOpenProfile: () => setState(() => tab = 3)),
-              const MarketplaceScreen(),
-              const ExchangeRatesScreen(),
+              OpenRequestsScreen(onOpenProfile: () => selectTab(3)),
+              MarketplaceScreen(reloadSignal: marketplaceReload),
+              const StudentSpaceScreen(),
               const EditMyProfileScreen(),
             ],
           ),
@@ -58,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (i) => setState(() => tab = i),
+        onDestinationSelected: selectTab,
         destinations: [
           NavigationDestination(
             icon: Icon(Icons.swap_horiz),
@@ -70,8 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: tr('Marketplace'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.currency_exchange),
-            label: tr('Rates'),
+            icon: Icon(Icons.school_outlined),
+            selectedIcon: Icon(Icons.school),
+            label: tr('Student space'),
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -325,11 +340,11 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         actions: [
           const NotificationBell(),
           IconButton(
-            icon: const Icon(Icons.list_alt),
-            tooltip: tr('My requests'),
+            icon: const Icon(Icons.currency_exchange),
+            tooltip: tr('Exchange rates'),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MyRequestsScreen()),
+                MaterialPageRoute(builder: (_) => const ExchangeRatesScreen()),
               );
             },
           ),
@@ -415,7 +430,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
                       ratedIds: ratedIds,
                       onChanged: () => loadRequests(quiet: true)),
               ]),
-            sectionHeader(tr('Open requests')),
+            sectionHeader(tr('New unmatched requests')),
             if (requests.isNotEmpty) filterBar(),
             if (visible.isEmpty)
               emptyLine(requests.isEmpty

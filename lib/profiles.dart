@@ -8,7 +8,6 @@ import 'auth.dart';
 import 'legal.dart';
 import 'roles.dart';
 import 'staff.dart';
-import 'student_space.dart';
 import 'wilayas.dart';
 import 'profile_setup.dart';
 import 'l10n.dart';
@@ -754,19 +753,6 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                     child: Text(errorMessage!,
                         style: const TextStyle(color: Colors.red)),
                   ),
-                OutlinedButton.icon(
-                  onPressed: saving
-                      ? null
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const StudentSpaceScreen()),
-                          );
-                        },
-                  icon: const Icon(Icons.school_outlined),
-                  label: Text(tr('Student space')),
-                ),
-                const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: saving
                       ? null
