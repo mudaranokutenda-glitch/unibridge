@@ -1,7 +1,7 @@
 -- Tests for the hardening: sql 07 (24-hour rule, declined pairs, updated_at, closing
 -- instead of an error), 11 (3 active appointments), 15 (blocked users cannot match)
 -- and 17 (3 open requests).
--- Replace STUDENT-A-ID and STUDENT-B-ID (see README.md).
+-- Needs the four test accounts: run 00-test-accounts.sql once first (see README.md).
 -- If a file was not run yet, its tests say SKIP "run file N first" (not a false FAIL).
 -- Everything happens inside the test (rolled back): the open requests, suggestions,
 -- blocks and active appointments of A and B are cleared at the start.
@@ -9,39 +9,68 @@
 
 begin;
 
--- ---------- Setup check: runs first; stops with SETUP PROBLEM if an id is wrong ----------
+-- ---------- Setup check: finds the 4 accounts by email (test_support.accounts) and checks them ----------
+-- Stops with one SETUP PROBLEM line if something is wrong; then no test runs.
 do $$
 declare
-  a_id text := 'STUDENT-A-ID';
-  b_id text := 'STUDENT-B-ID';
-  g_id text := 'GOVERNOR-ID';
-  t_id text := 'ATTACHE-ID';
-  re constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  r text; a_wil text; b_wil text; g_wil text;
+  a_id uuid; b_id uuid; g_id uuid; t_id uuid;
+  mail text; n int; r text; a_wil text; b_wil text; g_wil text;
+  a_mail text; b_mail text; g_mail text; t_mail text;
 begin
-  if a_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student A is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', a_id;
+  if to_regclass('test_support.accounts') is null then
+    raise exception 'SETUP PROBLEM: test_support.accounts does not exist. Run sql/tests/00-test-accounts.sql once first (see README.md).';
   end if;
-  select p.role::text into r from public.profiles p where p.id = a_id::uuid;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_A';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_A row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
+  end if;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_A email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student A email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student A email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into a_id from auth.users u where lower(u.email) = mail;
+  a_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = a_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student A (%) does not exist in profiles', a_id;
+    raise exception 'SETUP PROBLEM: Student A (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student A must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student A (%) has role %, expected student.', mail, r;
   end if;
-  if b_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student B is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', b_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_B';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_B row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = b_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_B email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student B email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student B email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into b_id from auth.users u where lower(u.email) = mail;
+  b_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = b_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student B (%) does not exist in profiles', b_id;
+    raise exception 'SETUP PROBLEM: Student B (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student B must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student B (%) has role %, expected student.', mail, r;
   end if;
-  if a_id::uuid = b_id::uuid then
-    raise exception 'SETUP PROBLEM: Student A and Student B must be two different accounts';
+  if a_id = b_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and Student B are the same account (%).', a_mail;
   end if;
+  perform set_config('test.a_id', a_id::text, true);
+  perform set_config('test.b_id', b_id::text, true);
 end $$;
 
 -- ---------- Result table and helpers (temporary objects, gone at the end) ----------
@@ -194,14 +223,14 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 delete from public.match_suggestions
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 delete from public.user_blocks
-  where (blocker_id = 'STUDENT-A-ID' and blocked_id = 'STUDENT-B-ID') or (blocker_id = 'STUDENT-B-ID' and blocked_id = 'STUDENT-A-ID');
+  where (blocker_id = current_setting('test.a_id')::uuid and blocked_id = current_setting('test.b_id')::uuid) or (blocker_id = current_setting('test.b_id')::uuid and blocked_id = current_setting('test.a_id')::uuid);
 
 update public.appointments set status = 'CANCELLED'
-  where student_id = 'STUDENT-A-ID' and status in ('REQUESTED', 'PROPOSED', 'ACCEPTED');
+  where student_id = current_setting('test.a_id')::uuid and status in ('REQUESTED', 'PROPOSED', 'ACCEPTED');
 perform set_config('test.f15', case when exists (select 1 from pg_proc where proname = 'match_request'
   and pg_get_functiondef(oid) ~* 'user_blocks') then 'yes' else 'no' end, true);
 perform set_config('test.f17', case when exists (select 1 from pg_trigger
@@ -225,9 +254,9 @@ declare rq uuid;
 begin
 if current_setting('test.f15') = 'yes' then
   insert into public.transaction_requests (type, amount, currency, creator_id)
-  values ('SEND', 4242, 'USD', 'STUDENT-A-ID') returning id into rq;
+  values ('SEND', 4242, 'USD', current_setting('test.a_id')::uuid) returning id into rq;
   perform set_config('test.rq1', rq::text, true);
-  insert into public.user_blocks (blocker_id, blocked_id) values ('STUDENT-A-ID', 'STUDENT-B-ID');
+  insert into public.user_blocks (blocker_id, blocked_id) values (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid);
 end if;
 exception when others then
   perform pg_temp.t_record('FAIL', 'M1 (owner): a request of Student A, then a block: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -235,7 +264,7 @@ end $$;
 
 -- ---------- M1: Student B tries to match (A blocked B) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -254,8 +283,8 @@ reset role;
 do $$
 begin
 if current_setting('test.f15') = 'yes' then
-  delete from public.user_blocks where blocker_id = 'STUDENT-A-ID' and blocked_id = 'STUDENT-B-ID';
-  insert into public.user_blocks (blocker_id, blocked_id) values ('STUDENT-B-ID', 'STUDENT-A-ID');
+  delete from public.user_blocks where blocker_id = current_setting('test.a_id')::uuid and blocked_id = current_setting('test.b_id')::uuid;
+  insert into public.user_blocks (blocker_id, blocked_id) values (current_setting('test.b_id')::uuid, current_setting('test.a_id')::uuid);
 end if;
 exception when others then
   perform pg_temp.t_record('FAIL', 'M1 (owner): now B blocks A instead: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -263,7 +292,7 @@ end $$;
 
 -- ---------- M1: Student B tries to match (B blocked A) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -282,37 +311,37 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 delete from public.match_suggestions
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 delete from public.user_blocks
-  where (blocker_id = 'STUDENT-A-ID' and blocked_id = 'STUDENT-B-ID') or (blocker_id = 'STUDENT-B-ID' and blocked_id = 'STUDENT-A-ID');
+  where (blocker_id = current_setting('test.a_id')::uuid and blocked_id = current_setting('test.b_id')::uuid) or (blocker_id = current_setting('test.b_id')::uuid and blocked_id = current_setting('test.a_id')::uuid);
 
-insert into public.user_blocks (blocker_id, blocked_id) values ('STUDENT-A-ID', 'STUDENT-B-ID');
+insert into public.user_blocks (blocker_id, blocked_id) values (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M2 (owner): reset, then A blocks B: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M2: Student A posts SEND 5252 ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('SEND', 5252, 'USD', 'STUDENT-A-ID');
+values ('SEND', 5252, 'USD', current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M2: Student A posts SEND 5252: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M2: Student B posts RECEIVE 5252 ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('RECEIVE', 5252, 'USD', 'STUDENT-B-ID');
+values ('RECEIVE', 5252, 'USD', current_setting('test.b_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M2: Student B posts RECEIVE 5252: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -321,7 +350,7 @@ end $$;
 reset role;
 do $$
 begin
-perform pg_temp.t_rows('E2 two users who blocked each other are never suggested', $q$select 1 from public.match_suggestions where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID')$q$, 0);
+perform pg_temp.t_rows('E2 two users who blocked each other are never suggested', $q$select 1 from public.match_suggestions where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid)$q$, 0);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M2 (owner): check: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -331,35 +360,35 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 delete from public.match_suggestions
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 delete from public.user_blocks
-  where (blocker_id = 'STUDENT-A-ID' and blocked_id = 'STUDENT-B-ID') or (blocker_id = 'STUDENT-B-ID' and blocked_id = 'STUDENT-A-ID');
+  where (blocker_id = current_setting('test.a_id')::uuid and blocked_id = current_setting('test.b_id')::uuid) or (blocker_id = current_setting('test.b_id')::uuid and blocked_id = current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M3 (owner): reset: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M3: Student A posts SEND 5252 ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('SEND', 5252, 'USD', 'STUDENT-A-ID');
+values ('SEND', 5252, 'USD', current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M3: Student A posts SEND 5252: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M3: Student B posts RECEIVE 5252 ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('RECEIVE', 5252, 'USD', 'STUDENT-B-ID');
+values ('RECEIVE', 5252, 'USD', current_setting('test.b_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M3: Student B posts RECEIVE 5252: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -371,13 +400,13 @@ declare sid uuid;
 begin
 select id into sid from public.match_suggestions
   where status = 'PENDING'
-    and ((user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID'))
+    and ((user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid))
   limit 1;
 perform pg_temp.t_check('E3a a suggestion is made for two users who have not blocked each other', sid is not null,
   'no suggestion was created (is file 07 run?)');
 if sid is not null then
   perform set_config('test.sid3', sid::text, true);
-  insert into public.user_blocks (blocker_id, blocked_id) values ('STUDENT-B-ID', 'STUDENT-A-ID');
+  insert into public.user_blocks (blocker_id, blocked_id) values (current_setting('test.b_id')::uuid, current_setting('test.a_id')::uuid);
 end if;
 exception when others then
   perform pg_temp.t_record('FAIL', 'M3 (owner): a suggestion exists; now B blocks A: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -385,7 +414,7 @@ end $$;
 
 -- ---------- M3: Student A accepts ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -398,7 +427,7 @@ end $$;
 
 -- ---------- M3: Student B accepts (but blocked A): the suggestion closes, no error ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 declare matched uuid;
@@ -431,7 +460,7 @@ if coalesce(current_setting('test.sid3', true), '') <> '' and current_setting('t
     'status is ' || coalesce((select status from public.match_suggestions where id = current_setting('test.sid3')::uuid), 'null'));
   perform pg_temp.t_check('E3c both requests are still OPEN',
     (select count(*) from public.transaction_requests
-     where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and amount = 5252 and status::text = 'OPEN') = 2,
+     where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and amount = 5252 and status::text = 'OPEN') = 2,
     'a request is no longer OPEN');
 end if;
 exception when others then
@@ -443,35 +472,35 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 delete from public.match_suggestions
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 delete from public.user_blocks
-  where (blocker_id = 'STUDENT-A-ID' and blocked_id = 'STUDENT-B-ID') or (blocker_id = 'STUDENT-B-ID' and blocked_id = 'STUDENT-A-ID');
+  where (blocker_id = current_setting('test.a_id')::uuid and blocked_id = current_setting('test.b_id')::uuid) or (blocker_id = current_setting('test.b_id')::uuid and blocked_id = current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4 (owner): reset: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M4: Student A posts SEND 5252 (1st time) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('SEND', 5252, 'USD', 'STUDENT-A-ID');
+values ('SEND', 5252, 'USD', current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4: Student A posts SEND 5252 (1st time): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M4: Student B posts RECEIVE 5252 (1st time) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('RECEIVE', 5252, 'USD', 'STUDENT-B-ID');
+values ('RECEIVE', 5252, 'USD', current_setting('test.b_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4: Student B posts RECEIVE 5252 (1st time): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -480,36 +509,36 @@ end $$;
 reset role;
 do $$
 begin
-perform pg_temp.t_rows('E4a the first suggestion of the pair exists', $q$select 1 from public.match_suggestions where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID')$q$, 1);
+perform pg_temp.t_rows('E4a the first suggestion of the pair exists', $q$select 1 from public.match_suggestions where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid)$q$, 1);
 update public.match_suggestions set status = 'CLOSED'
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4 (owner): close that suggestion, cancel the requests: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M4: Student A posts SEND 5252 (2nd time) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('SEND', 5252, 'USD', 'STUDENT-A-ID');
+values ('SEND', 5252, 'USD', current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4: Student A posts SEND 5252 (2nd time): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M4: Student B posts RECEIVE 5252 (2nd time) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('RECEIVE', 5252, 'USD', 'STUDENT-B-ID');
+values ('RECEIVE', 5252, 'USD', current_setting('test.b_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4: Student B posts RECEIVE 5252 (2nd time): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -519,25 +548,25 @@ reset role;
 do $$
 begin
 if current_setting('test.f07b') = 'yes' then
-  perform pg_temp.t_rows('E4 the same pair is not suggested twice within 24 hours', $q$select 1 from public.match_suggestions where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID')$q$, 1);
+  perform pg_temp.t_rows('E4 the same pair is not suggested twice within 24 hours', $q$select 1 from public.match_suggestions where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid)$q$, 1);
 else
   perform pg_temp.t_skip('E4 the same pair is not suggested twice within 24 hours', 'run the updated file 07 first');
 end if;
 -- Positive control: the old suggestion is 25 hours old (and not DECLINED).
 update public.match_suggestions set created_at = now() - interval '25 hours'
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4 (owner): no 2nd suggestion within 24 hours; after 25 hours there is one: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M4: Student A posts SEND 5252 (3rd time) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('SEND', 5252, 'USD', 'STUDENT-A-ID');
+values ('SEND', 5252, 'USD', current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M4: Student A posts SEND 5252 (3rd time): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -547,7 +576,7 @@ reset role;
 do $$
 begin
 if current_setting('test.f07b') = 'yes' then
-  perform pg_temp.t_rows('E4c (control) after 25 hours a new suggestion IS made', $q$select 1 from public.match_suggestions where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID')$q$, 2);
+  perform pg_temp.t_rows('E4c (control) after 25 hours a new suggestion IS made', $q$select 1 from public.match_suggestions where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid)$q$, 2);
 else
   perform pg_temp.t_skip('E4c', 'run the updated file 07 first');
 end if;
@@ -561,37 +590,37 @@ do $$
 begin
 update public.match_suggestions set status = 'DECLINED', created_at = now() - interval '30 hours'
   where status = 'PENDING'
-    and ((user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID'));
+    and ((user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid));
 
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 
 perform set_config('test.pairs_before', (select count(*) from public.match_suggestions
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID'))::text, true);
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid))::text, true);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M5 (owner): the last suggestion was DECLINED 30 hours ago: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M5: Student A posts SEND 5252 (4th time) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('SEND', 5252, 'USD', 'STUDENT-A-ID');
+values ('SEND', 5252, 'USD', current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M5: Student A posts SEND 5252 (4th time): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M5: Student B posts RECEIVE 5252 (4th time) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('RECEIVE', 5252, 'USD', 'STUDENT-B-ID');
+values ('RECEIVE', 5252, 'USD', current_setting('test.b_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M5: Student B posts RECEIVE 5252 (4th time): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -602,7 +631,7 @@ do $$
 begin
 perform pg_temp.t_check('E5 after a DECLINED suggestion the same pair is never suggested again (even after 24 hours)',
   (select count(*) from public.match_suggestions
-   where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID'))
+   where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid))
   = current_setting('test.pairs_before')::int,
   'a new suggestion was made');
 exception when others then
@@ -614,35 +643,35 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 delete from public.match_suggestions
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 delete from public.user_blocks
-  where (blocker_id = 'STUDENT-A-ID' and blocked_id = 'STUDENT-B-ID') or (blocker_id = 'STUDENT-B-ID' and blocked_id = 'STUDENT-A-ID');
+  where (blocker_id = current_setting('test.a_id')::uuid and blocked_id = current_setting('test.b_id')::uuid) or (blocker_id = current_setting('test.b_id')::uuid and blocked_id = current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M6 (owner): reset (no history between A and B): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M6: Student A posts SEND 6161 ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('SEND', 6161, 'USD', 'STUDENT-A-ID');
+values ('SEND', 6161, 'USD', current_setting('test.a_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M6: Student A posts SEND 6161: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- M6: Student B posts RECEIVE 6161 ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('RECEIVE', 6161, 'USD', 'STUDENT-B-ID');
+values ('RECEIVE', 6161, 'USD', current_setting('test.b_id')::uuid);
 exception when others then
   perform pg_temp.t_record('FAIL', 'M6: Student B posts RECEIVE 6161: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -654,7 +683,7 @@ declare sid uuid; ra uuid; rb uuid;
 begin
 select id, request_a, request_b into sid, ra, rb from public.match_suggestions
   where status = 'PENDING'
-    and ((user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID'))
+    and ((user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid))
   limit 1;
 if sid is null then
   perform pg_temp.t_skip('E6', 'no suggestion was created');
@@ -670,7 +699,7 @@ end $$;
 
 -- ---------- M6: Student A accepts ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -683,7 +712,7 @@ end $$;
 
 -- ---------- M6: Student B accepts: matched ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 declare matched uuid;
@@ -723,14 +752,14 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 exception when others then
   perform pg_temp.t_record('FAIL', 'L1 (owner): clear the open requests of A and B: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- L1: Student A posts 3 open requests ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 declare i int;
@@ -738,11 +767,11 @@ begin
 if current_setting('test.f17') = 'yes' then
   for i in 1..3 loop
     insert into public.transaction_requests (type, amount, currency, creator_id)
-    values ('SEND', 7000 + i, 'USD', 'STUDENT-A-ID');
+    values ('SEND', 7000 + i, 'USD', current_setting('test.a_id')::uuid);
   end loop;
   perform pg_temp.t_refused('E7 a 4th open request is refused, with a plain message',
     $q$insert into public.transaction_requests (type, amount, currency, creator_id)
-       values ('SEND', 7004, 'USD', 'STUDENT-A-ID')$q$, 'P0001', '%3 open requests%');
+       values ('SEND', 7004, 'USD', current_setting('test.a_id')::uuid)$q$, 'P0001', '%3 open requests%');
 else
   perform pg_temp.t_skip('E7 a 4th open request is refused', 'run file 17 first');
 end if;
@@ -755,21 +784,21 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id = 'STUDENT-A-ID' and amount = 7003 and status::text = 'OPEN';
+  where creator_id = current_setting('test.a_id')::uuid and amount = 7003 and status::text = 'OPEN';
 exception when others then
   perform pg_temp.t_record('FAIL', 'L1 (owner): A cancels one request: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- L1: A can post again; the limit is per person ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 if current_setting('test.f17') = 'yes' then
   perform pg_temp.t_works('E7b after cancelling one, Student A can post a new request',
     $q$insert into public.transaction_requests (type, amount, currency, creator_id)
-       values ('SEND', 7005, 'USD', 'STUDENT-A-ID')$q$);
+       values ('SEND', 7005, 'USD', current_setting('test.a_id')::uuid)$q$);
 end if;
 exception when others then
   perform pg_temp.t_record('FAIL', 'L1: A can post again; the limit is per person: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -777,14 +806,14 @@ end $$;
 
 -- ---------- L1: Student B is not limited by A ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 if current_setting('test.f17') = 'yes' then
   perform pg_temp.t_works('E7c Student B can still post (the limit is per person)',
     $q$insert into public.transaction_requests (type, amount, currency, creator_id)
-       values ('RECEIVE', 7006, 'USD', 'STUDENT-B-ID')$q$);
+       values ('RECEIVE', 7006, 'USD', current_setting('test.b_id')::uuid)$q$);
 end if;
 exception when others then
   perform pg_temp.t_record('FAIL', 'L1: Student B is not limited by A: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -792,7 +821,7 @@ end $$;
 
 -- ---------- A1: Student A asks for 3 appointments ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 declare i int;
@@ -800,11 +829,11 @@ begin
 if current_setting('test.f11') = 'yes' then
   for i in 1..3 loop
     insert into public.appointments (student_id, requested_at, reason)
-    values ('STUDENT-A-ID', now() + (i + 2) * interval '1 day', 'Test appointment ' || i || ' (rolled back)');
+    values (current_setting('test.a_id')::uuid, now() + (i + 2) * interval '1 day', 'Test appointment ' || i || ' (rolled back)');
   end loop;
   perform pg_temp.t_refused('E8 a 4th active appointment is refused, with a plain message',
     $q$insert into public.appointments (student_id, requested_at, reason)
-       values ('STUDENT-A-ID', now() + interval '10 days', 'Test appointment 4 (rolled back)')$q$,
+       values (current_setting('test.a_id')::uuid, now() + interval '10 days', 'Test appointment 4 (rolled back)')$q$,
     'P0001', '%3 appointments%');
 else
   perform pg_temp.t_skip('E8 a 4th active appointment is refused', 'run file 11 first');
@@ -819,7 +848,7 @@ do $$
 begin
 update public.appointments set status = 'DECLINED'
   where id = (select id from public.appointments
-              where student_id = 'STUDENT-A-ID' and status = 'REQUESTED'
+              where student_id = current_setting('test.a_id')::uuid and status = 'REQUESTED'
               order by requested_at limit 1);
 exception when others then
   perform pg_temp.t_record('FAIL', 'A1 (owner): one appointment is declined (no longer active): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -827,14 +856,14 @@ end $$;
 
 -- ---------- A1: Student A can ask again ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 if current_setting('test.f11') = 'yes' then
   perform pg_temp.t_works('E8b after one is declined, a new appointment is allowed',
     $q$insert into public.appointments (student_id, requested_at, reason)
-       values ('STUDENT-A-ID', now() + interval '12 days', 'Test appointment 5 (rolled back)')$q$);
+       values (current_setting('test.a_id')::uuid, now() + interval '12 days', 'Test appointment 5 (rolled back)')$q$);
 end if;
 exception when others then
   perform pg_temp.t_record('FAIL', 'A1: Student A can ask again: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);

@@ -1,31 +1,46 @@
 -- Tests for sql/2026-11-11-12-attestation-entry-date.sql
--- Replace STUDENT-A-ID (see README.md).
+-- Needs the four test accounts: run 00-test-accounts.sql once first (see README.md).
 -- Inside the test (rolled back) Student A gets document consent and any open
 -- attestation request is removed, so nothing else can disturb the checks.
 -- Nothing is saved: the result is shown as an error at the end (RESULT SUMMARY).
 
 begin;
 
--- ---------- Setup check: runs first; stops with SETUP PROBLEM if an id is wrong ----------
+-- ---------- Setup check: finds the 4 accounts by email (test_support.accounts) and checks them ----------
+-- Stops with one SETUP PROBLEM line if something is wrong; then no test runs.
 do $$
 declare
-  a_id text := 'STUDENT-A-ID';
-  b_id text := 'STUDENT-B-ID';
-  g_id text := 'GOVERNOR-ID';
-  t_id text := 'ATTACHE-ID';
-  re constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  r text; a_wil text; b_wil text; g_wil text;
+  a_id uuid; b_id uuid; g_id uuid; t_id uuid;
+  mail text; n int; r text; a_wil text; b_wil text; g_wil text;
+  a_mail text; b_mail text; g_mail text; t_mail text;
 begin
-  if a_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student A is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', a_id;
+  if to_regclass('test_support.accounts') is null then
+    raise exception 'SETUP PROBLEM: test_support.accounts does not exist. Run sql/tests/00-test-accounts.sql once first (see README.md).';
   end if;
-  select p.role::text into r from public.profiles p where p.id = a_id::uuid;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_A';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_A row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
+  end if;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_A email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student A email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student A email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into a_id from auth.users u where lower(u.email) = mail;
+  a_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = a_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student A (%) does not exist in profiles', a_id;
+    raise exception 'SETUP PROBLEM: Student A (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student A must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student A (%) has role %, expected student.', mail, r;
   end if;
+  perform set_config('test.a_id', a_id::text, true);
 end $$;
 
 -- ---------- Result table and helpers (temporary objects, gone at the end) ----------
@@ -178,38 +193,38 @@ reset role;
 do $$
 begin
 insert into public.document_consents (user_id, version)
-select 'STUDENT-A-ID', 'test'
-where not exists (select 1 from public.document_consents where user_id = 'STUDENT-A-ID');
+select current_setting('test.a_id')::uuid, 'test'
+where not exists (select 1 from public.document_consents where user_id = current_setting('test.a_id')::uuid);
 delete from public.attestation_requests
-  where user_id = 'STUDENT-A-ID' and status in ('PENDING', 'IN_REVIEW');
+  where user_id = current_setting('test.a_id')::uuid and status in ('PENDING', 'IN_REVIEW');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 1 (owner): clear the way: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 2: Student A ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_refused('T1 a request without the date of entry is refused',
   $q$insert into public.attestation_requests (user_id, passport_path)
-     values ('STUDENT-A-ID', 'STUDENT-A-ID/test.pdf')$q$, 'P0001', '%date of entry%');
+     values (current_setting('test.a_id')::uuid, (current_setting('test.a_id') || '/test.pdf'))$q$, 'P0001', '%date of entry%');
 perform pg_temp.t_refused('T2 a request without the passport file is refused',
   $q$insert into public.attestation_requests (user_id, entry_date)
-     values ('STUDENT-A-ID', current_date - 100)$q$, 'P0001', '%passport%');
+     values (current_setting('test.a_id')::uuid, current_date - 100)$q$, 'P0001', '%passport%');
 perform pg_temp.t_refused('T3 a date of entry in the future is refused',
   $q$insert into public.attestation_requests (user_id, passport_path, entry_date)
-     values ('STUDENT-A-ID', 'STUDENT-A-ID/test.pdf', current_date + 30)$q$, '23514');
+     values (current_setting('test.a_id')::uuid, (current_setting('test.a_id') || '/test.pdf'), current_date + 30)$q$, '23514');
 perform pg_temp.t_refused('T3b a date of entry before 1990 is refused',
   $q$insert into public.attestation_requests (user_id, passport_path, entry_date)
-     values ('STUDENT-A-ID', 'STUDENT-A-ID/test.pdf', date '1980-01-01')$q$, '23514');
+     values (current_setting('test.a_id')::uuid, (current_setting('test.a_id') || '/test.pdf'), date '1980-01-01')$q$, '23514');
 perform pg_temp.t_works('T4 a request with both is accepted',
   $q$insert into public.attestation_requests (user_id, passport_path, entry_date)
-     values ('STUDENT-A-ID', 'STUDENT-A-ID/test.pdf', current_date - 100)$q$);
+     values (current_setting('test.a_id')::uuid, (current_setting('test.a_id') || '/test.pdf'), current_date - 100)$q$);
 perform pg_temp.t_refused('T5 a second open request is refused (one at a time)',
   $q$insert into public.attestation_requests (user_id, passport_path, entry_date)
-     values ('STUDENT-A-ID', 'STUDENT-A-ID/test2.pdf', current_date - 100)$q$, '23505');
+     values (current_setting('test.a_id')::uuid, (current_setting('test.a_id') || '/test2.pdf'), current_date - 100)$q$, '23505');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 2: Student A: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;

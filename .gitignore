@@ -53,3 +53,5 @@ app.*.map.json
 .env.*
 .npmrc
 supabase/.temp/
+sql/2026-11-05-roles.sql
+sql/tests/00-test-accounts.local.sql

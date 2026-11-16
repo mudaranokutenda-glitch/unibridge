@@ -1,81 +1,153 @@
 -- Tests for sql/2026-11-11-01-no-student-id-at-signup.sql and 2026-11-11-02-phone.sql
--- Replace STUDENT-A-ID, STUDENT-B-ID, GOVERNOR-ID, ATTACHE-ID (see README.md).
+-- Needs the four test accounts: run 00-test-accounts.sql once first (see README.md).
 -- Both students get a phone number inside the test (rolled back), so every
 -- check really tests something. Nothing is saved: the result is shown as an
 -- error at the end (RESULT SUMMARY), which also undoes everything.
 
 begin;
 
--- ---------- Setup check: runs first; stops with SETUP PROBLEM if an id is wrong ----------
-do $$
+-- ---------- Setup check: finds the 4 accounts by email (test_support.accounts) and checks them ----------
+-- Stops with one SETUP PROBLEM line if something is wrong; then no test runs.
+do $$A
 declare
-  a_id text := 'STUDENT-A-ID';
-  b_id text := 'STUDENT-B-ID';
-  g_id text := 'GOVERNOR-ID';
-  t_id text := 'ATTACHE-ID';
-  re constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  r text; a_wil text; b_wil text; g_wil text;
+  a_id uuid; b_id uuid; g_id uuid; t_id uuid;
+  mail text; n int; r text; a_wil text; b_wil text; g_wil text;
+  a_mail text; b_mail text; g_mail text; t_mail text;
 begin
-  if a_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student A is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', a_id;
+  if to_regclass('test_support.accounts') is null then
+    raise exception 'SETUP PROBLEM: test_support.accounts does not exist. Run sql/tests/00-test-accounts.sql once first (see README.md).';
   end if;
-  select p.role::text into r from public.profiles p where p.id = a_id::uuid;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_A';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_A row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
+  end if;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_A email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student A email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student A email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into a_id from auth.users u where lower(u.email) = mail;
+  a_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = a_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student A (%) does not exist in profiles', a_id;
+    raise exception 'SETUP PROBLEM: Student A (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student A must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student A (%) has role %, expected student.', mail, r;
   end if;
-  if b_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student B is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', b_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_B';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_B row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = b_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_B email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student B email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student B email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into b_id from auth.users u where lower(u.email) = mail;
+  b_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = b_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student B (%) does not exist in profiles', b_id;
+    raise exception 'SETUP PROBLEM: Student B (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student B must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student B (%) has role %, expected student.', mail, r;
   end if;
-  if g_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for the Governor is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', g_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'GOVERNOR';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no GOVERNOR row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = g_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the GOVERNOR email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: the Governor email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: the Governor email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into g_id from auth.users u where lower(u.email) = mail;
+  g_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = g_id;
   if not found then
-    raise exception 'SETUP PROBLEM: the Governor (%) does not exist in profiles', g_id;
+    raise exception 'SETUP PROBLEM: the Governor (%) has no row in profiles.', mail;
   end if;
   if r <> 'rep' then
-    raise exception 'SETUP PROBLEM: the Governor must have role rep (it has %)', r;
+    raise exception 'SETUP PROBLEM: the Governor (%) has role %, expected rep.', mail, r;
   end if;
-  if t_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for the Educational Attache is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', t_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'ATTACHE';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no ATTACHE row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = t_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the ATTACHE email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into t_id from auth.users u where lower(u.email) = mail;
+  t_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = t_id;
   if not found then
-    raise exception 'SETUP PROBLEM: the Educational Attache (%) does not exist in profiles', t_id;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has no row in profiles.', mail;
   end if;
   if r not in ('attache', 'admin') then
-    raise exception 'SETUP PROBLEM: the Educational Attache must have role attache or admin (it has %)', r;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has role %, expected attache or admin.', mail, r;
   end if;
-  if a_id::uuid = b_id::uuid then
-    raise exception 'SETUP PROBLEM: Student A and Student B must be two different accounts';
+  if a_id = b_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and Student B are the same account (%).', a_mail;
   end if;
-  a_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = a_id::uuid),
-                    (select p.wilaya from public.profiles p where p.id = a_id::uuid));
-  select p.rep_wilaya into g_wil from public.profiles p where p.id = g_id::uuid;
+  if a_id = g_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and the Governor are the same account (%).', a_mail;
+  end if;
+  if a_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and the Educational Attache are the same account (%).', a_mail;
+  end if;
+  if b_id = g_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student B and the Governor are the same account (%).', b_mail;
+  end if;
+  if b_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student B and the Educational Attache are the same account (%).', b_mail;
+  end if;
+  if g_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but the Governor and the Educational Attache are the same account (%).', g_mail;
+  end if;
+  a_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = a_id),
+                    (select p.wilaya from public.profiles p where p.id = a_id));
+  select p.rep_wilaya into g_wil from public.profiles p where p.id = g_id;
   if a_wil is null then
-    raise exception 'SETUP PROBLEM: Student A has no wilaya (profile or student record)';
+    raise exception 'SETUP PROBLEM: Student A (%) has no wilaya (profile or student record).', a_mail;
   end if;
   if g_wil is distinct from a_wil then
-    raise exception 'SETUP PROBLEM: the Governor rep_wilaya (%) must equal Student A wilaya (%)', g_wil, a_wil;
+    raise exception 'SETUP PROBLEM: the Governor (%) has rep_wilaya %, but Student A (%) is in wilaya %. They must be the same.', g_mail, g_wil, a_mail, a_wil;
   end if;
-  b_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = b_id::uuid),
-                    (select p.wilaya from public.profiles p where p.id = b_id::uuid));
+  b_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = b_id),
+                    (select p.wilaya from public.profiles p where p.id = b_id));
   if b_wil is null then
-    raise exception 'SETUP PROBLEM: Student B has no wilaya (profile or student record)';
+    raise exception 'SETUP PROBLEM: Student B (%) has no wilaya (profile or student record).', b_mail;
   end if;
   if b_wil = g_wil then
-    raise exception 'SETUP PROBLEM: Student B must be in a DIFFERENT wilaya from the Governor (both are %)', b_wil;
+    raise exception 'SETUP PROBLEM: Student B (%) must be in a DIFFERENT wilaya from the Governor (both are in %).', b_mail, b_wil;
   end if;
+  perform set_config('test.a_id', a_id::text, true);
+  perform set_config('test.b_id', b_id::text, true);
+  perform set_config('test.g_id', g_id::text, true);
+  perform set_config('test.t_id', t_id::text, true);
 end $$;
 
 -- ---------- Result table and helpers (temporary objects, gone at the end) ----------
@@ -238,45 +310,45 @@ perform pg_temp.t_check('T1 phone format: +213555123456 and +263771234567 ok; 05
   and not public.is_valid_phone('+2135551'),
   'is_valid_phone gives a wrong answer');
 -- Fixtures (rolled back): both students have a phone.
-insert into public.user_phones (user_id, phone) values ('STUDENT-A-ID', '+213555123456')
+insert into public.user_phones (user_id, phone) values (current_setting('test.a_id')::uuid, '+213555123456')
   on conflict (user_id) do nothing;
-insert into public.user_phones (user_id, phone) values ('STUDENT-B-ID', '+263771234567')
+insert into public.user_phones (user_id, phone) values (current_setting('test.b_id')::uuid, '+263771234567')
   on conflict (user_id) do nothing;
-perform set_config('test.phone_a', (select phone from public.user_phones where user_id = 'STUDENT-A-ID'), true);
-perform set_config('test.phone_b', (select phone from public.user_phones where user_id = 'STUDENT-B-ID'), true);
+perform set_config('test.phone_a', (select phone from public.user_phones where user_id = current_setting('test.a_id')::uuid), true);
+perform set_config('test.phone_b', (select phone from public.user_phones where user_id = current_setting('test.b_id')::uuid), true);
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 1 (owner): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 2: Student A ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_rows('T2 Student A can read their own phone',
-  $q$select 1 from public.user_phones where user_id = 'STUDENT-A-ID'$q$, 1);
+  $q$select 1 from public.user_phones where user_id = current_setting('test.a_id')::uuid$q$, 1);
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 2: Student A: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 3: Student B ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_rows('T3 Student B can read their own phone',
-  $q$select 1 from public.user_phones where user_id = 'STUDENT-B-ID'$q$, 1);
+  $q$select 1 from public.user_phones where user_id = current_setting('test.b_id')::uuid$q$, 1);
 perform pg_temp.t_hidden('T4 Student B cannot read Student A phone',
-  $q$select 1 from public.user_phones where user_id = 'STUDENT-A-ID'$q$);
+  $q$select 1 from public.user_phones where user_id = current_setting('test.a_id')::uuid$q$);
 perform pg_temp.t_noeffect('T5 Student B cannot change Student A phone',
-  $q$update public.user_phones set phone = '+213000000000' where user_id = 'STUDENT-A-ID'$q$, '42501');
+  $q$update public.user_phones set phone = '+213000000000' where user_id = current_setting('test.a_id')::uuid$q$, '42501');
 perform pg_temp.t_refused('T6 a wrong phone format is refused',
-  $q$insert into public.user_phones (user_id, phone) values ('STUDENT-B-ID', '0555123456')
+  $q$insert into public.user_phones (user_id, phone) values (current_setting('test.b_id')::uuid, '0555123456')
      on conflict (user_id) do update set phone = excluded.phone$q$, '23514');
 perform pg_temp.t_refused('T7 Student B cannot add or overwrite a phone for Student A',
-  $q$insert into public.user_phones (user_id, phone) values ('STUDENT-A-ID', '+213555000000')
+  $q$insert into public.user_phones (user_id, phone) values (current_setting('test.a_id')::uuid, '+213555000000')
      on conflict (user_id) do update set phone = excluded.phone$q$, '42501');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 3: Student B: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -284,28 +356,28 @@ end $$;
 
 -- ---------- Section 4: the Governor of Student A wilaya ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"GOVERNOR-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.g_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_rows('T8 the Governor of A wilaya can read A phone',
-  $q$select 1 from public.user_phones where user_id = 'STUDENT-A-ID'$q$, 1);
+  $q$select 1 from public.user_phones where user_id = current_setting('test.a_id')::uuid$q$, 1);
 perform pg_temp.t_hidden('T9 the Governor cannot read Student B phone (other wilaya)',
-  $q$select 1 from public.user_phones where user_id = 'STUDENT-B-ID'$q$);
+  $q$select 1 from public.user_phones where user_id = current_setting('test.b_id')::uuid$q$);
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 4: the Governor of Student A wilaya: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 5: the Educational Attache ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.t_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_rows('T10 the Educational Attache can read A phone',
-  $q$select 1 from public.user_phones where user_id = 'STUDENT-A-ID'$q$, 1);
+  $q$select 1 from public.user_phones where user_id = current_setting('test.a_id')::uuid$q$, 1);
 perform pg_temp.t_noeffect('T11 the Educational Attache cannot change A phone',
-  $q$update public.user_phones set phone = '+213000000000' where user_id = 'STUDENT-A-ID'$q$, '42501');
+  $q$update public.user_phones set phone = '+213000000000' where user_id = current_setting('test.a_id')::uuid$q$, '42501');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 5: the Educational Attache: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -315,8 +387,8 @@ reset role;
 do $$
 begin
 perform pg_temp.t_check('T12 no phone was changed by the attempts above',
-  (select phone from public.user_phones where user_id = 'STUDENT-A-ID') = current_setting('test.phone_a', true)
-  and (select phone from public.user_phones where user_id = 'STUDENT-B-ID') = current_setting('test.phone_b', true),
+  (select phone from public.user_phones where user_id = current_setting('test.a_id')::uuid) = current_setting('test.phone_a', true)
+  and (select phone from public.user_phones where user_id = current_setting('test.b_id')::uuid) = current_setting('test.phone_b', true),
   'a phone was changed');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 6 (owner): nothing was changed: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);

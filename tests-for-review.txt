@@ -1,0 +1,642 @@
+=== 2026-11-11-02-phone-tests.sql ===
+-- Tests for sql/2026-11-11-01-no-student-id-at-signup.sql and 2026-11-11-02-phone.sql
+-- Replace STUDENT-A-ID, STUDENT-B-ID, GOVERNOR-ID, ATTACHE-ID (see README.md).
+-- Before: Student A has saved a phone number in the app.
+-- Nothing is saved: the file ends with rollback.
+
+begin;
+
+-- ---------- As postgres (owner) ----------
+do $$
+begin
+  raise notice '% T0 profiles.inscription_number may be NULL',
+    case when not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'profiles'
+        and column_name = 'inscription_number' and is_nullable = 'NO')
+    then 'PASS' else 'FAIL' end;
+  raise notice '% T1 phone format: +213555123456 ok, 0555123456 refused, +33612345678 refused',
+    case when public.is_valid_phone('+213555123456')
+          and public.is_valid_phone('+263771234567')
+          and not public.is_valid_phone('0555123456')
+          and not public.is_valid_phone('+33612345678')
+          and not public.is_valid_phone('+2135551')
+    then 'PASS' else 'FAIL' end;
+  if not exists (select 1 from public.user_phones where user_id = 'STUDENT-A-ID') then
+    raise notice 'SKIP T2-T6: Student A has no phone yet (save one in the app first)';
+  end if;
+end $$;
+
+-- ---------- As Student B ----------
+select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.user_phones where user_id = 'STUDENT-A-ID';
+  raise notice '% T2 Student B cannot read Student A''s phone', case when n = 0 then 'PASS' else 'FAIL' end;
+
+  update public.user_phones set phone = '+213000000000' where user_id = 'STUDENT-A-ID';
+  get diagnostics n = row_count;
+  raise notice '% T3 Student B cannot change Student A''s phone', case when n = 0 then 'PASS' else 'FAIL' end;
+
+  begin
+    insert into public.user_phones (user_id, phone) values ('STUDENT-B-ID', '0555123456')
+    on conflict (user_id) do update set phone = excluded.phone;
+    raise notice 'FAIL T4 a wrong phone format is refused';
+  exception when others then
+    raise notice 'PASS T4 a wrong phone format is refused';
+  end;
+
+  begin
+    insert into public.user_phones (user_id, phone) values ('STUDENT-A-ID', '+213555000000');
+    raise notice 'FAIL T5 Student B cannot add a phone for Student A';
+  exception when others then
+    raise notice 'PASS T5 Student B cannot add a phone for Student A';
+  end;
+end $$;
+
+-- ---------- As the Governor of Student A's wilaya ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"GOVERNOR-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.user_phones where user_id = 'STUDENT-A-ID';
+  raise notice '% T6 the Governor of A''s wilaya can read A''s phone', case when n = 1 then 'PASS' else 'FAIL (or SKIP if A has no phone)' end;
+  select count(*) into n from public.user_phones where user_id = 'STUDENT-B-ID';
+  raise notice '% T7 the Governor cannot read Student B''s phone (other wilaya)', case when n = 0 then 'PASS' else 'FAIL' end;
+end $$;
+
+-- ---------- As the Educational Attaché ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.user_phones where user_id = 'STUDENT-A-ID';
+  raise notice '% T8 the Educational Attaché can read A''s phone', case when n = 1 then 'PASS' else 'FAIL (or SKIP if A has no phone)' end;
+  update public.user_phones set phone = '+213000000000' where user_id = 'STUDENT-A-ID';
+  get diagnostics n = row_count;
+  raise notice '% T9 the Educational Attaché cannot change A''s phone', case when n = 0 then 'PASS' else 'FAIL' end;
+end $$;
+
+rollback;
+
+=== 2026-11-11-04-05-chat-tests.sql ===
+-- Tests for sql/2026-11-11-03-cron-secret.sql, 04-chat-rules.sql and 05-chat-cleanup.sql
+-- Replace STUDENT-A-ID and STUDENT-B-ID (see README.md).
+-- Before: Student A and Student B have one MATCHED request together (any amount).
+-- Nothing is saved: the file ends with rollback.
+
+begin;
+
+do $$
+declare n int;
+begin
+  raise notice '% T1 the secret is stored in the Vault',
+    case when exists (select 1 from vault.secrets where name = 'cron_secret') then 'PASS' else 'FAIL' end;
+  raise notice '% T2 the nightly chat-cleanup job exists',
+    case when exists (select 1 from cron.job where jobname = 'chat-cleanup') then 'PASS' else 'FAIL' end;
+  raise notice '% T3 a DISPUTED request is never marked as ended',
+    case when not exists (select 1 from public.transaction_requests
+                          where status::text = 'DISPUTED' and ended_at is not null)
+    then 'PASS' else 'FAIL' end;
+end $$;
+
+-- App users cannot read the secret.
+select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare v text; rid uuid;
+begin
+  begin
+    v := public.cron_secret();
+    raise notice 'FAIL T4 a student cannot read the secret';
+  exception when others then
+    raise notice 'PASS T4 a student cannot read the secret';
+  end;
+
+  begin
+    perform public.call_edge_function('chat-cleanup', '{}'::jsonb);
+    raise notice 'FAIL T5 a student cannot start the clean-up';
+  exception when others then
+    raise notice 'PASS T5 a student cannot start the clean-up';
+  end;
+
+  select id into rid from public.transaction_requests
+  where status::text = 'MATCHED'
+    and ((creator_id = 'STUDENT-A-ID' and matched_with_id = 'STUDENT-B-ID')
+      or (creator_id = 'STUDENT-B-ID' and matched_with_id = 'STUDENT-A-ID'))
+  limit 1;
+
+  if rid is null then
+    raise notice 'SKIP T6-T7: no MATCHED request between A and B';
+    return;
+  end if;
+
+  begin
+    insert into public.messages (request_id, sender_id, type, content, attachment_url)
+    values (rid, 'STUDENT-A-ID', 'LOCATION', 'test', 'https://maps.google.com');
+    raise notice 'FAIL T6 a LOCATION message is refused';
+  exception when others then
+    raise notice 'PASS T6 a LOCATION message is refused';
+  end;
+
+  begin
+    insert into public.messages (request_id, sender_id, type, content)
+    values (rid, 'STUDENT-A-ID', 'TEXT', 'test message (rolled back)');
+    raise notice 'PASS T7 a TEXT message is still allowed';
+  exception when others then
+    raise notice 'FAIL T7 a TEXT message is still allowed: %', sqlerrm;
+  end;
+end $$;
+
+rollback;
+
+-- T8 (by hand, in the app): after you rate a COMPLETED request, the chat shows
+-- "This chat is closed." and there is no text box.
+
+=== 2026-11-11-06-07-notifications-matching-tests.sql ===
+-- Tests for sql/2026-11-11-06-new-request-push.sql and 07-match-suggestions.sql
+-- Replace STUDENT-A-ID and STUDENT-B-ID (see README.md). A and B must NOT
+-- have blocked each other.
+-- The test creates two requests (A sends 777 USD, B receives 777 USD), checks
+-- the suggestion, accepts it as both, and checks the match.
+-- Nothing is saved: the file ends with rollback.
+-- (The push calls happen in the background and are also rolled back.)
+
+begin;
+
+-- ---------- Student A ----------
+select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int;
+begin
+  insert into public.notification_settings (user_id, new_requests) values ('STUDENT-A-ID', false)
+  on conflict (user_id) do update set new_requests = false;
+  raise notice 'PASS T1 Student A can switch off new request notifications';
+
+  update public.notification_settings set new_requests = true where user_id = 'STUDENT-B-ID';
+  get diagnostics n = row_count;
+  raise notice '% T2 Student A cannot change Student B''s settings', case when n = 0 then 'PASS' else 'FAIL' end;
+
+  begin
+    insert into public.match_suggestions (request_a, request_b, user_a, user_b)
+    select r1.id, r2.id, 'STUDENT-A-ID', 'STUDENT-B-ID'
+    from public.transaction_requests r1, public.transaction_requests r2 limit 1;
+    raise notice 'FAIL T3 nobody can create a suggestion by hand';
+  exception when others then
+    raise notice 'PASS T3 nobody can create a suggestion by hand';
+  end;
+
+  insert into public.transaction_requests (type, amount, currency, creator_id)
+  values ('SEND', 777, 'USD', 'STUDENT-A-ID');
+end $$;
+
+-- ---------- Student B posts the opposite request ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int; sid uuid; matched uuid;
+begin
+  insert into public.transaction_requests (type, amount, currency, creator_id)
+  values ('RECEIVE', 777, 'USD', 'STUDENT-B-ID');
+
+  select id into sid from public.my_match_suggestions() where amount = 777 limit 1;
+  raise notice '% T4 a suggestion was created for the same amount and currency, opposite type',
+    case when sid is not null then 'PASS' else 'FAIL (does A already have another open 777 USD request?)' end;
+  if sid is null then return; end if;
+
+  matched := public.respond_match_suggestion(sid, true);
+  raise notice '% T5 one acceptance is not enough to match', case when matched is null then 'PASS' else 'FAIL' end;
+  perform set_config('test.sid', sid::text, true);
+end $$;
+
+-- ---------- Another user cannot answer ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int;
+begin
+  begin
+    perform public.respond_match_suggestion(current_setting('test.sid', true)::uuid, true);
+    raise notice 'FAIL T6 a third person cannot answer the suggestion';
+  exception when others then
+    raise notice 'PASS T6 a third person cannot answer the suggestion';
+  end;
+  select count(*) into n from public.match_suggestions where id = current_setting('test.sid', true)::uuid;
+  raise notice '% T7 a third person cannot see the suggestion', case when n = 0 then 'PASS' else 'FAIL' end;
+end $$;
+
+-- ---------- Student A accepts: now it matches ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare matched uuid; st text; other uuid;
+begin
+  if current_setting('test.sid', true) is null or current_setting('test.sid', true) = '' then
+    raise notice 'SKIP T8-T9 (no suggestion)';
+    return;
+  end if;
+  matched := public.respond_match_suggestion(current_setting('test.sid', true)::uuid, true);
+  select status::text, matched_with_id into st, other from public.transaction_requests where id = matched;
+  raise notice '% T8 both accepted: the request is MATCHED with Student B',
+    case when st = 'MATCHED' and other = 'STUDENT-B-ID' then 'PASS' else 'FAIL' end;
+  begin
+    perform public.respond_match_suggestion(current_setting('test.sid', true)::uuid, false);
+    raise notice 'FAIL T9 a matched suggestion cannot be answered again';
+  exception when others then
+    raise notice 'PASS T9 a matched suggestion cannot be answered again';
+  end;
+end $$;
+
+rollback;
+
+=== 2026-11-11-08-11-student-info-tests.sql ===
+-- Tests for sql/2026-11-11-08 (bank, passport number), 09 (contacts),
+-- 10 (guide, help) and 11 (appointments).
+-- Replace STUDENT-A-ID, STUDENT-B-ID, GOVERNOR-ID, ATTACHE-ID (see README.md).
+-- Nothing is saved: the file ends with rollback.
+
+begin;
+
+-- ---------- Student A saves private data ----------
+select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+begin
+  insert into public.bank_accounts (user_id, account_number) values ('STUDENT-A-ID', '12345678901234567890')
+  on conflict (user_id) do update set account_number = excluded.account_number;
+  insert into public.passport_numbers (user_id, passport_number) values ('STUDENT-A-ID', 'AB123456')
+  on conflict (user_id) do update set passport_number = excluded.passport_number;
+  raise notice 'PASS T1 Student A can save a bank account and a passport number';
+
+  begin
+    update public.bank_accounts set account_number = '1234' where user_id = 'STUDENT-A-ID';
+    raise notice 'FAIL T2 a bank account must be exactly 20 digits';
+  exception when others then
+    raise notice 'PASS T2 a bank account must be exactly 20 digits';
+  end;
+  begin
+    update public.passport_numbers set passport_number = 'ab-12' where user_id = 'STUDENT-A-ID';
+    raise notice 'FAIL T3 a passport number must be 6-12 capital letters or digits';
+  exception when others then
+    raise notice 'PASS T3 a passport number must be 6-12 capital letters or digits';
+  end;
+  begin
+    update public.student_records set gender = 'OTHER' where user_id = 'STUDENT-A-ID';
+    if found then
+      raise notice 'FAIL T4 gender must be MALE or FEMALE';
+    else
+      raise notice 'SKIP T4 (Student A has no student record)';
+    end if;
+  exception when others then
+    raise notice 'PASS T4 gender must be MALE or FEMALE';
+  end;
+
+  begin
+    insert into public.staff_contacts (kind, name, email) values ('attache', 'Fake', 'x@y.zz');
+    raise notice 'FAIL T5 a student cannot add a staff contact';
+  exception when others then
+    raise notice 'PASS T5 a student cannot add a staff contact';
+  end;
+  begin
+    insert into public.faqs (question, answer) values ('Q', 'A');
+    raise notice 'FAIL T6 a student cannot add a question to Help';
+  exception when others then
+    raise notice 'PASS T6 a student cannot add a question to Help';
+  end;
+  begin
+    insert into public.guide_items (section_id, title) values ('BANK', 'Fake');
+    raise notice 'FAIL T7 a student cannot add a guide item';
+  exception when others then
+    raise notice 'PASS T7 a student cannot add a guide item';
+  end;
+  raise notice '% T8 a student can read the 4 guide sections',
+    case when (select count(*) from public.guide_sections where id in ('POLICE','BANK','BOURSE','MEDICAL')) = 4
+    then 'PASS' else 'FAIL' end;
+
+  insert into public.appointments (student_id, requested_at, reason)
+  values ('STUDENT-A-ID', now() + interval '3 days', 'Test appointment (rolled back)');
+  raise notice 'PASS T9 Student A can ask for an appointment';
+  begin
+    insert into public.appointments (student_id, requested_at, reason, status)
+    values ('STUDENT-A-ID', now() + interval '3 days', 'Trying to self-accept', 'ACCEPTED');
+    raise notice 'FAIL T10 a student cannot create an ACCEPTED appointment';
+  exception when others then
+    raise notice 'PASS T10 a student cannot create an ACCEPTED appointment';
+  end;
+end $$;
+
+-- ---------- Student B must see none of it ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int; aid uuid;
+begin
+  select count(*) into n from public.bank_accounts where user_id = 'STUDENT-A-ID';
+  raise notice '% T11 Student B cannot read A''s bank account', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.passport_numbers where user_id = 'STUDENT-A-ID';
+  raise notice '% T12 Student B cannot read A''s passport number', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.appointments where student_id = 'STUDENT-A-ID';
+  raise notice '% T13 Student B cannot see A''s appointments', case when n = 0 then 'PASS' else 'FAIL' end;
+  begin
+    perform public.staff_answer_appointment(
+      (select id from public.appointments limit 1), 'ACCEPT', null, null);
+    raise notice 'FAIL T14 a student cannot answer appointments';
+  exception when others then
+    raise notice 'PASS T14 a student cannot answer appointments';
+  end;
+end $$;
+
+-- ---------- Governor: never the passport number, no direct bank read ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"GOVERNOR-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.passport_numbers where user_id = 'STUDENT-A-ID';
+  raise notice '% T15 a Governor cannot read a passport number', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.bank_accounts where user_id = 'STUDENT-A-ID';
+  raise notice '% T16 a Governor cannot read bank accounts directly (only through the logged functions)', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.appointments;
+  raise notice '% T17 a Governor cannot see appointments', case when n = 0 then 'PASS' else 'FAIL' end;
+end $$;
+
+-- ---------- Educational Attaché ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare aid uuid;
+begin
+  insert into public.staff_contacts (kind, name, phone) values ('attache', 'Test attaché', '+213555123456');
+  raise notice 'PASS T18 the Educational Attaché can add a contact';
+  begin
+    insert into public.staff_contacts (kind, name, phone) values ('governor', 'No wilaya', '+213555123456');
+    raise notice 'FAIL T19 a Governor contact needs a wilaya';
+  exception when others then
+    raise notice 'PASS T19 a Governor contact needs a wilaya';
+  end;
+  select id into aid from public.appointments where student_id = 'STUDENT-A-ID' and status = 'REQUESTED' limit 1;
+  if aid is null then
+    raise notice 'SKIP T20';
+  else
+    perform public.staff_answer_appointment(aid, 'PROPOSE', now() + interval '5 days', 'Is this better?');
+    raise notice '% T20 the attaché can propose another time',
+      case when (select status from public.appointments where id = aid) = 'PROPOSED' then 'PASS' else 'FAIL' end;
+  end if;
+end $$;
+
+rollback;
+
+=== 2026-11-11-12-attestation-tests.sql ===
+-- Tests for sql/2026-11-11-12-attestation-entry-date.sql
+-- Replace STUDENT-A-ID (see README.md). Student A must have given document
+-- consent and have NO attestation request in progress.
+-- Nothing is saved: the file ends with rollback.
+
+begin;
+
+select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    insert into public.attestation_requests (user_id, passport_path)
+    values ('STUDENT-A-ID', 'STUDENT-A-ID/test.pdf');
+    raise notice 'FAIL T1 a request without the date of entry is refused';
+  exception when others then
+    raise notice 'PASS T1 a request without the date of entry is refused';
+  end;
+
+  begin
+    insert into public.attestation_requests (user_id, entry_date)
+    values ('STUDENT-A-ID', current_date - 100);
+    raise notice 'FAIL T2 a request without the passport file is refused';
+  exception when others then
+    raise notice 'PASS T2 a request without the passport file is refused';
+  end;
+
+  begin
+    insert into public.attestation_requests (user_id, passport_path, entry_date)
+    values ('STUDENT-A-ID', 'STUDENT-A-ID/test.pdf', current_date + 30);
+    raise notice 'FAIL T3 a date of entry in the future is refused';
+  exception when others then
+    raise notice 'PASS T3 a date of entry in the future is refused';
+  end;
+
+  begin
+    insert into public.attestation_requests (user_id, passport_path, entry_date)
+    values ('STUDENT-A-ID', 'STUDENT-A-ID/test.pdf', current_date - 100);
+    raise notice 'PASS T4 a request with both is accepted';
+  exception when others then
+    raise notice 'FAIL T4 a request with both is accepted (consent given? another request open?): %', sqlerrm;
+  end;
+end $$;
+
+rollback;
+
+=== 2026-11-11-13-staff-tools-tests.sql ===
+-- Tests for sql/2026-11-11-13-staff-tools.sql
+-- Replace STUDENT-A-ID, STUDENT-B-ID, GOVERNOR-ID, ATTACHE-ID (see README.md).
+-- Nothing is saved: the file ends with rollback.
+
+begin;
+
+-- ---------- A student ----------
+select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int;
+begin
+  begin
+    perform * from public.staff_search_students('a', null);
+    raise notice 'FAIL T1 a student cannot search students';
+  exception when others then
+    raise notice 'PASS T1 a student cannot search students';
+  end;
+  begin
+    perform public.staff_student_details('STUDENT-A-ID');
+    raise notice 'FAIL T2 a student cannot open another student''s details';
+  exception when others then
+    raise notice 'PASS T2 a student cannot open another student''s details';
+  end;
+  begin
+    perform * from public.students_per_wilaya();
+    raise notice 'FAIL T3 a student cannot see the dashboard';
+  exception when others then
+    raise notice 'PASS T3 a student cannot see the dashboard';
+  end;
+  begin
+    insert into public.alerts (title, message) values ('Fake', 'Fake alert');
+    raise notice 'FAIL T4 a student cannot create an alert';
+  exception when others then
+    raise notice 'PASS T4 a student cannot create an alert';
+  end;
+  select count(*) into n from public.access_log;
+  raise notice '% T5 a student cannot read the access log', case when n = 0 then 'PASS' else 'FAIL' end;
+end $$;
+
+-- ---------- A Governor ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"GOVERNOR-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare n int; w text;
+begin
+  begin
+    perform public.staff_student_details('STUDENT-A-ID');
+    raise notice 'FAIL T6 a Governor cannot open the staff details (bank + passport number)';
+  exception when others then
+    raise notice 'PASS T6 a Governor cannot open the staff details (bank + passport number)';
+  end;
+  select count(distinct wilaya) into n from public.students_per_wilaya();
+  select rep_wilaya into w from public.profiles where id = 'GOVERNOR-ID';
+  raise notice '% T7 the Governor''s dashboard shows only their own wilaya',
+    case when n <= 1 and not exists (select 1 from public.students_per_wilaya() x where x.wilaya <> w)
+    then 'PASS' else 'FAIL' end;
+end $$;
+
+-- ---------- The Educational Attaché ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare before_n int; after_n int; d jsonb;
+begin
+  begin
+    perform * from public.staff_search_students('', null);
+    raise notice 'FAIL T8 an empty search is refused (no full list)';
+  exception when others then
+    raise notice 'PASS T8 an empty search is refused (no full list)';
+  end;
+
+  select count(*) into before_n from public.access_log where kind = 'STUDENT_DETAILS_VIEWED';
+  d := public.staff_student_details('STUDENT-A-ID');
+  select count(*) into after_n from public.access_log where kind = 'STUDENT_DETAILS_VIEWED';
+  raise notice '% T9 opening a student''s details writes one access_log row',
+    case when after_n = before_n + 1 then 'PASS' else 'FAIL' end;
+  raise notice '% T10 the details include the bank account and passport number keys',
+    case when d ? 'bank_account' and d ? 'passport_number' then 'PASS' else 'FAIL' end;
+  raise notice '% T11 the attaché sees the dashboard',
+    case when (select count(*) from public.students_per_wilaya()) >= 0 then 'PASS' else 'FAIL' end;
+end $$;
+
+rollback;
+
+=== 2026-11-11-14-governor-tests.sql ===
+-- Tests for sql/2026-11-11-14-governor-tools.sql
+-- Replace STUDENT-A-ID, STUDENT-B-ID, GOVERNOR-ID (see README.md).
+-- Student A has a student record in the Governor's wilaya; Student B in another.
+-- Nothing is saved: the file ends with rollback.
+
+begin;
+
+-- ---------- A student ----------
+select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    perform * from public.rep_bank_accounts();
+    raise notice 'FAIL T1 a student cannot open the bank account list';
+  exception when others then
+    raise notice 'PASS T1 a student cannot open the bank account list';
+  end;
+  begin
+    perform * from public.rep_results_tracker('2025-2026', 'S1');
+    raise notice 'FAIL T2 a student cannot open the results tracker';
+  exception when others then
+    raise notice 'PASS T2 a student cannot open the results tracker';
+  end;
+  begin
+    perform * from public.rep_students_without_record();
+    raise notice 'FAIL T3 a student cannot open the list without a record';
+  exception when others then
+    raise notice 'PASS T3 a student cannot open the list without a record';
+  end;
+end $$;
+
+-- ---------- The Governor ----------
+reset role;
+select set_config('request.jwt.claims', '{"sub":"GOVERNOR-ID","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare before_n int; after_n int; n int;
+begin
+  select count(*) into before_n from public.access_log;  -- 0 for a Governor (cannot read it)
+  perform * from public.rep_bank_accounts();
+  raise notice 'PASS T4 the Governor can open the bank account list of their wilaya';
+
+  select count(*) into n from public.rep_bank_accounts() where user_id = 'STUDENT-B-ID';
+  raise notice '% T5 the list never contains Student B (other wilaya)', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.rep_results_tracker('2025-2026', 'S1') where user_id = 'STUDENT-B-ID';
+  raise notice '% T6 the results tracker never contains Student B', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.rep_students_without_record() where user_id = 'STUDENT-B-ID';
+  raise notice '% T7 the list without a record never contains Student B', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.passport_numbers;
+  raise notice '% T8 the Governor can never read passport numbers', case when n = 0 then 'PASS' else 'FAIL' end;
+  select count(*) into n from public.attestation_requests;
+  raise notice '% T9 the Governor can never read attestation requests (passports)', case when n = 0 then 'PASS' else 'FAIL' end;
+end $$;
+
+-- Back as the owner: the bank list views were logged.
+reset role;
+do $$
+declare n int;
+begin
+  select count(*) into n from public.access_log
+  where actor_id = 'GOVERNOR-ID' and kind = 'BANK_LIST_VIEWED' and created_at > now() - interval '1 minute';
+  raise notice '% T10 each opening of the bank account list wrote an access_log row', case when n >= 2 then 'PASS' else 'FAIL' end;
+end $$;
+
+rollback;
+
+=== README.md ===
+# SQL tests (PASS / FAIL)
+
+One test file for each file in `sql/` from 2026-11-11.
+
+How to run a test file:
+1. Run its SQL file first (for example `2026-11-11-02-phone.sql`).
+2. Open the test file in the Supabase SQL Editor (not in VS Code).
+3. In the editor only, replace the placeholders with real ids from Table Editor → profiles:
+   - `STUDENT-A-ID`: a student (role student) with a student record in the Governor's wilaya
+   - `STUDENT-B-ID`: another student, in a DIFFERENT wilaya from the Governor
+   - `GOVERNOR-ID`: a user with role `rep` (the Governor of Student A's wilaya)
+   - `ATTACHE-ID`: a user with role `attache` (or `admin`)
+4. Press Run. Every check prints a line starting with **PASS** or **FAIL** in the Messages / Notices panel.
+5. Every file ends with `rollback`, so nothing is saved.
+
+Every line must say PASS. If one says FAIL, stop and send the line to Claude.
+
+Some checks need data first (for example Student A must have saved a phone in the app). A check prints **SKIP** when that data is missing.
+

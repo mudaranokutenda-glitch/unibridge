@@ -1,5 +1,5 @@
 -- Tests for sql/2026-11-11-06-new-request-push.sql and 07-match-suggestions.sql
--- Replace STUDENT-A-ID, STUDENT-B-ID and ATTACHE-ID (see README.md).
+-- Needs the four test accounts: run 00-test-accounts.sql once first (see README.md).
 -- The test creates two requests (A sends 777 USD, B receives 777 USD), checks
 -- the suggestion, accepts it as both, and checks the match.
 -- At the start (owner, rolled back) it cancels the open requests of A and B,
@@ -9,49 +9,98 @@
 
 begin;
 
--- ---------- Setup check: runs first; stops with SETUP PROBLEM if an id is wrong ----------
+-- ---------- Setup check: finds the 4 accounts by email (test_support.accounts) and checks them ----------
+-- Stops with one SETUP PROBLEM line if something is wrong; then no test runs.
 do $$
 declare
-  a_id text := 'STUDENT-A-ID';
-  b_id text := 'STUDENT-B-ID';
-  g_id text := 'GOVERNOR-ID';
-  t_id text := 'ATTACHE-ID';
-  re constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  r text; a_wil text; b_wil text; g_wil text;
+  a_id uuid; b_id uuid; g_id uuid; t_id uuid;
+  mail text; n int; r text; a_wil text; b_wil text; g_wil text;
+  a_mail text; b_mail text; g_mail text; t_mail text;
 begin
-  if a_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student A is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', a_id;
+  if to_regclass('test_support.accounts') is null then
+    raise exception 'SETUP PROBLEM: test_support.accounts does not exist. Run sql/tests/00-test-accounts.sql once first (see README.md).';
   end if;
-  select p.role::text into r from public.profiles p where p.id = a_id::uuid;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_A';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_A row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
+  end if;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_A email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student A email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student A email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into a_id from auth.users u where lower(u.email) = mail;
+  a_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = a_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student A (%) does not exist in profiles', a_id;
+    raise exception 'SETUP PROBLEM: Student A (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student A must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student A (%) has role %, expected student.', mail, r;
   end if;
-  if b_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student B is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', b_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_B';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_B row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = b_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_B email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student B email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student B email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into b_id from auth.users u where lower(u.email) = mail;
+  b_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = b_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student B (%) does not exist in profiles', b_id;
+    raise exception 'SETUP PROBLEM: Student B (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student B must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student B (%) has role %, expected student.', mail, r;
   end if;
-  if t_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for the Educational Attache is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', t_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'ATTACHE';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no ATTACHE row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = t_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the ATTACHE email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into t_id from auth.users u where lower(u.email) = mail;
+  t_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = t_id;
   if not found then
-    raise exception 'SETUP PROBLEM: the Educational Attache (%) does not exist in profiles', t_id;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has no row in profiles.', mail;
   end if;
   if r not in ('attache', 'admin') then
-    raise exception 'SETUP PROBLEM: the Educational Attache must have role attache or admin (it has %)', r;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has role %, expected attache or admin.', mail, r;
   end if;
-  if a_id::uuid = b_id::uuid then
-    raise exception 'SETUP PROBLEM: Student A and Student B must be two different accounts';
+  if a_id = b_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and Student B are the same account (%).', a_mail;
   end if;
+  if a_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and the Educational Attache are the same account (%).', a_mail;
+  end if;
+  if b_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student B and the Educational Attache are the same account (%).', b_mail;
+  end if;
+  perform set_config('test.a_id', a_id::text, true);
+  perform set_config('test.b_id', b_id::text, true);
+  perform set_config('test.t_id', t_id::text, true);
 end $$;
 
 -- ---------- Result table and helpers (temporary objects, gone at the end) ----------
@@ -204,13 +253,13 @@ reset role;
 do $$
 begin
 update public.transaction_requests set status = 'CANCELLED'
-  where creator_id in ('STUDENT-A-ID', 'STUDENT-B-ID') and status::text = 'OPEN';
+  where creator_id in (current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid) and status::text = 'OPEN';
 delete from public.match_suggestions
-  where (user_a = 'STUDENT-A-ID' and user_b = 'STUDENT-B-ID') or (user_a = 'STUDENT-B-ID' and user_b = 'STUDENT-A-ID');
+  where (user_a = current_setting('test.a_id')::uuid and user_b = current_setting('test.b_id')::uuid) or (user_a = current_setting('test.b_id')::uuid and user_b = current_setting('test.a_id')::uuid);
 delete from public.user_blocks
-  where (blocker_id = 'STUDENT-A-ID' and blocked_id = 'STUDENT-B-ID') or (blocker_id = 'STUDENT-B-ID' and blocked_id = 'STUDENT-A-ID');
+  where (blocker_id = current_setting('test.a_id')::uuid and blocked_id = current_setting('test.b_id')::uuid) or (blocker_id = current_setting('test.b_id')::uuid and blocked_id = current_setting('test.a_id')::uuid);
 -- Student B has a settings row with the switch ON (so T2 tests something).
-insert into public.notification_settings (user_id, new_requests) values ('STUDENT-B-ID', true)
+insert into public.notification_settings (user_id, new_requests) values (current_setting('test.b_id')::uuid, true)
   on conflict (user_id) do update set new_requests = true;
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 1 (owner): clear the way: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -218,36 +267,36 @@ end $$;
 
 -- ---------- Section 2: Student A ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_works('T1 Student A can switch off new request notifications',
-  $q$insert into public.notification_settings (user_id, new_requests) values ('STUDENT-A-ID', false)
+  $q$insert into public.notification_settings (user_id, new_requests) values (current_setting('test.a_id')::uuid, false)
      on conflict (user_id) do update set new_requests = false$q$);
 perform pg_temp.t_noeffect('T2 Student A cannot change Student B settings',
-  $q$update public.notification_settings set new_requests = false where user_id = 'STUDENT-B-ID'$q$, '42501');
+  $q$update public.notification_settings set new_requests = false where user_id = current_setting('test.b_id')::uuid$q$, '42501');
 perform pg_temp.t_refused('T3 nobody can create a suggestion by hand',
   $q$insert into public.match_suggestions (request_a, request_b, user_a, user_b)
-     values (gen_random_uuid(), gen_random_uuid(), 'STUDENT-A-ID', 'STUDENT-B-ID')$q$, '42501');
+     values (gen_random_uuid(), gen_random_uuid(), current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid)$q$, '42501');
 perform pg_temp.t_noeffect('T3b nobody can change a suggestion by hand',
   $q$update public.match_suggestions set status = 'MATCHED'$q$, '42501');
 perform pg_temp.t_works('T3c Student A posts SEND 777 USD',
   $q$insert into public.transaction_requests (type, amount, currency, creator_id)
-     values ('SEND', 777, 'USD', 'STUDENT-A-ID')$q$);
+     values ('SEND', 777, 'USD', current_setting('test.a_id')::uuid)$q$);
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 2: Student A: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 3: Student B posts the opposite request ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 declare sid uuid; matched uuid;
 begin
 insert into public.transaction_requests (type, amount, currency, creator_id)
-values ('RECEIVE', 777, 'USD', 'STUDENT-B-ID');
+values ('RECEIVE', 777, 'USD', current_setting('test.b_id')::uuid);
 select id into sid from public.my_match_suggestions() where amount = 777 limit 1;
 perform pg_temp.t_check('T4 a suggestion was created for the same amount and currency, opposite type',
   sid is not null, 'no suggestion found for Student B (is file 07 run?)');
@@ -261,7 +310,7 @@ end $$;
 
 -- ---------- Section 4: a third person (the Educational Attache) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.t_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -280,7 +329,7 @@ end $$;
 
 -- ---------- Section 5: Student A accepts: now it matches ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 declare matched uuid; st text; other uuid;
@@ -292,7 +341,7 @@ end if;
 matched := public.respond_match_suggestion(current_setting('test.sid')::uuid, true);
 select status::text, matched_with_id into st, other from public.transaction_requests where id = matched;
 perform pg_temp.t_check('T8 both accepted: the request is MATCHED with Student B',
-  st = 'MATCHED' and other = 'STUDENT-B-ID', 'status ' || coalesce(st, 'null') || ', matched with ' || coalesce(other::text, 'null'));
+  st = 'MATCHED' and other = current_setting('test.b_id')::uuid, 'status ' || coalesce(st, 'null') || ', matched with ' || coalesce(other::text, 'null'));
 perform pg_temp.t_refused('T9 a matched suggestion cannot be answered again',
   format('select public.respond_match_suggestion(%L, false)', current_setting('test.sid')),
   'P0001', '%closed%');
@@ -306,10 +355,10 @@ do $$
 begin
 perform pg_temp.t_check('T10 Student B own request was cancelled (the exchange happens in one chat)',
   (select status::text from public.transaction_requests
-   where creator_id = 'STUDENT-B-ID' and amount = 777 and currency::text = 'USD' order by created_at desc limit 1) = 'CANCELLED',
+   where creator_id = current_setting('test.b_id')::uuid and amount = 777 and currency::text = 'USD' order by created_at desc limit 1) = 'CANCELLED',
   'Student B request is not CANCELLED');
 perform pg_temp.t_check('T11 Student B notification setting was not changed by Student A',
-  (select new_requests from public.notification_settings where user_id = 'STUDENT-B-ID') = true,
+  (select new_requests from public.notification_settings where user_id = current_setting('test.b_id')::uuid) = true,
   'it was changed');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 6 (owner): the final state: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);

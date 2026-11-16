@@ -1,43 +1,72 @@
 -- Tests for sql/2026-11-11-03-cron-secret.sql, 04-chat-rules.sql and 05-chat-cleanup.sql
--- Replace STUDENT-A-ID and STUDENT-B-ID (see README.md).
+-- Needs the four test accounts: run 00-test-accounts.sql once first (see README.md).
 -- The test makes its own MATCHED request between A and B (rolled back).
 -- Nothing is saved: the result is shown as an error at the end (RESULT SUMMARY).
 
 begin;
 
--- ---------- Setup check: runs first; stops with SETUP PROBLEM if an id is wrong ----------
+-- ---------- Setup check: finds the 4 accounts by email (test_support.accounts) and checks them ----------
+-- Stops with one SETUP PROBLEM line if something is wrong; then no test runs.
 do $$
 declare
-  a_id text := 'STUDENT-A-ID';
-  b_id text := 'STUDENT-B-ID';
-  g_id text := 'GOVERNOR-ID';
-  t_id text := 'ATTACHE-ID';
-  re constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  r text; a_wil text; b_wil text; g_wil text;
+  a_id uuid; b_id uuid; g_id uuid; t_id uuid;
+  mail text; n int; r text; a_wil text; b_wil text; g_wil text;
+  a_mail text; b_mail text; g_mail text; t_mail text;
 begin
-  if a_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student A is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', a_id;
+  if to_regclass('test_support.accounts') is null then
+    raise exception 'SETUP PROBLEM: test_support.accounts does not exist. Run sql/tests/00-test-accounts.sql once first (see README.md).';
   end if;
-  select p.role::text into r from public.profiles p where p.id = a_id::uuid;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_A';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_A row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
+  end if;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_A email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student A email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student A email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into a_id from auth.users u where lower(u.email) = mail;
+  a_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = a_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student A (%) does not exist in profiles', a_id;
+    raise exception 'SETUP PROBLEM: Student A (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student A must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student A (%) has role %, expected student.', mail, r;
   end if;
-  if b_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student B is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', b_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_B';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_B row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = b_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_B email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student B email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student B email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into b_id from auth.users u where lower(u.email) = mail;
+  b_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = b_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student B (%) does not exist in profiles', b_id;
+    raise exception 'SETUP PROBLEM: Student B (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student B must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student B (%) has role %, expected student.', mail, r;
   end if;
-  if a_id::uuid = b_id::uuid then
-    raise exception 'SETUP PROBLEM: Student A and Student B must be two different accounts';
+  if a_id = b_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and Student B are the same account (%).', a_mail;
   end if;
+  perform set_config('test.a_id', a_id::text, true);
+  perform set_config('test.b_id', b_id::text, true);
 end $$;
 
 -- ---------- Result table and helpers (temporary objects, gone at the end) ----------
@@ -200,18 +229,18 @@ perform pg_temp.t_check('T3 no DISPUTED request has ended_at set (existing data)
   'a DISPUTED request has ended_at');
 -- ended_at is set on INSERT too: check each status with fresh rows.
 insert into public.transaction_requests (type, amount, currency, creator_id, matched_with_id, status)
-values ('SEND', 991, 'USD', 'STUDENT-A-ID', 'STUDENT-B-ID', 'DISPUTED');
+values ('SEND', 991, 'USD', current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid, 'DISPUTED');
 insert into public.transaction_requests (type, amount, currency, creator_id, matched_with_id, status)
-values ('SEND', 992, 'USD', 'STUDENT-A-ID', 'STUDENT-B-ID', 'COMPLETED');
+values ('SEND', 992, 'USD', current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid, 'COMPLETED');
 perform pg_temp.t_check('T3b a new DISPUTED request has no ended_at',
-  (select ended_at from public.transaction_requests where creator_id = 'STUDENT-A-ID' and amount = 991 and status::text = 'DISPUTED' limit 1) is null,
+  (select ended_at from public.transaction_requests where creator_id = current_setting('test.a_id')::uuid and amount = 991 and status::text = 'DISPUTED' limit 1) is null,
   'ended_at is set');
 perform pg_temp.t_check('T3c a new COMPLETED request gets ended_at',
-  (select ended_at from public.transaction_requests where creator_id = 'STUDENT-A-ID' and amount = 992 and status::text = 'COMPLETED' limit 1) is not null,
+  (select ended_at from public.transaction_requests where creator_id = current_setting('test.a_id')::uuid and amount = 992 and status::text = 'COMPLETED' limit 1) is not null,
   'ended_at is empty');
 -- The MATCHED request used below.
 insert into public.transaction_requests (type, amount, currency, creator_id, matched_with_id, status)
-values ('SEND', 999, 'USD', 'STUDENT-A-ID', 'STUDENT-B-ID', 'MATCHED')
+values ('SEND', 999, 'USD', current_setting('test.a_id')::uuid, current_setting('test.b_id')::uuid, 'MATCHED')
 returning id into rid;
 perform set_config('test.rid', rid::text, true);
 exception when others then
@@ -220,7 +249,7 @@ end $$;
 
 -- ---------- Section 2: Student A (before rating) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -230,11 +259,11 @@ perform pg_temp.t_refused('T5 a student cannot start the clean-up',
   $q$select public.call_edge_function('chat-cleanup', '{}'::jsonb)$q$, '42501');
 perform pg_temp.t_refused('T6 a LOCATION message is refused',
   format($q$insert into public.messages (request_id, sender_id, type, content, attachment_url)
-            values (%L, 'STUDENT-A-ID', 'LOCATION', 'test', 'https://maps.google.com')$q$,
+            values (%L, current_setting('test.a_id')::uuid, 'LOCATION', 'test', 'https://maps.google.com')$q$,
          current_setting('test.rid')), '42501');
 perform pg_temp.t_works('T7 a TEXT message is still allowed',
   format($q$insert into public.messages (request_id, sender_id, type, content)
-            values (%L, 'STUDENT-A-ID', 'TEXT', 'test message (rolled back)')$q$,
+            values (%L, current_setting('test.a_id')::uuid, 'TEXT', 'test message (rolled back)')$q$,
          current_setting('test.rid')));
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 2: Student A (before rating): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -251,7 +280,7 @@ end $$;
 
 -- ---------- Section 4: Student A rates ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -265,7 +294,7 @@ end;
 if current_setting('test.rated', true) = 'yes' then
   perform pg_temp.t_refused('T8 after rating, Student A cannot send a message (the chat is closed)',
     format($q$insert into public.messages (request_id, sender_id, type, content)
-              values (%L, 'STUDENT-A-ID', 'TEXT', 'after rating')$q$, current_setting('test.rid')), '42501');
+              values (%L, current_setting('test.a_id')::uuid, 'TEXT', 'after rating')$q$, current_setting('test.rid')), '42501');
 end if;
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 4: Student A rates: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
@@ -273,14 +302,14 @@ end $$;
 
 -- ---------- Section 5: Student B has not rated yet ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 if current_setting('test.rated', true) = 'yes' then
   perform pg_temp.t_works('T9 Student B (who has not rated) can still send a message',
     format($q$insert into public.messages (request_id, sender_id, type, content)
-              values (%L, 'STUDENT-B-ID', 'TEXT', 'B still writes')$q$, current_setting('test.rid')));
+              values (%L, current_setting('test.b_id')::uuid, 'TEXT', 'B still writes')$q$, current_setting('test.rid')));
 else
   perform pg_temp.t_skip('T9', 'no rating was made');
 end if;
@@ -299,13 +328,13 @@ end $$;
 
 -- ---------- Section 7: Student B after the clean-up ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_refused('T10 nobody can write in an archived chat',
   format($q$insert into public.messages (request_id, sender_id, type, content)
-            values (%L, 'STUDENT-B-ID', 'TEXT', 'after archive')$q$, current_setting('test.rid')), '42501');
+            values (%L, current_setting('test.b_id')::uuid, 'TEXT', 'after archive')$q$, current_setting('test.rid')), '42501');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 7: Student B after the clean-up: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;

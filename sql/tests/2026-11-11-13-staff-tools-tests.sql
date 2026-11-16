@@ -1,79 +1,151 @@
 -- Tests for sql/2026-11-11-13-staff-tools.sql (search, details, dashboard, alerts)
--- Replace STUDENT-A-ID, STUDENT-B-ID, GOVERNOR-ID, ATTACHE-ID (see README.md).
+-- Needs the four test accounts: run 00-test-accounts.sql once first (see README.md).
 -- Nothing is saved: the result is shown as an error at the end (RESULT SUMMARY).
 
 begin;
 
--- ---------- Setup check: runs first; stops with SETUP PROBLEM if an id is wrong ----------
+-- ---------- Setup check: finds the 4 accounts by email (test_support.accounts) and checks them ----------
+-- Stops with one SETUP PROBLEM line if something is wrong; then no test runs.
 do $$
 declare
-  a_id text := 'STUDENT-A-ID';
-  b_id text := 'STUDENT-B-ID';
-  g_id text := 'GOVERNOR-ID';
-  t_id text := 'ATTACHE-ID';
-  re constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  r text; a_wil text; b_wil text; g_wil text;
+  a_id uuid; b_id uuid; g_id uuid; t_id uuid;
+  mail text; n int; r text; a_wil text; b_wil text; g_wil text;
+  a_mail text; b_mail text; g_mail text; t_mail text;
 begin
-  if a_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student A is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', a_id;
+  if to_regclass('test_support.accounts') is null then
+    raise exception 'SETUP PROBLEM: test_support.accounts does not exist. Run sql/tests/00-test-accounts.sql once first (see README.md).';
   end if;
-  select p.role::text into r from public.profiles p where p.id = a_id::uuid;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_A';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_A row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
+  end if;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_A email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student A email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student A email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into a_id from auth.users u where lower(u.email) = mail;
+  a_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = a_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student A (%) does not exist in profiles', a_id;
+    raise exception 'SETUP PROBLEM: Student A (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student A must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student A (%) has role %, expected student.', mail, r;
   end if;
-  if b_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student B is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', b_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_B';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_B row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = b_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_B email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student B email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student B email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into b_id from auth.users u where lower(u.email) = mail;
+  b_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = b_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student B (%) does not exist in profiles', b_id;
+    raise exception 'SETUP PROBLEM: Student B (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student B must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student B (%) has role %, expected student.', mail, r;
   end if;
-  if g_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for the Governor is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', g_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'GOVERNOR';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no GOVERNOR row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = g_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the GOVERNOR email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: the Governor email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: the Governor email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into g_id from auth.users u where lower(u.email) = mail;
+  g_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = g_id;
   if not found then
-    raise exception 'SETUP PROBLEM: the Governor (%) does not exist in profiles', g_id;
+    raise exception 'SETUP PROBLEM: the Governor (%) has no row in profiles.', mail;
   end if;
   if r <> 'rep' then
-    raise exception 'SETUP PROBLEM: the Governor must have role rep (it has %)', r;
+    raise exception 'SETUP PROBLEM: the Governor (%) has role %, expected rep.', mail, r;
   end if;
-  if t_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for the Educational Attache is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', t_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'ATTACHE';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no ATTACHE row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = t_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the ATTACHE email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into t_id from auth.users u where lower(u.email) = mail;
+  t_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = t_id;
   if not found then
-    raise exception 'SETUP PROBLEM: the Educational Attache (%) does not exist in profiles', t_id;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has no row in profiles.', mail;
   end if;
   if r not in ('attache', 'admin') then
-    raise exception 'SETUP PROBLEM: the Educational Attache must have role attache or admin (it has %)', r;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has role %, expected attache or admin.', mail, r;
   end if;
-  if a_id::uuid = b_id::uuid then
-    raise exception 'SETUP PROBLEM: Student A and Student B must be two different accounts';
+  if a_id = b_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and Student B are the same account (%).', a_mail;
   end if;
-  a_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = a_id::uuid),
-                    (select p.wilaya from public.profiles p where p.id = a_id::uuid));
-  select p.rep_wilaya into g_wil from public.profiles p where p.id = g_id::uuid;
+  if a_id = g_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and the Governor are the same account (%).', a_mail;
+  end if;
+  if a_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and the Educational Attache are the same account (%).', a_mail;
+  end if;
+  if b_id = g_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student B and the Governor are the same account (%).', b_mail;
+  end if;
+  if b_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student B and the Educational Attache are the same account (%).', b_mail;
+  end if;
+  if g_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but the Governor and the Educational Attache are the same account (%).', g_mail;
+  end if;
+  a_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = a_id),
+                    (select p.wilaya from public.profiles p where p.id = a_id));
+  select p.rep_wilaya into g_wil from public.profiles p where p.id = g_id;
   if a_wil is null then
-    raise exception 'SETUP PROBLEM: Student A has no wilaya (profile or student record)';
+    raise exception 'SETUP PROBLEM: Student A (%) has no wilaya (profile or student record).', a_mail;
   end if;
   if g_wil is distinct from a_wil then
-    raise exception 'SETUP PROBLEM: the Governor rep_wilaya (%) must equal Student A wilaya (%)', g_wil, a_wil;
+    raise exception 'SETUP PROBLEM: the Governor (%) has rep_wilaya %, but Student A (%) is in wilaya %. They must be the same.', g_mail, g_wil, a_mail, a_wil;
   end if;
-  b_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = b_id::uuid),
-                    (select p.wilaya from public.profiles p where p.id = b_id::uuid));
+  b_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = b_id),
+                    (select p.wilaya from public.profiles p where p.id = b_id));
   if b_wil is null then
-    raise exception 'SETUP PROBLEM: Student B has no wilaya (profile or student record)';
+    raise exception 'SETUP PROBLEM: Student B (%) has no wilaya (profile or student record).', b_mail;
   end if;
   if b_wil = g_wil then
-    raise exception 'SETUP PROBLEM: Student B must be in a DIFFERENT wilaya from the Governor (both are %)', b_wil;
+    raise exception 'SETUP PROBLEM: Student B (%) must be in a DIFFERENT wilaya from the Governor (both are in %).', b_mail, b_wil;
   end if;
+  perform set_config('test.a_id', a_id::text, true);
+  perform set_config('test.b_id', b_id::text, true);
+  perform set_config('test.g_id', g_id::text, true);
+  perform set_config('test.t_id', t_id::text, true);
 end $$;
 
 -- ---------- Result table and helpers (temporary objects, gone at the end) ----------
@@ -227,23 +299,23 @@ do $$
 begin
 -- One access_log row and one alert exist, so "cannot read" checks test something.
 insert into public.access_log (actor_id, actor_role, student_id, kind)
-values ('ATTACHE-ID', 'attache', 'STUDENT-A-ID', 'RESULTS_OPENED');
+values (current_setting('test.t_id')::uuid, 'attache', current_setting('test.a_id')::uuid, 'RESULTS_OPENED');
 insert into public.alerts (title, message) values ('Test alert (rolled back)', 'Test alert message');
-perform set_config('test.gw', (select rep_wilaya from public.profiles where id = 'GOVERNOR-ID'), true);
+perform set_config('test.gw', (select rep_wilaya from public.profiles where id = current_setting('test.g_id')::uuid), true);
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 1 (owner): fixtures: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 2: a student ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_refused('T1 a student cannot search students',
   $q$select * from public.staff_search_students('ab', null)$q$, 'P0001', '%Not allowed%');
 perform pg_temp.t_refused('T2 a student cannot open another student details',
-  $q$select public.staff_student_details('STUDENT-A-ID')$q$, 'P0001', '%Not allowed%');
+  $q$select public.staff_student_details(current_setting('test.a_id')::uuid)$q$, 'P0001', '%Not allowed%');
 perform pg_temp.t_refused('T3 a student cannot see the dashboard',
   $q$select * from public.students_per_wilaya()$q$, 'P0001', '%Not allowed%');
 perform pg_temp.t_hidden('T5 a student cannot read the access log',
@@ -263,12 +335,12 @@ end $$;
 
 -- ---------- Section 3: a Governor ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"GOVERNOR-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.g_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_refused('T7 a Governor cannot open the staff details (bank + passport number)',
-  $q$select public.staff_student_details('STUDENT-A-ID')$q$, 'P0001', '%Not allowed%');
+  $q$select public.staff_student_details(current_setting('test.a_id')::uuid)$q$, 'P0001', '%Not allowed%');
 perform pg_temp.t_works('T8 a Governor can open the dashboard',
   $q$select * from public.students_per_wilaya()$q$);
 perform pg_temp.t_rows('T9 the Governor dashboard shows only their own wilaya',
@@ -293,14 +365,14 @@ end $$;
 
 -- ---------- Section 5: the Educational Attache ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.t_id')), true);
 set local role authenticated;
 do $$
 declare d jsonb;
 begin
 perform pg_temp.t_refused('T10 an empty search is refused (no full list)',
   $q$select * from public.staff_search_students('', null)$q$, 'P0001', '%2 letters%');
-d := public.staff_student_details('STUDENT-A-ID');
+d := public.staff_student_details(current_setting('test.a_id')::uuid);
 perform pg_temp.t_check('T11 the details include the bank account and passport number keys',
   d ? 'bank_account' and d ? 'passport_number', 'keys missing');
 perform pg_temp.t_works('T12 the attache can see the dashboard',

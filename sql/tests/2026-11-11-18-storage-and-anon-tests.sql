@@ -1,5 +1,5 @@
 -- Security tests: private storage files and signed-out access.
--- Replace STUDENT-A-ID, STUDENT-B-ID, GOVERNOR-ID, ATTACHE-ID (see README.md).
+-- Needs the four test accounts: run 00-test-accounts.sql once first (see README.md).
 -- As owner, fake file ROWS are added to storage.objects (rolled back; no real
 -- file exists) for the buckets passports, academic-results, attestations and
 -- chat-photos, all belonging to Student A. Then each person tries to see and
@@ -11,76 +11,148 @@
 
 begin;
 
--- ---------- Setup check: runs first; stops with SETUP PROBLEM if an id is wrong ----------
+-- ---------- Setup check: finds the 4 accounts by email (test_support.accounts) and checks them ----------
+-- Stops with one SETUP PROBLEM line if something is wrong; then no test runs.
 do $$
 declare
-  a_id text := 'STUDENT-A-ID';
-  b_id text := 'STUDENT-B-ID';
-  g_id text := 'GOVERNOR-ID';
-  t_id text := 'ATTACHE-ID';
-  re constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  r text; a_wil text; b_wil text; g_wil text;
+  a_id uuid; b_id uuid; g_id uuid; t_id uuid;
+  mail text; n int; r text; a_wil text; b_wil text; g_wil text;
+  a_mail text; b_mail text; g_mail text; t_mail text;
 begin
-  if a_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student A is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', a_id;
+  if to_regclass('test_support.accounts') is null then
+    raise exception 'SETUP PROBLEM: test_support.accounts does not exist. Run sql/tests/00-test-accounts.sql once first (see README.md).';
   end if;
-  select p.role::text into r from public.profiles p where p.id = a_id::uuid;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_A';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_A row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
+  end if;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_A email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student A email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student A email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into a_id from auth.users u where lower(u.email) = mail;
+  a_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = a_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student A (%) does not exist in profiles', a_id;
+    raise exception 'SETUP PROBLEM: Student A (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student A must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student A (%) has role %, expected student.', mail, r;
   end if;
-  if b_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for Student B is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', b_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'STUDENT_B';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no STUDENT_B row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = b_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the STUDENT_B email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: Student B email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: Student B email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into b_id from auth.users u where lower(u.email) = mail;
+  b_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = b_id;
   if not found then
-    raise exception 'SETUP PROBLEM: Student B (%) does not exist in profiles', b_id;
+    raise exception 'SETUP PROBLEM: Student B (%) has no row in profiles.', mail;
   end if;
   if r <> 'student' then
-    raise exception 'SETUP PROBLEM: Student B must have role student (it has %)', r;
+    raise exception 'SETUP PROBLEM: Student B (%) has role %, expected student.', mail, r;
   end if;
-  if g_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for the Governor is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', g_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'GOVERNOR';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no GOVERNOR row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = g_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the GOVERNOR email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: the Governor email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: the Governor email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into g_id from auth.users u where lower(u.email) = mail;
+  g_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = g_id;
   if not found then
-    raise exception 'SETUP PROBLEM: the Governor (%) does not exist in profiles', g_id;
+    raise exception 'SETUP PROBLEM: the Governor (%) has no row in profiles.', mail;
   end if;
   if r <> 'rep' then
-    raise exception 'SETUP PROBLEM: the Governor must have role rep (it has %)', r;
+    raise exception 'SETUP PROBLEM: the Governor (%) has role %, expected rep.', mail, r;
   end if;
-  if t_id !~ re then
-    raise exception 'SETUP PROBLEM: the id for the Educational Attache is not a valid uuid (%). Replace it with a real id from Table Editor > profiles.', t_id;
+  select lower(trim(a.email)) into mail from test_support.accounts a where a.key = 'ATTACHE';
+  if mail is null then
+    raise exception 'SETUP PROBLEM: there is no ATTACHE row in test_support.accounts. Run sql/tests/00-test-accounts.sql again.';
   end if;
-  select p.role::text into r from public.profiles p where p.id = t_id::uuid;
+  if position('@' in mail) = 0 then
+    raise exception 'SETUP PROBLEM: the ATTACHE email is still a placeholder (%). Run 00-test-accounts.sql with your real email.', mail;
+  end if;
+  select count(*) into n from auth.users u where lower(u.email) = mail;
+  if n = 0 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" was not found in auth.users (no account has this email).', mail;
+  end if;
+  if n > 1 then
+    raise exception 'SETUP PROBLEM: the Educational Attache email "%" matches % accounts in auth.users.', mail, n;
+  end if;
+  select u.id into t_id from auth.users u where lower(u.email) = mail;
+  t_mail := mail;
+  select p.role::text into r from public.profiles p where p.id = t_id;
   if not found then
-    raise exception 'SETUP PROBLEM: the Educational Attache (%) does not exist in profiles', t_id;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has no row in profiles.', mail;
   end if;
   if r not in ('attache', 'admin') then
-    raise exception 'SETUP PROBLEM: the Educational Attache must have role attache or admin (it has %)', r;
+    raise exception 'SETUP PROBLEM: the Educational Attache (%) has role %, expected attache or admin.', mail, r;
   end if;
-  if a_id::uuid = b_id::uuid then
-    raise exception 'SETUP PROBLEM: Student A and Student B must be two different accounts';
+  if a_id = b_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and Student B are the same account (%).', a_mail;
   end if;
-  a_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = a_id::uuid),
-                    (select p.wilaya from public.profiles p where p.id = a_id::uuid));
-  select p.rep_wilaya into g_wil from public.profiles p where p.id = g_id::uuid;
+  if a_id = g_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and the Governor are the same account (%).', a_mail;
+  end if;
+  if a_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student A and the Educational Attache are the same account (%).', a_mail;
+  end if;
+  if b_id = g_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student B and the Governor are the same account (%).', b_mail;
+  end if;
+  if b_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but Student B and the Educational Attache are the same account (%).', b_mail;
+  end if;
+  if g_id = t_id then
+    raise exception 'SETUP PROBLEM: the four accounts must be four different accounts, but the Governor and the Educational Attache are the same account (%).', g_mail;
+  end if;
+  a_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = a_id),
+                    (select p.wilaya from public.profiles p where p.id = a_id));
+  select p.rep_wilaya into g_wil from public.profiles p where p.id = g_id;
   if a_wil is null then
-    raise exception 'SETUP PROBLEM: Student A has no wilaya (profile or student record)';
+    raise exception 'SETUP PROBLEM: Student A (%) has no wilaya (profile or student record).', a_mail;
   end if;
   if g_wil is distinct from a_wil then
-    raise exception 'SETUP PROBLEM: the Governor rep_wilaya (%) must equal Student A wilaya (%)', g_wil, a_wil;
+    raise exception 'SETUP PROBLEM: the Governor (%) has rep_wilaya %, but Student A (%) is in wilaya %. They must be the same.', g_mail, g_wil, a_mail, a_wil;
   end if;
-  b_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = b_id::uuid),
-                    (select p.wilaya from public.profiles p where p.id = b_id::uuid));
+  b_wil := coalesce((select x.wilaya from public.student_records x where x.user_id = b_id),
+                    (select p.wilaya from public.profiles p where p.id = b_id));
   if b_wil is null then
-    raise exception 'SETUP PROBLEM: Student B has no wilaya (profile or student record)';
+    raise exception 'SETUP PROBLEM: Student B (%) has no wilaya (profile or student record).', b_mail;
   end if;
   if b_wil = g_wil then
-    raise exception 'SETUP PROBLEM: Student B must be in a DIFFERENT wilaya from the Governor (both are %)', b_wil;
+    raise exception 'SETUP PROBLEM: Student B (%) must be in a DIFFERENT wilaya from the Governor (both are in %).', b_mail, b_wil;
   end if;
+  perform set_config('test.a_id', a_id::text, true);
+  perform set_config('test.b_id', b_id::text, true);
+  perform set_config('test.g_id', g_id::text, true);
+  perform set_config('test.t_id', t_id::text, true);
 end $$;
 
 -- ---------- Result table and helpers (temporary objects, gone at the end) ----------
@@ -236,29 +308,29 @@ begin
 -- A throw-away request of Student A (CANCELLED, so the 3-open-requests limit
 -- does not matter). Its id is the chat-photos folder.
 insert into public.transaction_requests (type, amount, currency, creator_id, status)
-values ('SEND', 8888, 'USD', 'STUDENT-A-ID', 'CANCELLED')
+values ('SEND', 8888, 'USD', current_setting('test.a_id')::uuid, 'CANCELLED')
 returning id into rq;
 perform set_config('test.rq', rq::text, true);
 
 insert into storage.objects (bucket_id, name) values
-  ('passports',        'STUDENT-A-ID/zz_test_passport.pdf'),
-  ('academic-results', 'STUDENT-A-ID/2025-2026/zz_test_results.pdf'),
-  ('academic-results', 'STUDENT-A-ID/2025-2026/zz_test_delete_control.pdf'),
-  ('attestations',     'STUDENT-A-ID/zz_test_attestation.pdf'),
+  ('passports',        (current_setting('test.a_id') || '/zz_test_passport.pdf')),
+  ('academic-results', (current_setting('test.a_id') || '/2025-2026/zz_test_results.pdf')),
+  ('academic-results', (current_setting('test.a_id') || '/2025-2026/zz_test_delete_control.pdf')),
+  ('attestations',     (current_setting('test.a_id') || '/zz_test_attestation.pdf')),
   ('chat-photos',      rq::text || '/zz_test_photo.jpg');
 
 -- Fixtures for the signed-out checks: every table has at least one row.
-insert into public.bank_accounts (user_id, account_number) values ('STUDENT-A-ID', '11111111111111111111')
+insert into public.bank_accounts (user_id, account_number) values (current_setting('test.a_id')::uuid, '11111111111111111111')
   on conflict (user_id) do nothing;
-insert into public.passport_numbers (user_id, passport_number) values ('STUDENT-A-ID', 'ZZ123456')
+insert into public.passport_numbers (user_id, passport_number) values (current_setting('test.a_id')::uuid, 'ZZ123456')
   on conflict (user_id) do nothing;
-insert into public.user_phones (user_id, phone) values ('STUDENT-A-ID', '+213555123456')
+insert into public.user_phones (user_id, phone) values (current_setting('test.a_id')::uuid, '+213555123456')
   on conflict (user_id) do nothing;
 insert into public.document_consents (user_id, version)
-select 'STUDENT-A-ID', 'test'
-where not exists (select 1 from public.document_consents where user_id = 'STUDENT-A-ID');
+select current_setting('test.a_id')::uuid, 'test'
+where not exists (select 1 from public.document_consents where user_id = current_setting('test.a_id')::uuid);
 insert into public.attestation_requests (user_id, passport_path, entry_date)
-values ('STUDENT-A-ID', 'STUDENT-A-ID/zz_test.pdf', current_date - 100)
+values (current_setting('test.a_id')::uuid, (current_setting('test.a_id') || '/zz_test.pdf'), current_date - 100)
 on conflict do nothing;
 insert into public.staff_contacts (kind, name, phone) values ('attache', 'zz test contact', '+213555123456');
 insert into public.guide_items (section_id, title) values ('BANK', 'zz test item');
@@ -272,16 +344,16 @@ end $$;
 
 -- ---------- Section 2: Student A (the owner of the files) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-A-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.a_id')), true);
 set local role authenticated;
 do $$
 begin
 perform pg_temp.t_rows('T1 Student A can see own passport file',
-  $q$select 1 from storage.objects where bucket_id = 'passports' and name = 'STUDENT-A-ID/zz_test_passport.pdf'$q$, 1);
+  $q$select 1 from storage.objects where bucket_id = 'passports' and name = (current_setting('test.a_id') || '/zz_test_passport.pdf')$q$, 1);
 perform pg_temp.t_rows('T2 Student A can see own results file',
-  $q$select 1 from storage.objects where bucket_id = 'academic-results' and name = 'STUDENT-A-ID/2025-2026/zz_test_results.pdf'$q$, 1);
+  $q$select 1 from storage.objects where bucket_id = 'academic-results' and name = (current_setting('test.a_id') || '/2025-2026/zz_test_results.pdf')$q$, 1);
 perform pg_temp.t_rows('T3 Student A can see own attestation file',
-  $q$select 1 from storage.objects where bucket_id = 'attestations' and name = 'STUDENT-A-ID/zz_test_attestation.pdf'$q$, 1);
+  $q$select 1 from storage.objects where bucket_id = 'attestations' and name = (current_setting('test.a_id') || '/zz_test_attestation.pdf')$q$, 1);
 perform pg_temp.t_rows('T4 Student A can see the photo of own request chat',
   format('select 1 from storage.objects where bucket_id = %L and name = %L', 'chat-photos', current_setting('test.rq') || '/zz_test_photo.jpg'), 1);
 -- Nobody can delete passports, attestations, chat photos (no delete policy).
@@ -290,14 +362,14 @@ perform pg_temp.t_noeffect('T5 Student A cannot delete own passport, attestation
 -- By design a student can delete own results (control: proves the delete setting works,
 -- so the 0-row results of the other people below are really decided by the policies).
 perform pg_temp.t_rowcount('T6 (control) Student A can delete own results file, by design',
-  $q$delete from storage.objects where bucket_id = 'academic-results' and name = 'STUDENT-A-ID/2025-2026/zz_test_delete_control.pdf'$q$, 1);
+  $q$delete from storage.objects where bucket_id = 'academic-results' and name = (current_setting('test.a_id') || '/2025-2026/zz_test_delete_control.pdf')$q$, 1);
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 2: Student A (the owner of the files): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 3: Student B (a stranger) ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"STUDENT-B-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.b_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -312,18 +384,20 @@ perform pg_temp.t_hidden('T10 Student B cannot see the photo of a chat they are 
 perform pg_temp.t_noeffect('T11 Student B cannot delete any of them',
   $q$delete from storage.objects where name like '%zz\_test\_%'$q$);
 perform pg_temp.t_refused('T11b Student B cannot add a file into A passport folder',
-  $q$insert into storage.objects (bucket_id, name) values ('passports', 'STUDENT-A-ID/zz_test_b.pdf')$q$, '42501');
+  $q$insert into storage.objects (bucket_id, name) values ('passports', (current_setting('test.a_id') || '/zz_test_b.pdf'))$q$, '42501');
 perform pg_temp.t_refused('T11c Student B cannot add a file into A attestation folder',
-  $q$insert into storage.objects (bucket_id, name) values ('attestations', 'STUDENT-A-ID/zz_test_b.pdf')$q$, '42501');
+  $q$insert into storage.objects (bucket_id, name) values ('attestations', (current_setting('test.a_id') || '/zz_test_b.pdf'))$q$, '42501');
 perform pg_temp.t_refused('T11d Student B cannot add a photo into a chat they are not in',
   format('insert into storage.objects (bucket_id, name) values (%L, %L)', 'chat-photos', current_setting('test.rq') || '/zz_test_b.jpg'), '42501');
+perform pg_temp.t_hidden('T11e Student B cannot read test_support.accounts (the tester emails)',
+  $q$select 1 from test_support.accounts$q$);
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 3: Student B (a stranger): stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
 
 -- ---------- Section 4: the Governor of A wilaya ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"GOVERNOR-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.g_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -343,7 +417,7 @@ end $$;
 
 -- ---------- Section 5: the Educational Attache ----------
 reset role;
-select set_config('request.jwt.claims', '{"sub":"ATTACHE-ID","role":"authenticated"}', true);
+select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('test.t_id')), true);
 set local role authenticated;
 do $$
 begin
@@ -358,7 +432,7 @@ perform pg_temp.t_hidden('T20 the attache cannot see chat photos',
 perform pg_temp.t_noeffect('T21 the attache cannot delete any file',
   $q$delete from storage.objects where name like '%zz\_test\_%'$q$);
 perform pg_temp.t_refused('T21b the attache cannot add a file into a student passport folder',
-  $q$insert into storage.objects (bucket_id, name) values ('passports', 'STUDENT-A-ID/zz_test_t.pdf')$q$, '42501');
+  $q$insert into storage.objects (bucket_id, name) values ('passports', (current_setting('test.a_id') || '/zz_test_t.pdf'))$q$, '42501');
 exception when others then
   perform pg_temp.t_record('FAIL', 'Section 5: the Educational Attache: stopped by an unexpected error', sqlstate || ' ' || sqlerrm);
 end $$;
@@ -393,6 +467,8 @@ perform pg_temp.t_hidden('T22e signed-out cannot read user_phones', $q$select 1 
 perform pg_temp.t_hidden('T22f signed-out cannot read attestation_requests', $q$select 1 from public.attestation_requests$q$);
 perform pg_temp.t_hidden('T22g signed-out cannot read staff_contacts', $q$select 1 from public.staff_contacts$q$);
 perform pg_temp.t_hidden('T22h signed-out cannot read guide_items', $q$select 1 from public.guide_items$q$);
+perform pg_temp.t_hidden('T22i signed-out cannot read test_support.accounts (the tester emails)',
+  $q$select 1 from test_support.accounts$q$);
 perform pg_temp.t_hidden('T23 signed-out cannot see any private file',
   $q$select 1 from storage.objects where bucket_id in ('passports', 'academic-results', 'attestations', 'chat-photos')$q$);
 exception when others then
