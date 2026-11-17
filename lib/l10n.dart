@@ -1139,4 +1139,16 @@ const Map<String, String> _t = {
       "Le mot de passe doit avoir au moins 6 caractères.",
   'Password changed.':
       "Mot de passe modifié.",
+  'Algeria':
+      "Algérie",
+  'Zimbabwe':
+      "Zimbabwe",
+  '9 digits, without the first 0. Only you, the Educational Attaché and your Governor can see it.':
+      "9 chiffres, sans le 0 du début. Seuls vous, l'attaché éducatif et votre gouverneur pouvez le voir.",
+  '9 digits, without the first 0.':
+      "9 chiffres, sans le 0 du début.",
+  'Enter the 9 digits after the code.':
+      "Entrez les 9 chiffres après le code.",
+  'Choose +213 or +263 and enter the 9 digits.':
+      "Choisissez +213 ou +263 et entrez les 9 chiffres.",
 };

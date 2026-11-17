@@ -43,6 +43,11 @@ final RegExp kPhonePattern = RegExp(r'^\+(263|213)[0-9]{8,10}$');
 
 bool isValidPhone(String? v) => kPhonePattern.hasMatch((v ?? '').trim());
 
+// The phone fields in the app accept exactly 9 digits after +213 / +263.
+// (The database rule is wider, 8 to 10 digits, so older numbers still work.)
+final RegExp kNewPhonePattern = RegExp(r'^\+(263|213)[0-9]{9}$');
+bool isNewPhoneFormat(String? v) => kNewPhonePattern.hasMatch((v ?? '').trim());
+
 // Only "+" and digits can be typed.
 final List<TextInputFormatter> kPhoneInput = [
   FilteringTextInputFormatter.allow(RegExp(r'[+0-9]')),
@@ -228,7 +233,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   bool get hasPhoto => newPhotoBytes != null || hasProfilePhoto(widget.profile);
   bool get canSave =>
-      hasPhoto && wilaya != null && isValidPhone(phoneController.text) && !saving;
+      hasPhoto && wilaya != null && isNewPhoneFormat(phoneController.text) && !saving;
 
   Future<void> pickPhoto() async {
     final bytes = await pickProfilePhotoBytes();
@@ -381,32 +386,130 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
 // ---------------- Phone field (set-up page and My profile) ----------------
 
-class PhoneField extends StatelessWidget {
+class PhoneField extends StatefulWidget {
   final TextEditingController controller;
   final bool enabled;
   final ValueChanged<String>? onChanged;
+  final String? label;
+  final String? helper;
   const PhoneField(
-      {super.key, required this.controller, this.enabled = true, this.onChanged});
+      {super.key,
+      required this.controller,
+      this.enabled = true,
+      this.onChanged,
+      this.label,
+      this.helper});
+
+  @override
+  State<PhoneField> createState() => _PhoneFieldState();
+}
+
+// A country selector (+213 Algeria, +263 Zimbabwe) and a field for the digits only.
+// The controller always holds the whole number (+213XXXXXXXXX), or '' when empty,
+// so the code that reads the controller does not change. An existing number
+// (set in the controller, also later) fills the selector and the digits.
+class _PhoneFieldState extends State<PhoneField> {
+  static const prefixes = ['+213', '+263'];
+  final digits = TextEditingController();
+  String prefix = '+213';
+
+  @override
+  void initState() {
+    super.initState();
+    readFromController();
+    widget.controller.addListener(onControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(onControllerChanged);
+    digits.dispose();
+    super.dispose();
+  }
+
+  String get composed => digits.text.isEmpty ? '' : prefix + digits.text;
+
+  // The number was set from outside (for example loaded from the database).
+  void onControllerChanged() {
+    if (widget.controller.text.trim() != composed) {
+      setState(readFromController);
+    }
+  }
+
+  void readFromController() {
+    final t = widget.controller.text.trim();
+    var rest = t;
+    for (final p in prefixes) {
+      if (t.startsWith(p)) {
+        prefix = p;
+        rest = t.substring(p.length);
+        break;
+      }
+    }
+    digits.text = rest.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  void changed() {
+    // The first 0 of a local number is not part of the 9 digits.
+    if (digits.text.startsWith('0')) {
+      digits.text = digits.text.replaceFirst(RegExp(r'^0+'), '');
+    }
+    widget.controller.text = composed;
+    widget.onChanged?.call(composed);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
-    final text = controller.text.trim();
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: TextInputType.phone,
-      inputFormatters: kPhoneInput,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: tr('Phone number (required)'),
-        hintText: '+213555123456',
-        helperText: tr(
-            'Starts with +213 or +263. Only you, the Educational Attaché and your Governor can see it.'),
-        helperMaxLines: 3,
-        errorText: text.isEmpty || isValidPhone(text)
-            ? null
-            : tr('Use +213 or +263 followed by 8 to 10 digits.'),
-      ),
+    final n = digits.text.length;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: DropdownButtonFormField<String>(
+            key: ValueKey(prefix),
+            initialValue: prefix,
+            isExpanded: true,
+            decoration: const InputDecoration(),
+            selectedItemBuilder: (_) => [for (final p in prefixes) Text(p)],
+            items: [
+              DropdownMenuItem(
+                  value: '+213', child: Text('+213 ${tr('Algeria')}')),
+              DropdownMenuItem(
+                  value: '+263', child: Text('+263 ${tr('Zimbabwe')}')),
+            ],
+            onChanged: widget.enabled
+                ? (v) {
+                    prefix = v ?? prefix;
+                    changed();
+                  }
+                : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: digits,
+            enabled: widget.enabled,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(9),
+            ],
+            onChanged: (_) => changed(),
+            decoration: InputDecoration(
+              labelText: widget.label ?? tr('Phone number (required)'),
+              helperText: widget.helper ??
+                  tr('9 digits, without the first 0. Only you, the Educational Attaché and your Governor can see it.'),
+              helperMaxLines: 3,
+              errorText: n == 0 || n == 9
+                  ? null
+                  : tr('Enter the 9 digits after the code.'),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

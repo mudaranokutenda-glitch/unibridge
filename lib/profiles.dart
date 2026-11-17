@@ -658,9 +658,9 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     });
     try {
       final myId = supabase.auth.currentUser!.id;
-      if (!isValidPhone(phoneController.text)) {
+      if (!isNewPhoneFormat(phoneController.text)) {
         setState(() => errorMessage =
-            tr('Use +213 or +263 followed by 8 to 10 digits.'));
+            tr('Choose +213 or +263 and enter the 9 digits.'));
         return;
       }
       final updates = <String, dynamic>{

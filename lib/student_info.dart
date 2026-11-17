@@ -350,8 +350,8 @@ class _ContactEditDialogState extends State<ContactEditDialog> {
       setState(() => error = tr('Give a phone number or an email.'));
       return;
     }
-    if (p.isNotEmpty && !isValidPhone(p)) {
-      setState(() => error = tr('Use +213 or +263 followed by 8 to 10 digits.'));
+    if (p.isNotEmpty && !isNewPhoneFormat(p)) {
+      setState(() => error = tr('Choose +213 or +263 and enter the 9 digits.'));
       return;
     }
     setState(() {
@@ -403,12 +403,10 @@ class _ContactEditDialogState extends State<ContactEditDialog> {
             TextField(controller: name, decoration: InputDecoration(labelText: tr('Name'))),
             if (kind == 'governor')
               WilayaDropdown(value: wilaya, onChanged: (v) => setState(() => wilaya = v)),
-            TextField(
+            PhoneField(
               controller: phone,
-              keyboardType: TextInputType.phone,
-              inputFormatters: kPhoneInput,
-              decoration: InputDecoration(
-                  labelText: tr('Phone'), hintText: '+213555123456'),
+              label: tr('Phone'),
+              helper: tr('9 digits, without the first 0.'),
             ),
             TextField(
               controller: email,

@@ -311,6 +311,10 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
 
   Future<void> save() async {
     if (!formKey.currentState!.validate()) return;
+    if (!isNewPhoneFormat(phone.text)) {
+      showSnack(context, tr('Choose +213 or +263 and enter the 9 digits.'));
+      return;
+    }
     setState(() => saving = true);
     try {
       await supabase.from('student_records').upsert({
@@ -426,11 +430,14 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
                       validator: (v) => v == null ? tr('Required') : null,
                     ),
                   ),
-                  text(phone, tr('Phone (e.g. +213555123456)'),
-                      keyboard: TextInputType.phone,
-                      validator: (v) => isValidPhone(v)
-                          ? null
-                          : tr('Use +213 or +263 followed by 8 to 10 digits.')),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: PhoneField(
+                      controller: phone,
+                      label: tr('Phone'),
+                      helper: tr('9 digits, without the first 0.'),
+                    ),
+                  ),
                   text(inscription, tr('Inscription number')),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
