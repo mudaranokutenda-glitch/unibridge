@@ -21,6 +21,7 @@ class _ChatScreenState extends State<ChatScreen> {
   late final Stream<List<Map<String, dynamic>>> messagesStream;
   Map<String, dynamic>? request;
   Map<String, dynamic>? otherProfile;
+  Map<String, dynamic>? myProfile;
   bool actionLoading = false;
   bool sendingPhoto = false;
   bool chatBlocked = false;
@@ -50,12 +51,17 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     setState(() => request = data);
 
-    if (otherProfile == null) {
+    // The small round pictures beside the messages: loaded once per chat,
+    // mine and the other person's, with one call to get_public_profiles.
+    if (otherProfile == null || myProfile == null) {
       final myId = supabase.auth.currentUser!.id;
       final otherId = otherPartyId(data, myId);
-      if (otherId != null) {
-        final profiles = await fetchPublicProfiles([otherId]);
-        if (mounted) setState(() => otherProfile = profiles[otherId]);
+      final profiles = await fetchPublicProfiles([myId, otherId]);
+      if (mounted) {
+        setState(() {
+          myProfile = profiles[myId];
+          if (otherId != null) otherProfile = profiles[otherId];
+        });
       }
     }
 
@@ -453,31 +459,41 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       );
                     }
-                    return Align(
-                      alignment: isMine
-                          ? AlignmentDirectional.centerEnd
-                          : AlignmentDirectional.centerStart,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: isPhoto
-                            ? const EdgeInsets.all(4)
-                            : const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isMine
-                              ? scheme.primaryContainer
-                              : scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: isPhoto
-                            ? ChatPhoto(
-                                key: ValueKey(m['id']),
-                                path: m['attachment_url'],
-                              )
-                            : isLocation
-                                ? Text(tr('[Location]'))
-                                : Text(m['content'] ?? ''),
+                    final bubble = Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: isPhoto
+                          ? const EdgeInsets.all(4)
+                          : const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isMine
+                            ? scheme.primaryContainer
+                            : scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: isPhoto
+                          ? ChatPhoto(
+                              key: ValueKey(m['id']),
+                              path: m['attachment_url'],
+                            )
+                          : isLocation
+                              ? Text(tr('[Location]'))
+                              : Text(m['content'] ?? ''),
+                    );
+                    // The other person: picture on the start side. Me: on the end side.
+                    final pic = Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: avatar(isMine ? myProfile : otherProfile,
+                          radius: 14),
+                    );
+                    return Row(
+                      mainAxisAlignment: isMine
+                          ? MainAxisAlignment.end
+                          : MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: isMine
+                          ? [Flexible(child: bubble), const SizedBox(width: 6), pic]
+                          : [pic, const SizedBox(width: 6), Flexible(child: bubble)],
                     );
                   },
                 );
