@@ -25,8 +25,8 @@ supabase functions deploy notify-chat-message --use-api
   - new-request-push sends nothing if the creator posted another request in the last 10 minutes or has 3 or more open requests.
   - emergency-alert: 2-minute rule, "test to myself", and a warning if not every phone was reached.
   - staff-reports: wilaya filter, bank column, log written before each student's files are read, spreadsheet-formula protection.
-  - delete-account: new tables; staff accounts get "Staff accounts are removed by the app owner."
-  - push-notification and notify-chat-message: Android channel "general".
+  - delete-account: new tables (also `space_members`); staff accounts get "Staff accounts are removed by the app owner."
+  - push-notification: a title for the new notification type `MEMBERSHIP_UPDATE` (also Android channel "general"). notify-chat-message: Android channel "general".
 - `--no-verify-jwt` is only for the three functions that the database calls with the `x-cron-secret` header. They check that secret themselves.
 - No new secret is needed. They use the existing `CRON_SECRET` and `FIREBASE_SERVICE_ACCOUNT`.
 
@@ -54,6 +54,8 @@ The 2026-11-05 files (TESTING.md Step 1) and `sql/2026-11-06-requests-realtime.s
 | 15 | `sql/2026-11-11-15-match-hardening.sql` | Your file: match_request with a block check, rate_transaction search path |
 | 16 | `sql/2026-11-11-16-push-trigger-vault.sql` | Your file: the push trigger reads the secret from the Vault |
 | 17 | `sql/2026-11-11-17-open-request-limit.sql` | At most 3 open requests per user |
+| 18 | `sql/2026-11-16-01-members.sql` | **Student space membership approval.** Table space_members, is_member(), request_membership(), decide_membership(), pending_members(), restrictive rules on the Student space tables and files. **Every account that exists when you run it becomes APPROVED** (staff always count as members); new sign-ups after it must ask to join |
+| 19 | `sql/2026-11-17-01-access-log-screen.sql` | **"Recent access" screen.** Function recent_access(person, kind) (attaché and admin only, at most 100 rows) and **removes the app's direct read of the table access_log**, so the function is the only way in. Install the new app at about the same time: the OLD app's Access log screen stops working after this file |
 | 99 | `sql/2026-11-11-99-optional-clear-old-student-ids.sql` | **OPTIONAL, LAST, cannot be undone.** Empties the old student IDs in profiles |
 
 **After 14, 16 and 17**, run this once (it removes table rights the app never needs):
@@ -63,6 +65,10 @@ revoke truncate, references, trigger
   on public.bank_accounts, public.passport_numbers, public.alerts, public.user_phones
   from authenticated;
 ```
+
+**Membership approval (file 18):** run it after 17, and deploy `push-notification` and `delete-account` again (part 1). Then run `sql/tests/2026-11-16-01-members-tests.sql` (every line PASS). The app works before and after file 18: before it is run, the Student space opens as before (the database does not close it either).
+
+**Recent access (file 19):** run it after 18. No function to deploy. Then run `sql/tests/2026-11-17-01-access-log-screen-tests.sql` (every line PASS). To undo the revoke later: `grant select on public.access_log to authenticated;`.
 
 Then check the jobs:
 

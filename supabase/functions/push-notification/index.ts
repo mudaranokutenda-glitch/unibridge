@@ -15,6 +15,7 @@ const TITLES: Record<string, string> = {
   ATTESTATION_UPDATE: "Attestation de bourse",
   MATCH_SUGGESTION: "A match is available",
   APPOINTMENT_UPDATE: "Appointment with the Educational Attaché",
+  MEMBERSHIP_UPDATE: "Student space",
 };
 
 function json(body: unknown, status = 200) {

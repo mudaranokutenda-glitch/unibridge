@@ -1056,4 +1056,48 @@ const Map<String, String> _t = {
       "Les comptes du personnel sont supprimés par le propriétaire de l'application.",
   'This match is no longer available.':
       "Cette mise en relation n'est plus disponible.",
+  'Waiting for approval by your Governor':
+      "En attente d'approbation par votre Gouverneur",
+  'You will get a notification when your request is answered.':
+      "Vous recevrez une notification quand votre demande aura une réponse.",
+  'Your request was not approved.':
+      "Votre demande n'a pas été approuvée.",
+  'You can ask again 24 hours after the answer, or contact your Governor.':
+      "Vous pouvez redemander 24 heures après la réponse, ou contacter votre Gouverneur.",
+  'Request to join':
+      "Demander à rejoindre",
+  'Join the student space':
+      "Rejoindre l'espace étudiant",
+  'The student space has your contacts, the guide and your appointments. The Governor of your wilaya approves new members.':
+      "L'espace étudiant contient vos contacts, le guide et vos rendez-vous. Le Gouverneur de votre wilaya approuve les nouveaux membres.",
+  'Your wilaya: {wilaya}':
+      "Votre wilaya : {wilaya}",
+  'Approve {name} as a member of the student space?':
+      "Approuver {name} comme membre de l'espace étudiant ?",
+  'Reject the request of {name}?':
+      "Refuser la demande de {name} ?",
+  'Approve':
+      "Approuver",
+  'Approved.':
+      "Approuvé.",
+  'Rejected.':
+      "Refusé.",
+  'Join requests':
+      "Demandes d'adhésion",
+  'No requests are waiting.':
+      "Aucune demande en attente.",
+  'Approve new members of the student space':
+      "Approuver les nouveaux membres de l'espace étudiant",
+  'Recent access':
+      "Accès récents",
+  'Person (name)':
+      "Personne (nom)",
+  'What':
+      "Quoi",
+  'The last 100 rows, newest first.':
+      "Les 100 dernières lignes, les plus récentes d'abord.",
+  'No matching rows.':
+      "Aucune ligne correspondante.",
+  'Who opened student information':
+      "Qui a ouvert des informations d'étudiants",
 };

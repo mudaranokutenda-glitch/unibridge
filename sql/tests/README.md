@@ -78,6 +78,8 @@ by our own functions). Any other error is a FAIL, so a typo in a test cannot giv
 | `2026-11-11-14-governor-tests.sql` | Governor tools only for their own wilaya, bank list is logged |
 | `2026-11-11-18-storage-and-anon-tests.sql` | private files (passports, results, attestations, chat photos), signed-out access, and that the tester emails are private |
 | `2026-11-11-19-hardening-tests.sql` | blocked users, 24-hour rule, declined pairs, 3 open requests, 3 active appointments |
+| `2026-11-16-01-members-tests.sql` | membership approval: unapproved students are locked out of the Student space, who may approve, the backfill, asking again. Needs `sql/2026-11-16-01-members.sql`. Extra need: Student A's profile wilaya is the Governor's wilaya and Student B's is another |
+| `2026-11-17-01-access-log-screen-tests.sql` | the "Recent access" function: only attaché and admin, the 100-row limit, the two filters, no direct read of the table. Needs `sql/2026-11-17-01-access-log-screen.sql` |
 | `99-remove-test-accounts.sql` | run before launch: removes the tester emails |
 
 Notes:

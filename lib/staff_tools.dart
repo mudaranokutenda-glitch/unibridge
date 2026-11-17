@@ -888,3 +888,175 @@ class StaffToolsSection extends StatelessWidget {
     return const SizedBox.shrink();
   }
 }
+
+
+// ---------------- Recent access (attaché, admin) ----------------
+// The last 100 rows of the access log, read ONLY through the SQL function
+// recent_access (it checks is_staff()). It never returns a phone, a bank
+// account or a passport number.
+
+class RecentAccessScreen extends StatefulWidget {
+  const RecentAccessScreen({super.key});
+
+  @override
+  State<RecentAccessScreen> createState() => _RecentAccessScreenState();
+}
+
+class _RecentAccessScreenState extends State<RecentAccessScreen> {
+  final person = TextEditingController();
+  String? kind; // null = all kinds
+  List<Map<String, dynamic>> rows = [];
+  bool loading = true;
+  String? errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  @override
+  void dispose() {
+    person.dispose();
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    setState(() {
+      loading = true;
+      errorText = null;
+    });
+    try {
+      final text = person.text.trim();
+      final data = await supabase.rpc('recent_access', params: {
+        'p_person': text.isEmpty ? null : text,
+        'p_kind': kind,
+      });
+      if (!mounted) return;
+      setState(() {
+        rows = List<Map<String, dynamic>>.from(data as List);
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        errorText = '$e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = person.text.trim().isNotEmpty || kind != null;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Recent access'))),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: TextField(
+              controller: person,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => load(),
+              decoration: InputDecoration(
+                labelText: tr('Person (name)'),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: person.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          person.clear();
+                          load();
+                        },
+                      ),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: DropdownButtonFormField<String?>(
+              initialValue: kind,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('What')),
+              items: [
+                DropdownMenuItem<String?>(value: null, child: Text(tr('All'))),
+                for (final e in kLogKinds.entries)
+                  DropdownMenuItem<String?>(
+                      value: e.key,
+                      child: Text(tr(e.value), overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: (v) {
+                kind = v;
+                load();
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(tr('The last 100 rows, newest first.'),
+                  style: const TextStyle(fontSize: 12, color: kMutedText)),
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: loading
+                ? const Center(child: CircularProgressIndicator())
+                : errorText != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                              tr('Could not load: {error}', {'error': errorText!}),
+                              textAlign: TextAlign.center),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: load,
+                        child: rows.isEmpty
+                            ? ListView(children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Center(
+                                      child: Text(filtered
+                                          ? tr('No matching rows.')
+                                          : tr('Nothing recorded yet.'))),
+                                ),
+                              ])
+                            : ListView.separated(
+                                itemCount: rows.length,
+                                separatorBuilder: (_, _) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, i) {
+                                  final r = rows[i];
+                                  final role = '${r['actor_role']}';
+                                  final who = role == 'system'
+                                      ? tr('Automatic cleanup')
+                                      : (r['actor_name'] ?? '').toString().isEmpty
+                                          ? tr('UniBridge user')
+                                          : '${r['actor_name']}';
+                                  final student = r['student_id'] == null
+                                      ? ''
+                                      : ' · ${(r['student_name'] ?? '').toString().isEmpty ? tr('deleted account') : r['student_name']}';
+                                  final label = kLogKinds['${r['kind']}'];
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(
+                                        '${label == null ? r['kind'] : tr(label)}$student'),
+                                    subtitle: Text(
+                                        '$who ($role) · ${dateTimeText(r['created_at'])}'
+                                        '${r['wilaya'] == null ? '' : ' · ${r['wilaya']}'}'),
+                                  );
+                                },
+                              ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}

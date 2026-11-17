@@ -79,10 +79,39 @@
 - [ ] G39. (YOU) Add android/app/src/main/res/raw/emergency_alert.mp3, then follow REPORT.md part 3.
 - [ ] G40. (YOU) Run the SQL, deploy the functions and do the tests in TESTING.md part G.
 
+## M. Student space membership approval (built 2026-11-16 on branch pending-builds-2)
+- [x] M1. SQL sql/2026-11-16-01-members.sql: table space_members, is_member(), request_membership(), decide_membership(), pending_members(); restrictive rules so the Student space (contacts, guide, help, appointments, record, results, bank account, passport number, attestation requests and the two private upload buckets) opens only for APPROVED members and staff; backfill makes every existing account APPROVED.
+- [x] M2. App: "Join the student space" / "Waiting for approval" / "Not approved" screens in the Student space tab (lib/members.dart); "Join requests" screen for Governors, attaché and admin with Approve and Reject.
+- [x] M3. Notifications MEMBERSHIP_UPDATE (request, approved, not approved); push-notification title; delete-account removes the row.
+- [x] M4. SQL tests sql/tests/2026-11-16-01-members-tests.sql.
+- [x] M6. "Recent access" screen for attaché and admin (Student space; also the Profile button): the last 100 rows of access_log with a filter by person and by kind, read only through the SQL function recent_access() (sql/2026-11-17-01-access-log-screen.sql). The app can no longer read the table directly. Test: sql/tests/2026-11-17-01-access-log-screen-tests.sql.
+- [ ] M5. (YOU) Run sql/2026-11-16-01-members.sql after file 17, deploy push-notification and delete-account, run the test file, then test with three accounts (new student, Governor, attaché).
+
 ## F. Before launch
 - [ ] F5. Polish marketplace, chat and other screens. WAIT for my design brief.
 - [ ] F6. New look (colours, fonts, icons): WAIT for my design brief.
 - [ ] F8. Before real students use it: upgrade Supabase to Pro (no pausing, 100 GB storage). Turn on two-step login for my GitHub, Supabase, Firebase and Google accounts.
+
+## H. Launch checklist
+- [ ] H1. Member approval tested with three accounts (new student, Governor, attaché).
+- [ ] H2. Phone test with fake documents.
+- [ ] H3. Notifications tested on a second phone.
+- [ ] H4. Two-step login turned on for GitHub, Supabase, Firebase and Google.
+- [ ] H5. Supabase Pro.
+- [ ] H6. Written agreement from the attaché.
+- [ ] H7. Contacts, guide and FAQ filled in.
+- [ ] H8. Privacy page published.
+- [ ] H9. Pilot with 5 to 10 students from Annaba.
+- [ ] H10. Lawyer review.
+- [ ] H11. Release (Play Store or APK).
+- [ ] H12. Emergency sound file.
+
+## I. Meetings (later, postponed)
+Postponed: not started. A meeting is only a link (no video inside the app). Needs the member approval (section M) first.
+- [ ] I1. (postponed) SQL: table meetings (title, description, date and time, duration, platform, https join link, cancelled) with rules: attaché and admin add, change and cancel; approved members and staff read; no delete.
+- [ ] I2. (postponed) Meetings screen in the Student space: Upcoming and Past, a Join button that opens the link, and Add, edit and cancel for attaché and admin.
+- [ ] I3. (postponed) Notifications: one push when a meeting is posted or cancelled, and a reminder 1 hour before the start.
+- [ ] I4. (postponed) SQL tests for the meetings rules (a student cannot add or change a meeting, links that are not https are refused).
 
 ## Done
 - [x] Sign-up, Google login, requests, matching, chat, confirm/dispute, ratings

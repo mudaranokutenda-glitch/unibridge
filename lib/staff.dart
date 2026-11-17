@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'roles.dart';
 import 'wilayas.dart';
-import 'profiles.dart';
 import 'student_space.dart';
 import 'posters.dart';
 import 'student_info.dart';
@@ -84,7 +83,7 @@ class StaffSection extends StatelessWidget {
               const FinalListScreen()),
           button(Icons.view_carousel_outlined, tr('Posters'),
               const ManagePostersScreen()),
-          button(Icons.history, tr('Access log'), const AccessLogScreen()),
+          button(Icons.history, tr('Recent access'), const RecentAccessScreen()),
         ],
       ],
     );
@@ -838,96 +837,3 @@ const Map<String, String> kLogKinds = {
   'BANK_LIST_VIEWED': 'Opened the bank account list',
   'RESULTS_TRACKER_VIEWED': 'Opened the results tracker',
 };
-
-class AccessLogScreen extends StatefulWidget {
-  const AccessLogScreen({super.key});
-
-  @override
-  State<AccessLogScreen> createState() => _AccessLogScreenState();
-}
-
-class _AccessLogScreenState extends State<AccessLogScreen> {
-  List<Map<String, dynamic>> rows = [];
-  Map<String, Map<String, dynamic>> actors = {};
-  Map<String, Map<String, dynamic>> students = {};
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final data = await supabase
-          .from('access_log')
-          .select()
-          .order('created_at', ascending: false)
-          .limit(200);
-      final list = List<Map<String, dynamic>>.from(data);
-      final actorProfiles =
-          await fetchPublicProfiles(list.map((r) => r['actor_id'] as String?));
-      final studentIds = list
-          .map((r) => r['student_id'])
-          .whereType<String>()
-          .toSet()
-          .toList();
-      final recs = studentIds.isEmpty
-          ? []
-          : await supabase
-              .from('student_records')
-              .select('user_id, first_name, last_name')
-              .inFilter('user_id', studentIds);
-      if (!mounted) return;
-      setState(() {
-        rows = list;
-        actors = actorProfiles;
-        students = {for (final r in recs) r['user_id'].toString(): r};
-        loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('Access log'))),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : rows.isEmpty
-              ? Center(child: Text(tr('Nothing recorded yet.')))
-              : RefreshIndicator(
-                  onRefresh: load,
-                  child: ListView.separated(
-                    itemCount: rows.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final r = rows[i];
-                      final actor = actors[r['actor_id']];
-                      final who = r['actor_role'] == 'system'
-                          ? tr('Automatic cleanup')
-                          : actor == null
-                              ? tr('UniBridge user')
-                              : publicDisplayName(actor);
-                      final student = r['student_id'] == null
-                          ? ''
-                          : ' · ${students[r['student_id']] == null ? tr('deleted account') : studentName(students[r['student_id']])}';
-                      final time = DateTime.tryParse('${r['created_at']}')?.toLocal();
-                      return ListTile(
-                        dense: true,
-                        title: Text('${tr(kLogKinds[r['kind']] ?? '${r['kind']}')}$student'),
-                        subtitle: Text(
-                            '$who (${r['actor_role']}) · ${time == null ? '' : '${shortDate(time.toIso8601String())} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'}'
-                            '${r['wilaya'] == null ? '' : ' · ${r['wilaya']}'}'),
-                      );
-                    },
-                  ),
-                ),
-    );
-  }
-}

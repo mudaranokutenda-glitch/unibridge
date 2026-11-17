@@ -160,6 +160,7 @@ Deno.serve(async (req) => {
       ["appointments", "student_id"],
       ["match_suggestions", "user_a"],
       ["match_suggestions", "user_b"],
+      ["space_members", "user_id"],
     ]) {
       const { error } = await admin.from(table).delete().eq(column, userId);
       // A table that does not exist yet (SQL not run) is not an error here.

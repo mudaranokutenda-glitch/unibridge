@@ -82,6 +82,8 @@ IconData _notificationIcon(String type) {
       return Icons.verified_outlined;
     case 'ATTESTATION_UPDATE':
       return Icons.workspace_premium_outlined;
+    case 'MEMBERSHIP_UPDATE':
+      return Icons.how_to_reg_outlined;
     default:
       return Icons.notifications_none;
   }
@@ -177,6 +179,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             screen = role.isStaff
                                 ? const StaffAppointmentsScreen()
                                 : const AppointmentsScreen();
+                          } else if (n['type'] == 'MEMBERSHIP_UPDATE') {
+                            screen = const StudentSpaceScreen();
                           } else {
                             screen = const MyRequestsScreen();
                           }

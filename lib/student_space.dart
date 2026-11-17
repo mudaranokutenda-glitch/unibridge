@@ -6,6 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
 import 'consent.dart';
+import 'members.dart';
+import 'staff_tools.dart';
+import 'roles.dart';
 import 'wilayas.dart';
 import 'profile_setup.dart';
 import 'student_info.dart';
@@ -87,11 +90,15 @@ class StudentSpaceScreen extends StatefulWidget {
 
 class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
   DateTime? consentDate;
+  MyRole role = MyRole.student;
 
   @override
   void initState() {
     super.initState();
     loadConsent();
+    loadMyRole().then((r) {
+      if (mounted) setState(() => role = r);
+    });
   }
 
   Future<void> loadConsent() async {
@@ -110,11 +117,35 @@ class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Only approved members (and staff) see the Student space; the others see
+    // the "Join the student space" screen (lib/members.dart).
+    return MembershipGate(child: _spaceHome());
+  }
+
+  Widget _spaceHome() {
     return Scaffold(
       appBar: AppBar(title: Text(tr('Student space'))),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          if (role.canSeeStudents) ...[
+            ListTile(
+              leading: const Icon(Icons.how_to_reg_outlined),
+              title: Text(tr('Join requests')),
+              subtitle: Text(tr('Approve new members of the student space')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => open(const JoinRequestsScreen()),
+            ),
+            if (role.isStaff)
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: Text(tr('Recent access')),
+                subtitle: Text(tr('Who opened student information')),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => open(const RecentAccessScreen()),
+              ),
+            const Divider(),
+          ],
           ListTile(
             leading: const Icon(Icons.badge_outlined),
             title: Text(tr('My student record')),
