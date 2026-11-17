@@ -171,6 +171,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 size: 10, color: Colors.blue)
                             : null,
                         onTap: () async {
+                          // Opening a notification removes it from my inbox.
+                          final id = n['id'];
+                          setState(() => items.removeWhere((x) => x['id'] == id));
+                          try {
+                            await supabase
+                                .from('notifications')
+                                .delete()
+                                .eq('id', id);
+                          } catch (e) {
+                            debugPrint('Could not delete notification: $e');
+                          }
                           Widget screen;
                           if (n['type'] == 'ATTESTATION_UPDATE') {
                             screen = const AttestationScreen();
