@@ -1100,4 +1100,48 @@ const Map<String, String> _t = {
       "Aucune ligne correspondante.",
   'Who opened student information':
       "Qui a ouvert des informations d'étudiants",
+  'Verify your email':
+      "Vérifiez votre e-mail",
+  'Reset password':
+      "Réinitialiser le mot de passe",
+  'Enter the 6-digit code we sent to {email}':
+      "Entrez le code à 6 chiffres envoyé à {email}",
+  '6-digit code':
+      "Code à 6 chiffres",
+  'Verify':
+      "Vérifier",
+  'Resend code':
+      "Renvoyer le code",
+  'Resend code in {seconds} s':
+      "Renvoyer le code dans {seconds} s",
+  'A new code was sent.':
+      "Un nouveau code a été envoyé.",
+  'Enter the 6 digits.':
+      "Entrez les 6 chiffres.",
+  'Wrong or expired code. Try again.':
+      "Code incorrect ou expiré. Réessayez.",
+  'This email already has an account. Please log in.':
+      "Cet e-mail a déjà un compte. Connectez-vous.",
+  'Your email is not confirmed yet. Enter the code we sent you.':
+      "Votre e-mail n'est pas encore confirmé. Entrez le code que nous vous avons envoyé.",
+  'Send me a new code':
+      "Envoyer un nouveau code",
+  'Forgot password?':
+      "Mot de passe oublié ?",
+  'Enter your email first.':
+      "Entrez d'abord votre e-mail.",
+  'Choose a new password.':
+      "Choisissez un nouveau mot de passe.",
+  'New password':
+      "Nouveau mot de passe",
+  'Confirm new password':
+      "Confirmez le nouveau mot de passe",
+  'Save password':
+      "Enregistrer le mot de passe",
+  'Passwords do not match.':
+      "Les mots de passe ne correspondent pas.",
+  'Password must have at least 6 characters.':
+      "Le mot de passe doit avoir au moins 6 caractères.",
+  'Password changed.':
+      "Mot de passe modifié.",
 };

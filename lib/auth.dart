@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'config.dart';
 import 'push.dart';
 import 'profile_setup.dart';
+import 'email_code.dart';
 import 'legal.dart';
 import 'l10n.dart';
 
@@ -22,6 +23,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool isSignUp = false;
   bool loading = false;
   String? errorMessage;
+  bool emailNotConfirmed = false; // login refused: the email was never confirmed
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -31,16 +33,29 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() {
       loading = true;
       errorMessage = null;
+      emailNotConfirmed = false;
     });
     try {
       if (isSignUp) {
-        await supabase.auth.signUp(
+        final res = await supabase.auth.signUp(
           email: emailController.text.trim(),
           password: passwordController.text,
           data: {
             'full_name': fullNameController.text.trim(),
           },
         );
+        // No session = the email still has to be confirmed with the 6-digit code.
+        if (res.session == null) {
+          // An email that already has an account comes back with no identities
+          // (Supabase hides it on purpose): no code is sent in that case.
+          if (res.user != null && (res.user!.identities ?? []).isEmpty) {
+            setState(() => errorMessage =
+                tr('This email already has an account. Please log in.'));
+            return;
+          }
+          if (mounted) await openCodeScreen(EmailCodeMode.signup);
+          return;
+        }
       } else {
         await supabase.auth.signInWithPassword(
           email: emailController.text.trim(),
@@ -56,11 +71,83 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } on AuthException catch (e) {
-      setState(() => errorMessage = e.message);
+      if (!isSignUp &&
+          (e.code == 'email_not_confirmed' ||
+              e.message.toLowerCase().contains('not confirmed'))) {
+        setState(() {
+          emailNotConfirmed = true;
+          errorMessage =
+              tr('Your email is not confirmed yet. Enter the code we sent you.');
+        });
+      } else {
+        setState(() => errorMessage = e.message);
+      }
     } catch (e) {
       setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
     } finally {
-      setState(() => loading = false);
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  // Opens the 6-digit code screen for the email typed above.
+  Future<void> openCodeScreen(EmailCodeMode mode) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EmailCodeScreen(
+            email: emailController.text.trim(), mode: mode),
+      ),
+    );
+  }
+
+  // Login said "not confirmed": send a new code, then ask for it.
+  Future<void> resendConfirmation() async {
+    setState(() {
+      loading = true;
+      errorMessage = null;
+    });
+    try {
+      await supabase.auth.resend(
+          type: OtpType.signup, email: emailController.text.trim());
+      if (mounted) {
+        setState(() => emailNotConfirmed = false);
+        await openCodeScreen(EmailCodeMode.signup);
+      }
+    } on AuthException catch (e) {
+      if (mounted) setState(() => errorMessage = e.message);
+    } catch (e) {
+      if (mounted) {
+        setState(() =>
+            errorMessage = tr('Something went wrong: {error}', {'error': e}));
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  // "Forgot password": the same code flow, with the type "recovery".
+  Future<void> forgotPassword() async {
+    final email = emailController.text.trim();
+    if (!email.contains('@')) {
+      setState(() => errorMessage = tr('Enter your email first.'));
+      return;
+    }
+    setState(() {
+      loading = true;
+      errorMessage = null;
+      emailNotConfirmed = false;
+    });
+    try {
+      await supabase.auth.resetPasswordForEmail(email);
+      if (mounted) await openCodeScreen(EmailCodeMode.recovery);
+    } on AuthException catch (e) {
+      if (mounted) setState(() => errorMessage = e.message);
+    } catch (e) {
+      if (mounted) {
+        setState(() =>
+            errorMessage = tr('Something went wrong: {error}', {'error': e}));
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -140,14 +227,31 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Text(errorMessage!,
                     style: const TextStyle(color: Colors.red)),
               ),
+            if (emailNotConfirmed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: OutlinedButton(
+                  onPressed: loading ? null : resendConfirmation,
+                  child: Text(tr('Send me a new code')),
+                ),
+              ),
             ElevatedButton(
               onPressed: loading ? null : submit,
               child: Text(loading
                   ? tr('Please wait...')
                   : (isSignUp ? tr('Sign up') : tr('Log in'))),
             ),
+            if (!isSignUp)
+              TextButton(
+                onPressed: loading ? null : forgotPassword,
+                child: Text(tr('Forgot password?')),
+              ),
             TextButton(
-              onPressed: () => setState(() => isSignUp = !isSignUp),
+              onPressed: () => setState(() {
+                isSignUp = !isSignUp;
+                errorMessage = null;
+                emailNotConfirmed = false;
+              }),
               child: Text(isSignUp
                   ? tr('Already have an account? Log in')
                   : tr('New here? Create an account')),
