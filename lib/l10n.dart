@@ -1179,4 +1179,8 @@ const Map<String, String> _t = {
       "En cours d'examen",
   'Rejected':
       "Refusée",
+  'Remember me':
+      "Se souvenir de moi",
+  'Only your email is remembered, on this phone.':
+      "Seul votre e-mail est mémorisé, sur ce téléphone.",
 };

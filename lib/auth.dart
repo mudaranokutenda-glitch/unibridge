@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'config.dart';
@@ -10,6 +11,9 @@ import 'legal.dart';
 import 'l10n.dart';
 
 bool _googleSignInInitialized = false;
+
+// "Remember me" keeps ONLY the email address, on this phone. Never the password.
+const String _kRememberedEmail = 'remembered_email';
 
 // ---------------- Sign up / Log in screen ----------------
 
@@ -24,10 +28,46 @@ class _AuthScreenState extends State<AuthScreen> {
   bool loading = false;
   String? errorMessage;
   bool emailNotConfirmed = false; // login refused: the email was never confirmed
+  bool rememberMe = false;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final fullNameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    loadRememberedEmail();
+  }
+
+  Future<void> loadRememberedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString(_kRememberedEmail);
+      if (email != null && email.isNotEmpty && mounted) {
+        setState(() {
+          emailController.text = email;
+          rememberMe = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Could not read the remembered email: $e');
+    }
+  }
+
+  // After a successful log in: keep the email, or forget it.
+  Future<void> saveRememberedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (rememberMe) {
+        await prefs.setString(_kRememberedEmail, emailController.text.trim());
+      } else {
+        await prefs.remove(_kRememberedEmail);
+      }
+    } catch (e) {
+      debugPrint('Could not save the remembered email: $e');
+    }
+  }
 
   Future<void> submit() async {
     setState(() {
@@ -61,6 +101,7 @@ class _AuthScreenState extends State<AuthScreen> {
           email: emailController.text.trim(),
           password: passwordController.text,
         );
+        await saveRememberedEmail();
       }
       if (mounted) {
         await setupPushNotifications();
@@ -226,6 +267,15 @@ class _AuthScreenState extends State<AuthScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(errorMessage!,
                     style: const TextStyle(color: Colors.red)),
+              ),
+            if (!isSignUp)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: rememberMe,
+                onChanged: (v) => setState(() => rememberMe = v ?? false),
+                title: Text(tr('Remember me')),
+                subtitle: Text(tr('Only your email is remembered, on this phone.')),
               ),
             if (emailNotConfirmed)
               Padding(
