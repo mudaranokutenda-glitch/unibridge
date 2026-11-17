@@ -80,6 +80,7 @@ by our own functions). Any other error is a FAIL, so a typo in a test cannot giv
 | `2026-11-11-19-hardening-tests.sql` | blocked users, 24-hour rule, declined pairs, 3 open requests, 3 active appointments |
 | `2026-11-16-01-members-tests.sql` | membership approval: unapproved students are locked out of the Student space, who may approve, the backfill, asking again. Needs `sql/2026-11-16-01-members.sql`. Extra need: Student A's profile wilaya is the Governor's wilaya and Student B's is another |
 | `2026-11-17-01-access-log-screen-tests.sql` | the "Recent access" function: only attaché and admin, the 100-row limit, the two filters, no direct read of the table. Needs `sql/2026-11-17-01-access-log-screen.sql` |
+| `2026-11-18-01-settings-expiry-notifications-tests.sql` | the four files of 2026-11-18: a user deletes only their own notification, app_settings cannot be changed from the app, OPEN requests older than 48 hours are cancelled (and stay out of the open list), the setting is used, a student cannot set cancel_reason, the attestation step dates. Needs `sql/2026-11-18-01` to `-04` |
 | `99-remove-test-accounts.sql` | run before launch: removes the tester emails |
 
 Notes:

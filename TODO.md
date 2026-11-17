@@ -87,6 +87,19 @@
 - [x] M6. "Recent access" screen for attaché and admin (Student space; also the Profile button): the last 100 rows of access_log with a filter by person and by kind, read only through the SQL function recent_access() (sql/2026-11-17-01-access-log-screen.sql). The app can no longer read the table directly. Test: sql/tests/2026-11-17-01-access-log-screen-tests.sql.
 - [ ] M5. (YOU) Run sql/2026-11-16-01-members.sql after file 17, deploy push-notification and delete-account, run the test file, then test with three accounts (new student, Governor, attaché).
 
+## N. Round of 2026-11-18 (built on branch pending-builds-2, test with TESTING.md part N)
+- [x] N1. Valid emails only: sign-up asks for the 6-digit code (verifyOTP type signup, resend after 60 s); an unconfirmed account that logs in gets a plain message and can ask for a new code; "Forgot password" with the same code flow (type recovery, then a new password). Google sign-in unchanged. Needs the Supabase dashboard settings in REPORT.md.
+- [x] N2. Fingerprint / face / PIN lock removed (app_lock.dart, local_auth, USE_BIOMETRIC, texts). MainActivity is a normal FlutterActivity again.
+- [x] N3. Opening a notification deletes it from my inbox (sql/2026-11-18-01-notification-delete.sql: a user deletes only their own rows). Emergency alerts stay in the alerts table.
+- [x] N4. Phone fields (profile set-up, edit profile, student record, staff contacts): selector +213 / +263 and 9 digits only. Existing numbers pre-fill the selector.
+- [x] N5. Rates: table app_settings (sql/2026-11-18-02-app-settings.sql, parallel_rate_offset -2, readable by everyone signed in, changed only in SQL); "Indicative rate (Annaba)"; calculator with the displayed rates.
+- [x] N6. Request expiry (sql/2026-11-18-03-request-expiry.sql): an OPEN request older than request_expiry_hours (48) is cancelled with cancel_reason EXPIRED by a cron job every 15 minutes; "Expires in 1d 4h" and a grey "Expired" in the app.
+- [x] N7. Attestation tracker: Received, In review, Issued or Rejected, with dates (sql/2026-11-18-04-attestation-dates.sql adds reviewed_at and rejected_at; older requests have no date for those two steps).
+- [x] N8. Chat avatars: round profile pictures beside the messages (loaded once per chat).
+- [x] N9. "Remember me" on the login screen keeps only the email on this phone.
+- [x] N10. SQL tests: sql/tests/2026-11-18-01-settings-expiry-notifications-tests.sql.
+- [ ] N11. (YOU) Set the Supabase dashboard settings (REPORT.md, "Valid emails only"), run the four SQL files 20 to 23, run the new test file, then test with TESTING.md part N.
+
 ## F. Before launch
 - [ ] F5. Polish marketplace, chat and other screens. WAIT for my design brief.
 - [ ] F6. New look (colours, fonts, icons): WAIT for my design brief.

@@ -380,3 +380,45 @@ The last line prints the HTTP code (for example 403) and the message.
 - [ ] **H17. As the attaché, as a Governor and as admin: Profile → Delete my account → DELETE: refused with "Staff accounts are removed by the app owner." The account still works.**
 - [ ] H17. A normal student can still delete their account (as G37).
 - [ ] H18. Profile → Terms and privacy (English and French) and `docs/privacy-policy.html` say: your sent messages stay visible to the other person until the chat is deleted 30 days after the request ends; and the security log of who opened sensitive documents is kept after an account is deleted.
+
+
+## Part N. Round of 2026-11-18 (files 20 to 23 and the new app)
+
+First do the Supabase dashboard settings (REPORT.md, "Valid emails only") and run the SQL files 20 to 23 and `sql/tests/2026-11-18-01-settings-expiry-notifications-tests.sql`.
+
+### Valid emails only
+- [ ] N1. Sign up with a real new email: a screen asks for the 6-digit code ("Enter the 6-digit code we sent to ..."). The email contains a 6-digit code, no link.
+- [ ] N2. Type a wrong code: "Wrong or expired code". The right code opens the profile set-up page.
+- [ ] N3. The resend button is grey for 60 seconds, then works ("A new code was sent."). The old code no longer works.
+- [ ] N4. Close the app before entering the code, then try to log in: a plain message "Your email is not confirmed yet" and a button "Send me a new code". The code then confirms the account.
+- [ ] N5. Sign up with an email that already has an account: "This email already has an account. Please log in."
+- [ ] N6. Log in screen -> "Forgot password?" (with the email typed): a code arrives, then the screen asks for a new password twice; afterwards you are in the app and the new password works at the next login. Without an email typed: "Enter your email first."
+- [ ] N7. Continue with Google still works as before.
+
+### Lock removed, remember me
+- [ ] N8. There is no lock screen, no fingerprint question and no toggle in the Profile tab. The app asks for no biometric permission.
+- [ ] N9. Log in with "Remember me" ticked, log out: the email is already typed on the login screen (the password is not). Log in with it unticked, log out: the email is empty.
+
+### Notifications
+- [ ] N10. Student A has a notification: open it from the bell: it opens the right screen, is gone from the list when you come back, and the bell number goes down.
+- [ ] N11. An emergency alert still shows its banner on the home screen for 3 days after it is read; Table Editor -> alerts still has the row.
+
+### Phone fields
+- [ ] N12. In Edit profile, the student record, the profile set-up page and a staff contact: a selector (+213 Algérie / +263 Zimbabwe) and a number field that takes digits only, at most 9. A leading 0 is removed. With fewer than 9 digits the red message "Enter the 9 digits after the code." shows and Save is refused.
+- [ ] N13. An existing number +263771234567 opens with +263 selected and 771234567 in the field. After saving, Table Editor -> user_phones shows `+263771234567`.
+
+### Rates
+- [ ] N14. Rates screen: the row "Indicative rate (Annaba)" shows the black_market buy and sell rates plus -2. The Bank row is unchanged. Table Editor -> exchange_rates is unchanged.
+- [ ] N15. Change the offset in SQL (REPORT.md) to -3 and pull to refresh: the indicative rates go down by 1 more.
+- [ ] N16. The calculator (USD or EUR, amount): "I send foreign currency / I receive DA" gives amount x the buy rate shown; "I receive foreign currency / I send DA" gives amount x the sell rate shown. The note "Indicative, not a guarantee" is under it.
+
+### Request expiry
+- [ ] N17. An open request shows "Expires in 1d 23h" (mine and other people's, on the home screen and in My requests).
+- [ ] N18. In SQL, make a test request old: `update public.transaction_requests set created_at = now() - interval '49 hours' where id = '...';` (only an OPEN request of a test account). Within 15 minutes it becomes CANCELLED with cancel_reason EXPIRED, shows grey "Expired" in My requests and leaves the open list of the other student.
+- [ ] N19. A matched request that is older than 48 hours is never cancelled.
+
+### Attestation tracker
+- [ ] N20. Student: Attestation screen shows Received (date), In review, Issued. After the attaché sets "In review" the step is green with today's date; after "Issued" the last step is green with the date and the download button shows. A rejected request shows a red "Rejected" with its note.
+
+### Chat avatars
+- [ ] N21. In a chat, the other person's round picture (or their initial) is on the left of their messages and mine on the right of mine, also for photos.

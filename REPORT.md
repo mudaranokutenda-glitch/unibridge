@@ -56,6 +56,10 @@ The 2026-11-05 files (TESTING.md Step 1) and `sql/2026-11-06-requests-realtime.s
 | 17 | `sql/2026-11-11-17-open-request-limit.sql` | At most 3 open requests per user |
 | 18 | `sql/2026-11-16-01-members.sql` | **Student space membership approval.** Table space_members, is_member(), request_membership(), decide_membership(), pending_members(), restrictive rules on the Student space tables and files. **Every account that exists when you run it becomes APPROVED** (staff always count as members); new sign-ups after it must ask to join |
 | 19 | `sql/2026-11-17-01-access-log-screen.sql` | **"Recent access" screen.** Function recent_access(person, kind) (attaché and admin only, at most 100 rows) and **removes the app's direct read of the table access_log**, so the function is the only way in. Install the new app at about the same time: the OLD app's Access log screen stops working after this file |
+| 20 | `sql/2026-11-18-01-notification-delete.sql` | A user can delete only their own notifications (the app deletes a notification when it is opened). Needs the new app |
+| 21 | `sql/2026-11-18-02-app-settings.sql` | Table app_settings (parallel_rate_offset = -2). Everybody signed in reads it; nobody changes it from the app |
+| 22 | `sql/2026-11-18-03-request-expiry.sql` | **Needs 21.** Column cancel_reason, setting request_expiry_hours = 48, function expire_open_requests(), cron job every 15 minutes. **From now on an OPEN request older than 48 hours is cancelled by itself** |
+| 23 | `sql/2026-11-18-04-attestation-dates.sql` | Columns reviewed_at and rejected_at and a trigger that fills them (and issued_at) from now on |
 | 99 | `sql/2026-11-11-99-optional-clear-old-student-ids.sql` | **OPTIONAL, LAST, cannot be undone.** Empties the old student IDs in profiles |
 
 **After 14, 16 and 17**, run this once (it removes table rights the app never needs):
@@ -80,6 +84,45 @@ You should see `chat-cleanup | 0 3 * * *`, next to the old `purge-passports`.
 
 Then run the tests in `sql/tests/` (read `sql/tests/README.md` first). Every line must say PASS.
 Then TESTING.md part G and part H.
+
+**Round of 2026-11-18 (files 20 to 23):** run them in this order after 19. No Edge Function changes. Then run `sql/tests/2026-11-18-01-settings-expiry-notifications-tests.sql` (every line PASS or SKIP).
+- Change the rate offset: `update public.app_settings set value = -3, updated_at = now() where key = 'parallel_rate_offset';`
+- Change the expiry: `update public.app_settings set value = 24, updated_at = now() where key = 'request_expiry_hours';`
+- Look at the job: `select jobname, schedule from cron.job where jobname = 'expire-open-requests';`
+- File 23 cannot give a date to old requests: those that were already in review or rejected before it show the step without a date.
+- Not sure about the pairs: the rates calculator reads the rows `USD/DZD` and `EUR/DZD` (source `black_market`) of exchange_rates. If your pairs are named differently, the calculator says "No rate available".
+
+### Valid emails only (Supabase dashboard, BY HAND, before you install the new app)
+
+The app now sends a 6-digit code. Supabase must send the code and not a link.
+
+1. **Authentication → Sign In / Providers → Email** (or "Providers → Email"):
+   - "Enable Email provider": ON.
+   - "Confirm email": **ON**.
+   - "Minimum password length": 6 (the app also checks 6).
+   - "Email OTP expiration": 3600 seconds is fine (you may use 600 = 10 minutes). "Email OTP length": 6.
+2. **Authentication → Emails → Templates → "Confirm signup"**. Subject: `Your UniBridge code`. Replace the whole body with:
+   ```html
+   <h2>Confirm your email</h2>
+   <p>Your UniBridge code is:</p>
+   <h1 style="letter-spacing:6px">{{ .Token }}</h1>
+   <p>Enter it in the app. If you did not create an account, ignore this email.</p>
+   ```
+3. **Same page → "Reset Password"**. Subject: `Your UniBridge password code`. Body:
+   ```html
+   <h2>Reset your password</h2>
+   <p>Your UniBridge code is:</p>
+   <h1 style="letter-spacing:6px">{{ .Token }}</h1>
+   <p>Enter it in the app and choose a new password. If you did not ask for this, ignore this email.</p>
+   ```
+   The templates must contain `{{ .Token }}` and must NOT use `{{ .ConfirmationURL }}` (that is the link version).
+4. **Authentication → Emails → SMTP Settings**: the built-in Supabase mailer sends only a few emails per hour (and only to your team). Set up your own SMTP service (for example Resend or Brevo) before the pilot, or students will not get their codes. Then check **Authentication → Rate Limits** ("Rate limit for sending emails").
+5. **Accounts that were never confirmed.** With "Confirm email" ON, an old account whose email was never confirmed cannot log in until it is confirmed (the app offers a new code). To see how many there are (read only, safe):
+   ```sql
+   select count(*) from auth.users where email_confirmed_at is null;
+   ```
+   Google accounts are already confirmed.
+6. If you install the new app BEFORE step 1, nothing breaks: sign-up still works the old way (no code) until "Confirm email" is turned on.
 
 ## 3. Things you must add by hand
 
