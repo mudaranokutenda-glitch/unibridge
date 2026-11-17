@@ -1151,4 +1151,22 @@ const Map<String, String> _t = {
       "Entrez les 9 chiffres après le code.",
   'Choose +213 or +263 and enter the 9 digits.':
       "Choisissez +213 ou +263 et entrez les 9 chiffres.",
+  'Indicative rate (Annaba)':
+      "Taux indicatif (Annaba)",
+  'Indicative rate is {pct}% higher than the bank':
+      "Le taux indicatif est {pct} % plus haut que la banque",
+  'Indicative rate is {pct}% lower than the bank':
+      "Le taux indicatif est {pct} % plus bas que la banque",
+  'Calculator':
+      "Calculatrice",
+  'Amount in {currency}':
+      "Montant en {currency}",
+  'I send foreign currency / I receive DA':
+      "J'envoie des devises / je reçois des DA",
+  'I receive foreign currency / I send DA':
+      "Je reçois des devises / j'envoie des DA",
+  'Indicative, not a guarantee':
+      "Indicatif, sans garantie",
+  'No rate available for {currency}.':
+      "Aucun taux disponible pour {currency}.",
 };
