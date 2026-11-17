@@ -1173,4 +1173,10 @@ const Map<String, String> _t = {
       "Expire dans {time}",
   'Expired':
       "Expirée",
+  'Received':
+      "Reçue",
+  'In review':
+      "En cours d'examen",
+  'Rejected':
+      "Refusée",
 };

@@ -747,6 +747,70 @@ Color attestationColor(String? status) {
   }
 }
 
+// Progress of one attestation request: Received, In review, Issued (or Rejected).
+// A step shows its date when the database has one (a step can be done without a date,
+// for older requests or when staff skipped "In review").
+class AttestationTracker extends StatelessWidget {
+  final Map<String, dynamic> request;
+  const AttestationTracker({super.key, required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = '${request['status']}';
+    final rejected = status == 'REJECTED';
+    final reviewDone =
+        status == 'IN_REVIEW' || status == 'ISSUED' || status == 'REJECTED';
+    final finalDone = status == 'ISSUED' || rejected;
+
+    Widget step(String label, bool done, dynamic date,
+        {bool current = false, bool bad = false}) {
+      final color = bad
+          ? Colors.red
+          : done
+              ? Colors.green
+              : current
+                  ? Colors.orange
+                  : kMutedText;
+      final icon = bad
+          ? Icons.cancel
+          : done
+              ? Icons.check_circle
+              : current
+                  ? Icons.timelapse
+                  : Icons.radio_button_unchecked;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      fontWeight: done || current ? FontWeight.w600 : null,
+                      color: done || current ? null : kMutedText)),
+            ),
+            Text(shortDate(date),
+                style: const TextStyle(fontSize: 12, color: kMutedText)),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        step(tr('Received'), true, request['created_at']),
+        step(tr('In review'), reviewDone, request['reviewed_at'],
+            current: status == 'PENDING'),
+        if (rejected)
+          step(tr('Rejected'), true, request['rejected_at'], bad: true)
+        else
+          step(tr('Issued'), finalDone, request['issued_at']),
+      ],
+    );
+  }
+}
+
 class AttestationScreen extends StatefulWidget {
   const AttestationScreen({super.key});
 
@@ -879,25 +943,7 @@ class _AttestationScreenState extends State<AttestationScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.circle,
-                                    size: 12,
-                                    color: attestationColor(r['status'])),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    tr(kAttestationStatus[r['status']] ??
-                                        '${r['status']}'),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                                Text(shortDate(r['created_at']),
-                                    style: const TextStyle(
-                                        fontSize: 12, color: kMutedText)),
-                              ],
-                            ),
+                            AttestationTracker(request: r),
                             if ((r['note'] ?? '').toString().isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Text(tr('Note: {note}', {'note': r['note']})),
