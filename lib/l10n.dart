@@ -1169,4 +1169,8 @@ const Map<String, String> _t = {
       "Indicatif, sans garantie",
   'No rate available for {currency}.':
       "Aucun taux disponible pour {currency}.",
+  'Expires in {time}':
+      "Expire dans {time}",
+  'Expired':
+      "Expirée",
 };

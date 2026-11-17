@@ -296,8 +296,12 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       ]);
       // Hide requests from people I blocked or who blocked me.
       final hidden = await fetchHiddenUserIds();
+      await loadRequestExpiryHours();
+      // An expired request leaves the open list at once (the database job
+      // cancels it within 15 minutes).
       final loaded = List<Map<String, dynamic>>.from(results[0])
           .where((r) => !hidden.contains(r['creator_id']))
+          .where((r) => !requestIsExpired(r))
           .toList();
       final mine = List<Map<String, dynamic>>.from(results[1]);
       List<Map<String, dynamic>> loadedSuggestions = [];
@@ -578,7 +582,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         completedText(creator),
       ].join(' · '),
       amount: formatAmount(r['amount'], r['currency']),
-      status: statusLabel(r['status']),
+      status: requestStatusText(r),
       action: SmallRowButton(
         label: tr('Match'),
         onPressed: () => matchWithRequest(r['id']),

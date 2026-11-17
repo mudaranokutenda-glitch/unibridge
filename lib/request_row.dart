@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'config.dart';
 import 'profiles.dart';
 import 'profile_setup.dart';
 import 'wilayas.dart';
@@ -24,6 +25,68 @@ String ratingText(Map<String, dynamic>? p) {
 
 String completedText(Map<String, dynamic>? p) =>
     tr('{count} completed', {'count': _asCount(p?['completed_count'])});
+
+// ---------------- Request expiry (48 hours by default) ----------------
+// The database cancels an OPEN request after request_expiry_hours (table
+// app_settings, default 48). The app only SHOWS the time left.
+
+double kRequestExpiryHours = 48;
+bool _expiryLoaded = false;
+
+Future<void> loadRequestExpiryHours() async {
+  if (_expiryLoaded) return;
+  try {
+    final row = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'request_expiry_hours')
+        .maybeSingle();
+    final v = asDouble(row?['value']);
+    if (v != null && v > 0) kRequestExpiryHours = v;
+    _expiryLoaded = true;
+  } catch (e) {
+    // The table may not exist yet: keep 48 hours.
+    debugPrint('Could not read request_expiry_hours: $e');
+  }
+}
+
+// Time left for an OPEN request, or null for any other status.
+Duration? requestTimeLeft(Map<String, dynamic> r) {
+  if ('${r['status']}' != 'OPEN') return null;
+  final created = DateTime.tryParse('${r['created_at']}');
+  if (created == null) return null;
+  final end = created.add(Duration(minutes: (kRequestExpiryHours * 60).round()));
+  return end.difference(DateTime.now());
+}
+
+// Cancelled by the expiry job, or still OPEN but past its time (the job runs
+// every 15 minutes, so for a short while an old request is still OPEN).
+bool requestIsExpired(Map<String, dynamic> r) {
+  if ('${r['status']}' == 'CANCELLED') return '${r['cancel_reason']}' == 'EXPIRED';
+  final left = requestTimeLeft(r);
+  return left != null && left <= Duration.zero;
+}
+
+// "1d 4h", "4h 10m", "35m"
+String durationShort(Duration d) {
+  final minutes = d.inMinutes < 1 ? 1 : d.inMinutes;
+  final days = minutes ~/ 1440;
+  final hours = (minutes % 1440) ~/ 60;
+  final mins = minutes % 60;
+  if (days > 0) return '${days}d ${hours}h';
+  if (hours > 0) return '${hours}h ${mins}m';
+  return '${mins}m';
+}
+
+// The text shown instead of "Open" on an open request: "Expires in 1d 4h".
+String requestStatusText(Map<String, dynamic> r) {
+  if (requestIsExpired(r)) return tr('Expired');
+  final left = requestTimeLeft(r);
+  if (left != null) {
+    return tr('Expires in {time}', {'time': durationShort(left)});
+  }
+  return statusLabel(r['status']);
+}
 
 // "50 USD" instead of "50.0 USD"
 String formatAmount(dynamic amount, dynamic currency) {

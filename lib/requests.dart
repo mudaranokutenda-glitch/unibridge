@@ -141,6 +141,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       loaded.map((r) => otherPartyId(r, myId)),
     );
     final rated = await fetchMyRatedRequestIds();
+    await loadRequestExpiryHours();
     if (!mounted) return;
     setState(() {
       myRequests = loaded;
@@ -208,12 +209,19 @@ Widget myRequestRow(
   final mustRate = status == 'COMPLETED' &&
       otherId != null &&
       !ratedIds.contains(r['id'].toString());
+  final expired = requestIsExpired(r);
   return RequestRow(
-    danger: status == 'CANCELLED',
+    // Expired = grey (not the red of a cancelled request).
+    danger: status == 'CANCELLED' && !expired,
     person: other,
-    placeholderIcon:
-        status == 'CANCELLED' ? Icons.block : Icons.hourglass_empty,
-    placeholderTitle: status == 'CANCELLED'
+    placeholderIcon: expired
+        ? Icons.timer_off_outlined
+        : status == 'CANCELLED'
+            ? Icons.block
+            : Icons.hourglass_empty,
+    placeholderTitle: expired
+        ? tr('Expired')
+        : status == 'CANCELLED'
         ? tr('Cancelled')
         : otherId == null
             ? tr('Waiting for someone to match')
@@ -223,7 +231,7 @@ Widget myRequestRow(
         : [typeLabel(r['type']), ratingText(other), completedText(other)]
             .join(' · '),
     amount: formatAmount(r['amount'], r['currency']),
-    status: statusLabel(status),
+    status: requestStatusText(r),
     action: status == 'OPEN' && r['creator_id'] == myId
         ? IconButton(
             icon: const Icon(Icons.cancel_outlined),
