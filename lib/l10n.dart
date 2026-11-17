@@ -220,11 +220,6 @@ const Map<String, String> _t = {
   'Are you sure you want to log out?': 'Voulez-vous vraiment vous déconnecter ?',
   'Log out': 'Se déconnecter',
 
-  // ---- App lock ----
-  'Unlock UniBridge': 'Déverrouiller UniBridge',
-  'UniBridge is locked': 'UniBridge est verrouillé',
-  'Use your fingerprint, face or phone PIN to unlock.': 'Utilisez votre empreinte, votre visage ou le code du téléphone pour déverrouiller.',
-  'Unlock': 'Déverrouiller',
 
   // ---- Open requests + filters ----
   'Open requests': 'Demandes ouvertes',

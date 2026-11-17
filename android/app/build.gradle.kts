@@ -76,7 +76,7 @@ flutter {
 }
 
 dependencies {
-    // Theme.AppCompat for the launch theme (needed by local_auth / app lock).
+    // Theme.AppCompat for the launch theme (res/values/styles.xml uses it).
     implementation("androidx.appcompat:appcompat:1.7.1")
     // Needed by flutter_local_notifications (desugaring, see compileOptions).
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")

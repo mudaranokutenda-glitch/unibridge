@@ -9,7 +9,6 @@ import 'config.dart';
 import 'push.dart';
 import 'auth.dart';
 import 'profile_setup.dart';
-import 'app_lock.dart';
 import 'l10n.dart';
 
 Future<void> main() async {
@@ -55,9 +54,6 @@ class UniBridgeApp extends StatelessWidget {
           locale: Locale(language),
           supportedLocales: const [Locale('en'), Locale('fr')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          // The lock covers every screen, so it also works after hot restart
-          // and on screens opened from notifications.
-          builder: (context, child) => AppLock(child: child!),
           home: supabase.auth.currentSession == null
               ? const AuthScreen()
               : const ProfileGate(),

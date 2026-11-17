@@ -1,6 +1,5 @@
 package com.example.unibridge_app
 
-import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.android.FlutterActivity
 
-// FlutterFragmentActivity is needed for fingerprint / face unlock (local_auth).
-class MainActivity : FlutterFragmentActivity()
+class MainActivity : FlutterActivity()
