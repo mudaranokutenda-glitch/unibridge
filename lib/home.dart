@@ -15,6 +15,7 @@ import 'notifications.dart';
 import 'posters.dart';
 import 'request_row.dart';
 import 'bottom_bar.dart';
+import 'app_icons.dart';
 import 'l10n.dart';
 
 // ---------------- Home: bottom navigation with 4 tabs ----------------
@@ -370,7 +371,11 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         actions: [
           const NotificationBell(),
           IconButton(
-            icon: const Icon(Icons.currency_exchange),
+            icon: const AppIcon(
+                name: 'rates',
+                fallback: Icons.currency_exchange,
+                size: 22,
+                circle: true),
             tooltip: tr('Exchange rates'),
             onPressed: () {
               Navigator.of(context).push(

@@ -11,6 +11,7 @@ import 'auth.dart';
 import 'profile_setup.dart';
 import 'l10n.dart';
 import 'app_theme.dart';
+import 'app_icons.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,7 @@ Future<void> main() async {
   );
 
   await AppSettings.load();
+  await AppAssets.load();
 
   runApp(const UniBridgeApp());
 }

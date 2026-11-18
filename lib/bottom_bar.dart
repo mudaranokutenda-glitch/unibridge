@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
+import 'app_icons.dart';
 import 'l10n.dart';
 
 // ---------------- Bottom bar with a raised round "+" in the middle ----------------
@@ -30,19 +31,22 @@ class AppBottomBar extends StatelessWidget {
       shadowColor: dark ? Colors.black : AppColors.sky,
       child: Row(
         children: [
-          _item(context, 0, Icons.swap_horiz, Icons.swap_horiz, tr('Requests')),
-          _item(context, 1, Icons.storefront_outlined, Icons.storefront,
-              tr('Marketplace')),
+          _item(context, 0, null, Icons.swap_horiz, Icons.swap_horiz,
+              tr('Requests')),
+          _item(context, 1, 'marketplace', Icons.storefront_outlined,
+              Icons.storefront, tr('Marketplace')),
           const SizedBox(width: 76), // room for the round "+"
-          _item(context, 2, Icons.school_outlined, Icons.school,
-              tr('Student space')),
-          _item(context, 3, Icons.person_outline, Icons.person, tr('Profile')),
+          _item(context, 2, 'student_space', Icons.school_outlined,
+              Icons.school, tr('Student space')),
+          _item(context, 3, 'profile', Icons.person_outline, Icons.person,
+              tr('Profile')),
         ],
       ),
     );
   }
 
-  Widget _item(BuildContext context, int index, IconData icon,
+  // iconName: the PNG in assets/icons (null = always a Material icon).
+  Widget _item(BuildContext context, int index, String? iconName, IconData icon,
       IconData selectedIcon, String label) {
     final scheme = Theme.of(context).colorScheme;
     final selected = selectedIndex == index;
@@ -55,8 +59,30 @@ class AppBottomBar extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(selected ? selectedIcon : icon, color: color, size: 26),
-              const SizedBox(height: 2),
+              // A soft blue circle sits behind the active tab.
+              Container(
+                width: 40,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: selected ? scheme.primaryContainer : Colors.transparent,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Center(
+                  child: iconName == null
+                      ? Icon(selected ? selectedIcon : icon,
+                          color: color, size: 24)
+                      : Opacity(
+                          opacity: selected ? 1 : 0.6,
+                          child: AppIcon(
+                            name: iconName,
+                            fallback: selected ? selectedIcon : icon,
+                            color: color,
+                            size: 24,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 1),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
