@@ -469,7 +469,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: isMine
                             ? scheme.primaryContainer
                             : scheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(18),
                       ),
                       child: isPhoto
                           ? ChatPhoto(

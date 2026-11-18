@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'push.dart';
 import 'verification.dart';
 import 'auth.dart';
@@ -158,7 +159,7 @@ class ProfileSummary extends StatelessWidget {
                   ),
                   if (verified) ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.verified, size: 16, color: Colors.blue),
+                    const Icon(Icons.verified, size: 16, color: AppColors.verified),
                   ],
                 ],
               ),
@@ -435,7 +436,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                         if (p['is_verified'] == true) ...[
                           const SizedBox(width: 6),
-                          const Icon(Icons.verified, color: Colors.blue),
+                          const Icon(Icons.verified, color: AppColors.verified),
                         ],
                       ],
                     ),
@@ -574,7 +575,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
               onPressed: confirmController.text.trim() == 'DELETE'
                   ? () => Navigator.of(context).pop(true)
                   : null,
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
               child: Text(tr('Delete forever')),
             ),
           ],
@@ -755,7 +756,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(errorMessage!,
-                        style: const TextStyle(color: Colors.red)),
+                        style: const TextStyle(color: AppColors.cancelled)),
                   ),
                 OutlinedButton.icon(
                   onPressed: saving
@@ -816,7 +817,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                 const SizedBox(height: 16),
                 TextButton.icon(
                   onPressed: (saving || deleting) ? null : deleteAccount,
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
                   icon: const Icon(Icons.delete_forever),
                   label: Text(deleting ? tr('Deleting...') : tr('Delete my account')),
                 ),

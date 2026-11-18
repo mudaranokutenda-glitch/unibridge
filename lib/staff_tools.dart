@@ -797,7 +797,7 @@ class _ResultsTrackerScreenState extends State<ResultsTrackerScreen> {
                                     ? Icons.check_circle
                                     : Icons.cancel_outlined,
                                 color: r['has_uploaded'] == true
-                                    ? Colors.green
+                                    ? AppColors.success
                                     : scheme.error,
                               ),
                               title: Text('${r['last_name']} ${r['first_name']}'),

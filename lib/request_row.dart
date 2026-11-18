@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'config.dart';
+import 'app_theme.dart';
 import 'profiles.dart';
 import 'profile_setup.dart';
 import 'wilayas.dart';
@@ -115,7 +116,7 @@ Widget _nameWithTick(
       ),
       if (verified) ...[
         const SizedBox(width: 4),
-        Icon(Icons.verified, size: fontSize, color: Colors.blue),
+        Icon(Icons.verified, size: fontSize, color: AppColors.verified),
       ],
     ],
   );
@@ -282,8 +283,8 @@ class SmallRowButton extends StatelessWidget {
 // ---------------- My profile bar (top of the Requests tab) ----------------
 
 // Frame colours of the profile bar. Change them here.
-const Color kVerifiedFrameColor = Color(0xFFD4AF37); // gold
-const Color kUnverifiedFrameColor = Color(0xFF2F80ED); // blue
+const Color kVerifiedFrameColor = AppColors.verified; // gold
+const Color kUnverifiedFrameColor = AppColors.sky; // blue
 
 class MyProfileBar extends StatelessWidget {
   // My profile from get_public_profiles. null = not loaded (yet).

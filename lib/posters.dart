@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'student_space.dart' show showSnack, shortDate;
 import 'l10n.dart';
 
@@ -132,7 +133,7 @@ class _PosterCarouselState extends State<PosterCarousel> {
           AspectRatio(
             aspectRatio: 16 / 9,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.card),
               // Listener only watches the finger; taps and swipes still work.
               child: Listener(
                 onPointerDown: (_) => onTouchStart(),
@@ -248,7 +249,7 @@ class _ManagePostersScreenState extends State<ManagePostersScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
             child: Text(tr('Delete')),
           ),
         ],

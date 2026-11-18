@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'push.dart';
 import 'profile_setup.dart';
 import 'l10n.dart';
@@ -215,7 +216,7 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
             if (error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(error!, style: const TextStyle(color: Colors.red)),
+                child: Text(error!, style: const TextStyle(color: AppColors.cancelled)),
               ),
             if (info != null)
               Padding(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'requests.dart';
 import 'rates.dart';
 import 'student_space.dart';
@@ -168,7 +169,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             DateTime.tryParse('${n['created_at']}'))),
                         trailing: isUnread
                             ? const Icon(Icons.circle,
-                                size: 10, color: Colors.blue)
+                                size: 10, color: AppColors.sky)
                             : null,
                         onTap: () async {
                           // Opening a notification removes it from my inbox.

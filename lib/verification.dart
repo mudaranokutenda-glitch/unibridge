@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'profiles.dart';
 import 'consent.dart';
 import 'l10n.dart';
@@ -114,7 +115,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.verified, size: 64, color: Colors.blue),
+              Icon(Icons.verified, size: 64, color: AppColors.verified),
               SizedBox(height: 12),
               Text(tr('You are verified'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -134,7 +135,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.hourglass_top, size: 64, color: Colors.orange),
+              const Icon(Icons.hourglass_top, size: 64, color: AppColors.warning),
               const SizedBox(height: 12),
               Text(tr('Under review'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -205,7 +206,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(errorMessage!,
-                  style: const TextStyle(color: Colors.red)),
+                  style: const TextStyle(color: AppColors.cancelled)),
             ),
           ElevatedButton(
             onPressed: submitting ? null : submit,

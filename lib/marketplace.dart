@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'profiles.dart';
 import 'l10n.dart';
 
@@ -421,7 +422,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ),
         if (verified) ...[
           const SizedBox(width: 4),
-          const Icon(Icons.verified, size: 14, color: Colors.blue),
+          const Icon(Icons.verified, size: 14, color: AppColors.verified),
         ],
       ],
     );
@@ -653,7 +654,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 padding: const EdgeInsets.all(24),
                                 child: Text(
                                   errorMessage!,
-                                  style: const TextStyle(color: Colors.red),
+                                  style: const TextStyle(color: AppColors.cancelled),
                                 ),
                               ),
                             ),
@@ -919,7 +920,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                 if (seller?['is_verified'] == true) ...[
                                   const SizedBox(width: 4),
                                   const Icon(Icons.verified,
-                                      size: 16, color: Colors.blue),
+                                      size: 16, color: AppColors.sky),
                                 ],
                               ],
                             ),
@@ -1263,7 +1264,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(errorMessage!,
-                    style: const TextStyle(color: Colors.red)),
+                    style: const TextStyle(color: AppColors.cancelled)),
               ),
             ElevatedButton(
               onPressed: (loading || uploadingImage) ? null : submit,

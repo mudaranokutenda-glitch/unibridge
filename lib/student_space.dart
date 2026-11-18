@@ -656,7 +656,7 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
                           tr('The finish year cannot be before the start year.'),
-                          style: const TextStyle(color: Colors.red)),
+                          style: const TextStyle(color: AppColors.cancelled)),
                     ),
                   ElevatedButton(
                     onPressed: saving ||
@@ -834,7 +834,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
             child: Text(tr('Delete')),
           ),
         ],
@@ -902,13 +902,13 @@ const Map<String, String> kAttestationStatus = {
 Color attestationColor(String? status) {
   switch (status) {
     case 'ISSUED':
-      return Colors.green;
+      return AppColors.success;
     case 'REJECTED':
-      return Colors.red;
+      return AppColors.cancelled;
     case 'IN_REVIEW':
-      return Colors.blue;
+      return AppColors.sky;
     default:
-      return Colors.orange;
+      return AppColors.warning;
   }
 }
 
@@ -930,11 +930,11 @@ class AttestationTracker extends StatelessWidget {
     Widget step(String label, bool done, dynamic date,
         {bool current = false, bool bad = false}) {
       final color = bad
-          ? Colors.red
+          ? AppColors.cancelled
           : done
-              ? Colors.green
+              ? AppColors.success
               : current
-                  ? Colors.orange
+                  ? AppColors.warning
                   : kMutedText;
       final icon = bad
           ? Icons.cancel

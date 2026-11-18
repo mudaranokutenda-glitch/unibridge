@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'profiles.dart';
 import 'l10n.dart';
 
@@ -198,7 +199,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
             _rateRow(tr('Indicative rate (Annaba)'), market),
             if (gapText != null) ...[
               const SizedBox(height: 8),
-              Text(gapText, style: const TextStyle(color: Colors.deepOrange)),
+              Text(gapText, style: const TextStyle(color: AppColors.warning)),
             ],
             const SizedBox(height: 8),
             Text(
@@ -229,7 +230,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                           padding: const EdgeInsets.all(24),
                           child: Text(
                             errorMessage!,
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(color: AppColors.cancelled),
                           ),
                         ),
                       ),

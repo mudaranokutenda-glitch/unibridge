@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'config.dart';
+import 'app_theme.dart';
 import 'profiles.dart';
 import 'chat.dart';
 import 'request_row.dart';
@@ -95,7 +96,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(errorMessage!,
-                    style: const TextStyle(color: Colors.red)),
+                    style: const TextStyle(color: AppColors.cancelled)),
               ),
             ElevatedButton(
               onPressed: loading ? null : submit,

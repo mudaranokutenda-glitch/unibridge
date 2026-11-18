@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'roles.dart';
 import 'wilayas.dart';
 import 'student_space.dart';
@@ -305,7 +306,7 @@ class _AttestationReviewScreenState extends State<AttestationReviewScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
             child: Text(tr('Delete')),
           ),
         ],
@@ -374,7 +375,7 @@ class _AttestationReviewScreenState extends State<AttestationReviewScreen> {
             const SizedBox(height: 12),
             TextButton(
               onPressed: busy ? null : reject,
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
               child: Text(tr('Reject with a note')),
             ),
           ],
@@ -389,7 +390,7 @@ class _AttestationReviewScreenState extends State<AttestationReviewScreen> {
             const SizedBox(height: 12),
             TextButton.icon(
               onPressed: busy ? null : deletePassport,
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
               icon: const Icon(Icons.delete_forever),
               label: Text(tr('Delete passport scan now')),
             ),
@@ -737,7 +738,7 @@ class _CompileResultsScreenState extends State<CompileResultsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Text(tr('Could not build: {error}', {'error': error}),
-                  style: const TextStyle(color: Colors.red)),
+                  style: const TextStyle(color: AppColors.cancelled)),
             ),
         ],
       ),
