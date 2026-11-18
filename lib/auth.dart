@@ -7,6 +7,8 @@ import 'config.dart';
 import 'push.dart';
 import 'profile_setup.dart';
 import 'email_code.dart';
+import 'app_theme.dart';
+import 'sky_background.dart';
 import 'legal.dart';
 import 'l10n.dart';
 
@@ -232,122 +234,239 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  // A text field with a round blue icon at the start.
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscure = false,
+    TextInputType? keyboard,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboard,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 8, end: 8),
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.sky,
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 40),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isSignUp ? tr('Create account') : tr('Log in')),
-        actions: [LanguageMenuButton(onChanged: () => setState(() {}))],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ListView(
-          children: [
-            if (isSignUp) ...[
-              TextField(
-                controller: fullNameController,
-                decoration: InputDecoration(labelText: tr('Full name')),
-              ),
-              const SizedBox(height: 12),
-            ],
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(labelText: tr('Email')),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: passwordController,
-              decoration: InputDecoration(labelText: tr('Password')),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            if (errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(errorMessage!,
-                    style: const TextStyle(color: Colors.red)),
-              ),
-            if (!isSignUp)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                value: rememberMe,
-                onChanged: (v) => setState(() => rememberMe = v ?? false),
-                title: Text(tr('Remember me')),
-                subtitle: Text(tr('Only your email is remembered, on this phone.')),
-              ),
-            if (emailNotConfirmed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: OutlinedButton(
-                  onPressed: loading ? null : resendConfirmation,
-                  child: Text(tr('Send me a new code')),
+      body: SkyBackground(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.l, vertical: AppSpace.l),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          iconTheme: const IconThemeData(color: Colors.white),
+                        ),
+                        child: IconTheme(
+                          data: const IconThemeData(color: Colors.white),
+                          child: LanguageMenuButton(
+                              onChanged: () => setState(() {})),
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      'UniBridge',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.l),
+                    AppCard(
+                      padding: const EdgeInsets.all(AppSpace.xl),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            isSignUp ? tr('Create account') : tr('Log In'),
+                            style: const TextStyle(
+                                fontSize: 28, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: AppSpace.xs),
+                          Text(
+                            isSignUp
+                                ? tr('Join UniBridge today.')
+                                : tr('Glad to see you again.'),
+                            style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant),
+                          ),
+                          const SizedBox(height: AppSpace.xl),
+                          if (isSignUp) ...[
+                            _field(
+                              controller: fullNameController,
+                              label: tr('Full name'),
+                              icon: Icons.person,
+                            ),
+                            const SizedBox(height: AppSpace.m),
+                          ],
+                          _field(
+                            controller: emailController,
+                            label: tr('Email'),
+                            icon: Icons.email,
+                            keyboard: TextInputType.emailAddress,
+                          ),
+                          const SizedBox(height: AppSpace.m),
+                          _field(
+                            controller: passwordController,
+                            label: tr('Password'),
+                            icon: Icons.lock,
+                            obscure: true,
+                          ),
+                          if (!isSignUp) ...[
+                            const SizedBox(height: AppSpace.s),
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: rememberMe,
+                                  onChanged: (v) =>
+                                      setState(() => rememberMe = v ?? false),
+                                ),
+                                Expanded(
+                                  child: Text(tr('Remember me'),
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                                TextButton(
+                                  onPressed: loading ? null : forgotPassword,
+                                  child: Text(tr('Forgot password?')),
+                                ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(
+                                  start: AppSpace.m),
+                              child: Text(
+                                tr('Only your email is remembered, on this phone.'),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpace.l),
+                          if (errorMessage != null)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: AppSpace.m),
+                              child: Text(errorMessage!,
+                                  style: const TextStyle(
+                                      color: AppColors.cancelled)),
+                            ),
+                          if (emailNotConfirmed)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: AppSpace.m),
+                              child: OutlinedButton(
+                                onPressed: loading ? null : resendConfirmation,
+                                child: Text(tr('Send me a new code')),
+                              ),
+                            ),
+                          ElevatedButton(
+                            onPressed: loading ? null : submit,
+                            child: Text(loading
+                                ? tr('Please wait...')
+                                : (isSignUp ? tr('Sign up') : tr('Log In'))),
+                          ),
+                          const SizedBox(height: AppSpace.l),
+                          Row(
+                            children: [
+                              const Expanded(child: Divider()),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpace.m),
+                                child: Text(tr('OR')),
+                              ),
+                              const Expanded(child: Divider()),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpace.l),
+                          OutlinedButton.icon(
+                            onPressed: loading ? null : signInWithGoogle,
+                            icon: const Icon(Icons.login),
+                            label: Text(tr('Continue with Google')),
+                          ),
+                          const SizedBox(height: AppSpace.s),
+                          Center(
+                            child: TextButton(
+                              onPressed: () => setState(() {
+                                isSignUp = !isSignUp;
+                                errorMessage = null;
+                                emailNotConfirmed = false;
+                              }),
+                              child: Text(isSignUp
+                                  ? tr('Already have an account? Log in')
+                                  : tr("Don't have an account? Sign up")),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.l),
+                    Text(
+                      tr('By continuing, you agree to our Terms of use and Privacy policy.'),
+                      textAlign: TextAlign.center,
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.white),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                              foregroundColor: Colors.white),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const LegalScreen()),
+                          ),
+                          child: Text(tr('Terms of use')),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                              foregroundColor: Colors.white),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const LegalScreen(initialTab: 1)),
+                          ),
+                          child: Text(tr('Privacy policy')),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ElevatedButton(
-              onPressed: loading ? null : submit,
-              child: Text(loading
-                  ? tr('Please wait...')
-                  : (isSignUp ? tr('Sign up') : tr('Log in'))),
             ),
-            if (!isSignUp)
-              TextButton(
-                onPressed: loading ? null : forgotPassword,
-                child: Text(tr('Forgot password?')),
-              ),
-            TextButton(
-              onPressed: () => setState(() {
-                isSignUp = !isSignUp;
-                errorMessage = null;
-                emailNotConfirmed = false;
-              }),
-              child: Text(isSignUp
-                  ? tr('Already have an account? Log in')
-                  : tr('New here? Create an account')),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(tr('OR')),
-                ),
-                Expanded(child: Divider()),
-              ],
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed: loading ? null : signInWithGoogle,
-              icon: const Icon(Icons.login),
-              label: Text(tr('Continue with Google')),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              tr('By continuing, you agree to our Terms of use and Privacy policy.'),
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LegalScreen()),
-                  ),
-                  child: Text(tr('Terms of use')),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const LegalScreen(initialTab: 1)),
-                  ),
-                  child: Text(tr('Privacy policy')),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );

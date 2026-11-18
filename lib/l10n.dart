@@ -1183,4 +1183,12 @@ const Map<String, String> _t = {
       "Se souvenir de moi",
   'Only your email is remembered, on this phone.':
       "Seul votre e-mail est mémorisé, sur ce téléphone.",
+  'Log In':
+      "Connexion",
+  'Glad to see you again.':
+      "Ravi de vous revoir.",
+  'Join UniBridge today.':
+      "Rejoignez UniBridge dès aujourd'hui.",
+  "Don't have an account? Sign up":
+      "Pas encore de compte ? Inscrivez-vous",
 };
