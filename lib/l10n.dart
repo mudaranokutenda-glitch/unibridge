@@ -1,6 +1,7 @@
 import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'startup_sound.dart';
 
 // ---------------- Languages (English, French) + theme ----------------
 //
@@ -115,6 +116,17 @@ class SettingsSection extends StatelessWidget {
               onChanged: (v) {
                 if (v != null) AppSettings.setThemeMode(v);
               },
+            ),
+          ),
+          // Plays assets/sounds/startup.mp3 once when the app opens (never on silent).
+          ValueListenableBuilder<bool>(
+            valueListenable: StartupSound.enabled,
+            builder: (context, on, _) => SwitchListTile(
+              secondary: const Icon(Icons.volume_up_outlined),
+              title: Text(tr('Startup sound')),
+              subtitle: Text(tr('Plays when the app opens, never on silent.')),
+              value: on,
+              onChanged: (v) => StartupSound.setEnabled(v),
             ),
           ),
         ],
@@ -1203,4 +1215,8 @@ const Map<String, String> _t = {
       "Sans dossier",
   'Students per wilaya':
       "Étudiants par wilaya",
+  'Startup sound':
+      "Son de démarrage",
+  'Plays when the app opens, never on silent.':
+      "Joué à l'ouverture de l'application, jamais en mode silencieux.",
 };

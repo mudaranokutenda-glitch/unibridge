@@ -7,8 +7,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'config.dart';
 import 'push.dart';
-import 'auth.dart';
-import 'profile_setup.dart';
+import 'intro.dart';
+import 'startup_sound.dart';
 import 'l10n.dart';
 import 'app_theme.dart';
 import 'app_icons.dart';
@@ -29,6 +29,7 @@ Future<void> main() async {
 
   await AppSettings.load();
   await AppAssets.load();
+  await StartupSound.load();
 
   runApp(const UniBridgeApp());
 }
@@ -51,9 +52,8 @@ class UniBridgeApp extends StatelessWidget {
           locale: Locale(language),
           supportedLocales: const [Locale('en'), Locale('fr')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          home: supabase.auth.currentSession == null
-              ? const AuthScreen()
-              : const ProfileGate(),
+          // The intro (about 1.5 seconds) then goes to the login or the home screen.
+          home: const IntroScreen(),
         ),
       ),
     );
