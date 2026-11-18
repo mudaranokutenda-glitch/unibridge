@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
@@ -13,6 +14,7 @@ import 'staff_tools.dart';
 import 'notifications.dart';
 import 'posters.dart';
 import 'request_row.dart';
+import 'bottom_bar.dart';
 import 'l10n.dart';
 
 // ---------------- Home: bottom navigation with 4 tabs ----------------
@@ -27,15 +29,28 @@ class _HomeScreenState extends State<HomeScreen> {
   int tab = 0;
   // Bumped each time the Marketplace tab is opened (it then reloads).
   final marketplaceReload = ValueNotifier<int>(0);
+  // Bumped after a new request was made (the Requests tab then reloads).
+  final requestsReload = ValueNotifier<int>(0);
 
   void selectTab(int i) {
     setState(() => tab = i);
     if (i == 1) marketplaceReload.value++;
   }
 
+  // The round "+" in the middle of the bottom bar.
+  Future<void> openNewRequest() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => CreateRequestScreen()),
+    );
+    if (!mounted) return;
+    selectTab(0);
+    requestsReload.value++;
+  }
+
   @override
   void dispose() {
     marketplaceReload.dispose();
+    requestsReload.dispose();
     super.dispose();
   }
 
@@ -63,7 +78,9 @@ class _HomeScreenState extends State<HomeScreen> {
             index: tab,
             children: [
               // Tapping my profile bar on the Requests tab opens the Profile tab.
-              OpenRequestsScreen(onOpenProfile: () => selectTab(3)),
+              OpenRequestsScreen(
+                  onOpenProfile: () => selectTab(3),
+                  reloadSignal: requestsReload),
               MarketplaceScreen(reloadSignal: marketplaceReload),
               const StudentSpaceScreen(),
               const EditMyProfileScreen(),
@@ -71,31 +88,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: selectTab,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.swap_horiz),
-            label: tr('Requests'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.storefront_outlined),
-            selectedIcon: Icon(Icons.storefront),
-            label: tr('Marketplace'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.school_outlined),
-            selectedIcon: Icon(Icons.school),
-            label: tr('Student space'),
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: tr('Profile'),
-          ),
-        ],
-      ),
+      floatingActionButton: NewRequestButton(onPressed: openNewRequest),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar:
+          AppBottomBar(selectedIndex: tab, onSelect: selectTab),
     );
   }
 }
@@ -104,7 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class OpenRequestsScreen extends StatefulWidget {
   final VoidCallback? onOpenProfile;
-  const OpenRequestsScreen({super.key, this.onOpenProfile});
+  final ValueListenable<int>? reloadSignal;
+  const OpenRequestsScreen({super.key, this.onOpenProfile, this.reloadSignal});
   @override
   State<OpenRequestsScreen> createState() => _OpenRequestsScreenState();
 }
@@ -230,6 +227,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     loadRequests();
+    widget.reloadSignal?.addListener(reloadFromSignal);
     // An emergency alert arrived while the app is open: show the banner.
     onEmergencyAlertReceived = () => reloadSoon();
     requestsChannel = supabase
@@ -264,8 +262,11 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
     if (state == AppLifecycleState.resumed) reloadSoon();
   }
 
+  void reloadFromSignal() => loadRequests(quiet: true);
+
   @override
   void dispose() {
+    widget.reloadSignal?.removeListener(reloadFromSignal);
     WidgetsBinding.instance.removeObserver(this);
     onEmergencyAlertReceived = null;
     reloadTimer?.cancel();
@@ -388,15 +389,6 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
           ),
           Expanded(child: requestList()),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => CreateRequestScreen()),
-          );
-          loadRequests();
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }
