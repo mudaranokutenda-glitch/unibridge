@@ -100,9 +100,20 @@
 - [x] N10. SQL tests: sql/tests/2026-11-18-01-settings-expiry-notifications-tests.sql.
 - [ ] N11. (YOU) Set the Supabase dashboard settings (REPORT.md, "Valid emails only"), run the four SQL files 20 to 23, run the new test file, then test with TESTING.md part N.
 
+## D2. Sky-blue design round (built on branch pending-builds-2, check on a phone)
+- [x] D0. Theme file lib/app_theme.dart: colours, radii, spacing, light and dark. System font.
+- [x] D1. Login and sign-up: sky-blue gradient with clouds (CustomPaint), white card, round blue icons.
+- [x] D2. Bottom bar with a raised round "+" (new request): Requests, Marketplace, [+], Student space, Profile. The old floating + is gone.
+- [x] D3. Icons: assets/icons/rates.png, marketplace.png, student_space.png, profile.png (PNG, 128x128, transparent) when they exist, otherwise Material icons. See assets/icons/README.txt.
+- [x] D4. Student space home: header with photo and name, large rounded cards, extra cards for staff and Governors.
+- [x] D5. Dashboards: big number cards and a bar per wilaya (no chart package). "With results" is not shown: it needs a new SQL function.
+- [x] D6. Native splash config (plain sky blue until a logo is added), animated intro (1.5 s), optional startup sound with a switch in Profile. Packages added: audioplayers, flutter_native_splash (dev).
+- [x] D7. The same colours everywhere (gold verified, red cancelled, grey expired), rounder chat bubbles and posters.
+- [ ] D8. (YOU) Run it on a phone and tell me what looks wrong. Add your files: assets/logo/logo.png, assets/sounds/startup.mp3, assets/icons/*.png (see the README.txt in each folder), then run "dart run flutter_native_splash:create".
+
 ## F. Before launch
-- [ ] F5. Polish marketplace, chat and other screens. WAIT for my design brief.
-- [ ] F6. New look (colours, fonts, icons): WAIT for my design brief.
+- [x] F5. Polish marketplace, chat and other screens (built, see section D2 below).
+- [x] F6. New look: sky-blue theme, system font (built, see section D2 below). Own fonts and the PNG icons are still to come.
 - [ ] F8. Before real students use it: upgrade Supabase to Pro (no pausing, 100 GB storage). Turn on two-step login for my GitHub, Supabase, Firebase and Google accounts.
 
 ## H. Launch checklist
