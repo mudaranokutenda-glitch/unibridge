@@ -1197,4 +1197,10 @@ const Map<String, String> _t = {
       "Administrateur",
   'Student':
       "Étudiant",
+  'With a record':
+      "Avec dossier",
+  'Without a record':
+      "Sans dossier",
+  'Students per wilaya':
+      "Étudiants par wilaya",
 };

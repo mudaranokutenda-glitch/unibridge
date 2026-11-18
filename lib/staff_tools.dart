@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'roles.dart';
 import 'staff.dart';
 import 'student_info.dart';
@@ -284,11 +285,108 @@ class _StudentsDashboardScreenState extends State<StudentsDashboardScreen> {
 
   int n(dynamic v) => int.tryParse('$v') ?? 0;
 
+  // A summary card with a big number.
+  Widget bigNumber(String label, int value, {Color? color, bool large = false}) {
+    final scheme = Theme.of(context).colorScheme;
+    final c = color ?? scheme.primary;
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpace.l),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSpace.xs),
+          Text('$value',
+              style: TextStyle(
+                  fontSize: large ? 44 : 32, fontWeight: FontWeight.w800, color: c)),
+        ],
+      ),
+    );
+  }
+
+  // One wilaya: its name, a horizontal bar and the number of students.
+  // The solid part of the bar = students with a record, the pale part = without.
+  Widget wilayaBar(Map<String, dynamic> r, int biggest) {
+    final scheme = Theme.of(context).colorScheme;
+    final students = n(r['students']);
+    final withRecord = n(r['with_record']).clamp(0, students);
+    final whole = biggest == 0 ? 0.0 : students / biggest;
+    final solid = biggest == 0 ? 0.0 : withRecord / biggest;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('${r['wilaya']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              Text('$students',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          LayoutBuilder(
+            builder: (context, box) => Stack(
+              children: [
+                Container(
+                  height: 12,
+                  width: box.maxWidth,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                Container(
+                  height: 12,
+                  width: box.maxWidth * whole,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                Container(
+                  height: 12,
+                  width: box.maxWidth * solid,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget legendDot(Color color, String text) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+          Text(text, style: const TextStyle(fontSize: 12)),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
     final total = rows.fold<int>(0, (a, r) => a + n(r['students']));
     final withRecord = rows.fold<int>(0, (a, r) => a + n(r['with_record']));
+    final without = total - withRecord;
     final scheme = Theme.of(context).colorScheme;
+    // Biggest wilaya first. A Governor gets only their own wilaya from the database.
+    final sorted = [...rows]..sort((a, b) => n(b['students']).compareTo(n(a['students'])));
+    final biggest = sorted.isEmpty ? 0 : n(sorted.first['students']);
     return Scaffold(
       appBar: AppBar(title: Text(tr('Dashboard'))),
       body: loading
@@ -296,38 +394,51 @@ class _StudentsDashboardScreenState extends State<StudentsDashboardScreen> {
           : RefreshIndicator(
               onRefresh: load,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpace.screen, AppSpace.s, AppSpace.screen, AppSpace.xxl),
                 children: [
-                  Card(
-                    color: scheme.primaryContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(tr('Total students'),
-                              style: TextStyle(color: scheme.onPrimaryContainer)),
-                          Text('$total',
-                              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                                  color: scheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.bold)),
-                          Text(tr('{count} with a student record', {'count': withRecord}),
-                              style: TextStyle(color: scheme.onPrimaryContainer)),
-                        ],
-                      ),
+                  bigNumber(tr('Total students'), total, large: true),
+                  const SizedBox(height: AppSpace.m),
+                  Row(
+                    children: [
+                      Expanded(
+                          child: bigNumber(tr('With a record'), withRecord,
+                              color: AppColors.success)),
+                      const SizedBox(width: AppSpace.m),
+                      Expanded(
+                          child: bigNumber(tr('Without a record'), without,
+                              color: AppColors.warning)),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpace.l),
+                  AppCard(
+                    padding: const EdgeInsets.all(AppSpace.l),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('Students per wilaya'),
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: AppSpace.s),
+                        Wrap(
+                          spacing: AppSpace.l,
+                          children: [
+                            legendDot(scheme.primary, tr('With a record')),
+                            legendDot(scheme.primary.withValues(alpha: 0.3),
+                                tr('Without a record')),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpace.s),
+                        if (sorted.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: AppSpace.l),
+                            child: Center(child: Text(tr('No students.'))),
+                          ),
+                        for (final r in sorted) wilayaBar(r, biggest),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  if (rows.isEmpty) Center(child: Text(tr('No students.'))),
-                  for (final r in rows)
-                    ListTile(
-                      title: Text('${r['wilaya']}'),
-                      subtitle: Text(tr('{count} with a student record',
-                          {'count': n(r['with_record'])})),
-                      trailing: Text('${n(r['students'])}',
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
                 ],
               ),
             ),
