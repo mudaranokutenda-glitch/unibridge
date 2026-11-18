@@ -5,6 +5,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
+import 'app_theme.dart';
+import 'profiles.dart';
+import 'staff.dart';
 import 'consent.dart';
 import 'members.dart';
 import 'staff_tools.dart';
@@ -91,6 +94,8 @@ class StudentSpaceScreen extends StatefulWidget {
 class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
   DateTime? consentDate;
   MyRole role = MyRole.student;
+  Map<String, dynamic>? me; // my public profile (name and photo for the header)
+  String? attestationStatus; // status of my latest attestation request
 
   @override
   void initState() {
@@ -98,6 +103,31 @@ class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
     loadConsent();
     loadMyRole().then((r) {
       if (mounted) setState(() => role = r);
+    });
+    loadHeader();
+  }
+
+  // The header (name, photo) and the attestation status shown on its card.
+  Future<void> loadHeader() async {
+    final myId = supabase.auth.currentUser?.id;
+    if (myId == null) return;
+    final profiles = await fetchPublicProfiles([myId]);
+    String? status;
+    try {
+      final rows = await supabase
+          .from('attestation_requests')
+          .select('status')
+          .eq('user_id', myId)
+          .order('created_at', ascending: false)
+          .limit(1);
+      if ((rows as List).isNotEmpty) status = '${rows.first['status']}';
+    } catch (e) {
+      debugPrint('Could not load the attestation status: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      me = profiles[myId];
+      attestationStatus = status;
     });
   }
 
@@ -113,6 +143,7 @@ class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
   void open(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
     loadConsent();
+    loadHeader();
   }
 
   @override
@@ -122,91 +153,225 @@ class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
     return MembershipGate(child: _spaceHome());
   }
 
-  Widget _spaceHome() {
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('Student space'))),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+  // ---- The home of the Student space: a header and large rounded cards ----
+
+  String roleLabel() {
+    if (role.isStaff) {
+      return role.role == 'admin' ? tr('Administrator') : tr('Educational Attaché');
+    }
+    if (role.isRep) return tr('Governor of {wilaya}', {'wilaya': role.repWilaya});
+    return tr('Student');
+  }
+
+  Widget header() {
+    final scheme = Theme.of(context).colorScheme;
+    final name = me == null ? '' : publicDisplayName(me!);
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpace.l),
+      child: Row(
         children: [
-          if (role.canSeeStudents) ...[
-            ListTile(
-              leading: const Icon(Icons.how_to_reg_outlined),
-              title: Text(tr('Join requests')),
-              subtitle: Text(tr('Approve new members of the student space')),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => open(const JoinRequestsScreen()),
+          avatar(me, radius: 32),
+          const SizedBox(width: AppSpace.l),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isEmpty ? tr('UniBridge user') : name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  roleLabel(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ],
             ),
-            if (role.isStaff)
-              ListTile(
-                leading: const Icon(Icons.history),
-                title: Text(tr('Recent access')),
-                subtitle: Text(tr('Who opened student information')),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => open(const RecentAccessScreen()),
-              ),
-            const Divider(),
-          ],
-          ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: Text(tr('My student record')),
-            subtitle: Text(tr('Program, level, year, wilaya')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => open(const StudentRecordScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: Text(tr('My results')),
-            subtitle: Text(tr('Upload your results (PDF)')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => open(const MyResultsScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.workspace_premium_outlined),
-            title: Text(tr('Attestation de bourse')),
-            subtitle: Text(tr('Ask for it and download it')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => open(const AttestationScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.event_outlined),
-            title: Text(tr('Appointments')),
-            subtitle: Text(tr('Meet the Educational Attaché')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => open(const AppointmentsScreen()),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.contact_phone_outlined),
-            title: Text(tr('Contacts')),
-            subtitle: Text(tr('The Educational Attaché and your Governor')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => open(const ContactsScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.menu_book_outlined),
-            title: Text(tr('Guide for new students')),
-            subtitle: Text(tr('Police, bank, bourse, medical')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => open(const GuideScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: Text(tr('Help')),
-            subtitle: Text(tr('Frequently asked questions')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => open(const HelpScreen()),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined),
-            title: Text(tr('Who can see my documents')),
-            subtitle: Text(consentDate == null
-                ? tr('You will be asked before your first upload.')
-                : tr('You agreed on {date}.',
-                    {'date': shortDate(consentDate!.toIso8601String())})),
-            onTap: () => open(const ConsentScreen()),
           ),
         ],
+      ),
+    );
+  }
+
+  // One large card: a round coloured icon, a title and a short line.
+  Widget spaceCard(IconData icon, String title, String? subtitle, Widget screen,
+      {Color? color}) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      onTap: () => open(screen),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconCircle(icon: icon, size: 46, color: color),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget cardGrid(List<Widget> cards) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: AppSpace.m,
+        crossAxisSpacing: AppSpace.m,
+        mainAxisExtent: 156,
+      ),
+      itemCount: cards.length,
+      itemBuilder: (context, i) => cards[i],
+    );
+  }
+
+  Widget sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpace.xs, AppSpace.xl, 0, AppSpace.s),
+        child: Text(text,
+            style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.primary)),
+      );
+
+  Widget _spaceHome() {
+    const violet = Color(0xFF8E6CF2);
+    const teal = Color(0xFF00A3BF);
+    final attestationLine = attestationStatus == null
+        ? tr('Ask for it and download it')
+        : tr(kAttestationStatus[attestationStatus] ?? attestationStatus!);
+
+    // Extra cards for staff and Governors (the same screens as in the Profile tab).
+    // Hiding a card is not the security: the database checks the role again.
+    final extra = <Widget>[
+      if (role.canSeeStudents)
+        spaceCard(Icons.how_to_reg_outlined, tr('Join requests'),
+            tr('Approve new members of the student space'), const JoinRequestsScreen(),
+            color: AppColors.success),
+      if (role.isStaff)
+        spaceCard(Icons.person_search_outlined, tr('Search students'), null,
+            const StaffSearchScreen()),
+      if (role.isRep)
+        spaceCard(Icons.groups_outlined, tr('Students'), null,
+            StudentsScreen(role: role)),
+      if (role.isStaff)
+        spaceCard(Icons.table_chart_outlined, tr('Final list of students'), null,
+            const FinalListScreen(),
+            color: teal),
+      if (role.canSeeStudents)
+        spaceCard(Icons.bar_chart_outlined, tr('Dashboard'), null,
+            const StudentsDashboardScreen(),
+            color: violet),
+      if (role.isRep)
+        spaceCard(Icons.fact_check_outlined, tr('Results tracker'), null,
+            const ResultsTrackerScreen(),
+            color: teal),
+      if (role.isStaff)
+        spaceCard(Icons.history, tr('Recent access'),
+            tr('Who opened student information'), const RecentAccessScreen(),
+            color: AppColors.warning),
+      if (role.isStaff)
+        spaceCard(Icons.campaign_outlined, tr('Emergency alert'), null,
+            const EmergencyAlertScreen(),
+            color: AppColors.cancelled),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Student space'))),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await loadHeader();
+          await loadConsent();
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpace.screen, AppSpace.s, AppSpace.screen, AppSpace.xxl),
+          children: [
+            header(),
+            const SizedBox(height: AppSpace.l),
+            cardGrid([
+              spaceCard(Icons.badge_outlined, tr('My student record'),
+                  tr('Program, level, year, wilaya'), const StudentRecordScreen()),
+              spaceCard(Icons.description_outlined, tr('My results'),
+                  tr('Upload your results (PDF)'), const MyResultsScreen(),
+                  color: AppColors.success),
+              spaceCard(Icons.workspace_premium_outlined, tr('Attestation de bourse'),
+                  attestationLine, const AttestationScreen(),
+                  color: AppColors.verified),
+              spaceCard(Icons.event_outlined, tr('Appointments'),
+                  tr('Meet the Educational Attaché'), const AppointmentsScreen(),
+                  color: violet),
+              spaceCard(Icons.contact_phone_outlined, tr('Contacts'),
+                  tr('The Educational Attaché and your Governor'),
+                  const ContactsScreen(),
+                  color: teal),
+              spaceCard(Icons.menu_book_outlined, tr('Guide for new students'),
+                  tr('Police, bank, bourse, medical'), const GuideScreen(),
+                  color: AppColors.warning),
+              spaceCard(Icons.help_outline, tr('Help'),
+                  tr('Frequently asked questions'), const HelpScreen()),
+            ]),
+            if (extra.isNotEmpty) ...[
+              sectionTitle(tr('Staff tools')),
+              cardGrid(extra),
+            ],
+            const SizedBox(height: AppSpace.l),
+            AppCard(
+              onTap: () => open(const ConsentScreen()),
+              child: Row(
+                children: [
+                  const IconCircle(icon: Icons.privacy_tip_outlined, size: 40),
+                  const SizedBox(width: AppSpace.m),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('Who can see my documents'),
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(
+                          consentDate == null
+                              ? tr('You will be asked before your first upload.')
+                              : tr('You agreed on {date}.', {
+                                  'date': shortDate(consentDate!.toIso8601String())
+                                }),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

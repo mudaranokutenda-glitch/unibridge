@@ -1191,4 +1191,10 @@ const Map<String, String> _t = {
       "Rejoignez UniBridge dès aujourd'hui.",
   "Don't have an account? Sign up":
       "Pas encore de compte ? Inscrivez-vous",
+  'Staff tools':
+      "Outils du personnel",
+  'Administrator':
+      "Administrateur",
+  'Student':
+      "Étudiant",
 };
