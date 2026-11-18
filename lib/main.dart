@@ -10,6 +10,7 @@ import 'push.dart';
 import 'auth.dart';
 import 'profile_setup.dart';
 import 'l10n.dart';
+import 'app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,14 +43,8 @@ class UniBridgeApp extends StatelessWidget {
         valueListenable: AppSettings.themeMode,
         builder: (context, themeMode, _) => MaterialApp(
           title: 'UniBridge',
-          theme: ThemeData(
-            colorSchemeSeed: Colors.teal,
-            brightness: Brightness.light,
-          ),
-          darkTheme: ThemeData(
-            colorSchemeSeed: Colors.teal,
-            brightness: Brightness.dark,
-          ),
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
           themeMode: themeMode,
           locale: Locale(language),
           supportedLocales: const [Locale('en'), Locale('fr')],
