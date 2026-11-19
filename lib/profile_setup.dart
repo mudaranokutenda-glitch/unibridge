@@ -11,15 +11,52 @@ import 'l10n.dart';
 
 // ---------------- Profile photo (shared with the My profile screen) ----------
 
-// Opens the gallery. Returns the photo, or null if nothing was chosen.
-Future<Uint8List?> pickProfilePhotoBytes() async {
-  final picked = await ImagePicker().pickImage(
-    source: ImageSource.gallery,
-    imageQuality: 70,
-    maxWidth: 600,
+// Asks "Take a photo" or "Choose from gallery", then opens it.
+// Returns the photo, or null if nothing was chosen.
+Future<Uint8List?> pickProfilePhotoBytes(BuildContext context) async {
+  final source = await showModalBottomSheet<ImageSource>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(tr('Profile photo'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: Text(tr('Take a photo')),
+            onTap: () => Navigator.of(context).pop(ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: Text(tr('Choose from gallery')),
+            onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
   );
-  if (picked == null) return null;
-  return picked.readAsBytes();
+  if (source == null) return null;
+  try {
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 800,
+      preferredCameraDevice: CameraDevice.front,
+    );
+    if (picked == null) return null;
+    return picked.readAsBytes();
+  } catch (e) {
+    debugPrint('Could not open the camera / gallery: $e');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('Could not open the camera or the gallery.'))));
+    }
+    return null;
+  }
 }
 
 // Uploads the photo and returns its public link (for profile_picture_url).
@@ -268,7 +305,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       !saving;
 
   Future<void> pickPhoto() async {
-    final bytes = await pickProfilePhotoBytes();
+    final bytes = await pickProfilePhotoBytes(context);
     if (bytes != null && mounted) setState(() => newPhotoBytes = bytes);
   }
 

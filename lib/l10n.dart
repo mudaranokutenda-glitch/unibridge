@@ -1405,4 +1405,15 @@ const Map<String, String> _t = {
       "Application",
   'Privacy':
       "Confidentialité",
+  // Photo picker (2026-11-19)
+  'Profile photo':
+      "Photo de profil",
+  'Take a photo':
+      "Prendre une photo",
+  'Choose from gallery':
+      "Choisir dans la galerie",
+  'Could not open the camera or the gallery.':
+      "Impossible d'ouvrir l'appareil photo ou la galerie.",
+  'Photo updated.':
+      "Photo mise à jour.",
 };

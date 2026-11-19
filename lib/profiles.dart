@@ -116,8 +116,13 @@ class ProfileHero extends StatelessWidget {
   final Map<String, dynamic>? profile;
   final Uint8List? newPhoto; // a photo picked but not saved yet
   final VoidCallback? onTapPhoto; // null = the photo cannot be changed here
+  final bool photoBusy; // true while a new photo is uploading
   const ProfileHero(
-      {super.key, required this.profile, this.newPhoto, this.onTapPhoto});
+      {super.key,
+      required this.profile,
+      this.newPhoto,
+      this.onTapPhoto,
+      this.photoBusy = false});
 
   Widget _stat(String value, String label, {Color color = Colors.white}) {
     return Expanded(
@@ -191,7 +196,22 @@ class ProfileHero extends StatelessWidget {
                     ),
                     child: photo,
                   ),
-                  if (onTapPhoto != null)
+                  if (photoBusy)
+                    const Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                            color: Colors.black38, shape: BoxShape.circle),
+                        child: Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 3, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (onTapPhoto != null && !photoBusy)
                     PositionedDirectional(
                       end: -2,
                       bottom: -2,
@@ -743,11 +763,42 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
   String? phone;
   MyRole role = MyRole.student;
   bool loading = true;
+  bool photoBusy = false;
 
   @override
   void initState() {
     super.initState();
     load();
+  }
+
+  // The camera badge on my photo: take / choose a photo and save it at once
+  // (no Save button to forget, so it is still there after closing the app).
+  Future<void> changePhotoNow() async {
+    if (photoBusy) return;
+    final bytes = await pickProfilePhotoBytes(context);
+    if (bytes == null || !mounted) return;
+    setState(() => photoBusy = true);
+    try {
+      final url = await uploadProfilePhoto(bytes);
+      await supabase
+          .from('profiles')
+          .update({'profile_picture_url': url})
+          .eq('id', supabase.auth.currentUser!.id);
+      await load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Photo updated.'))),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr('Could not save: {error}',
+                {'error': friendlyError(e, short: true)}))));
+      }
+    } finally {
+      if (mounted) setState(() => photoBusy = false);
+    }
   }
 
   Future<void> load() async {
@@ -820,7 +871,11 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
-                  ProfileHero(profile: me, onTapPhoto: openEditSheet),
+                  ProfileHero(
+                    profile: me,
+                    onTapPhoto: changePhotoNow,
+                    photoBusy: photoBusy,
+                  ),
                   const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -935,7 +990,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   }
 
   Future<void> pickPhoto() async {
-    final bytes = await pickProfilePhotoBytes();
+    final bytes = await pickProfilePhotoBytes(context);
     if (bytes != null && mounted) setState(() => newPhotoBytes = bytes);
   }
 
