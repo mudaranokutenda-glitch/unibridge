@@ -67,15 +67,19 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
         padding: const EdgeInsets.all(24),
         child: ListView(
           children: [
-            Text(tr('What do you want to do?')),
+            Text(tr('Who are you looking for?'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700)),
             RadioListTile<String>(
-              title: Text(tr('I want to SEND money')),
+              title: Text(tr('Anyone who wants to receive')),
+              subtitle: Text(tr('I send the money')),
               value: 'SEND',
               groupValue: type,
               onChanged: (v) => setState(() => type = v!),
             ),
             RadioListTile<String>(
-              title: Text(tr('I want to RECEIVE money')),
+              title: Text(tr('Anyone who wants to send')),
+              subtitle: Text(tr('I receive the money')),
               value: 'RECEIVE',
               groupValue: type,
               onChanged: (v) => setState(() => type = v!),
@@ -260,8 +264,8 @@ Widget myRequestRow(
             ? tr('Waiting for someone to match')
             : tr('UniBridge user'),
     subtitle: other == null
-        ? typeLabel(r['type'])
-        : [typeLabel(r['type']), ratingText(other), completedText(other)]
+        ? requestHeadline(r, withAmount: false)
+        : [requestHeadline(r, withAmount: false), ratingText(other), completedText(other)]
             .join(' · '),
     amount: formatAmount(r['amount'], r['currency']),
     status: requestStatusText(r),

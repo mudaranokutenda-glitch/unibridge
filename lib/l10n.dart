@@ -1416,4 +1416,101 @@ const Map<String, String> _t = {
       "Impossible d'ouvrir l'appareil photo ou la galerie.",
   'Photo updated.':
       "Photo mise à jour.",
+  // Home, rates, staff hub, expiry (2026-11-19)
+  'Anyone to receive {amount}':
+      "Quelqu'un pour recevoir {amount}",
+  'Anyone to send {amount}':
+      "Quelqu'un pour envoyer {amount}",
+  'Anyone to receive':
+      "Quelqu'un pour recevoir",
+  'Anyone to send':
+      "Quelqu'un pour envoyer",
+  'Anyone who wants to receive':
+      "Quelqu'un qui veut recevoir",
+  'Anyone who wants to send':
+      "Quelqu'un qui veut envoyer",
+  'I send the money':
+      "J'envoie l'argent",
+  'I receive the money':
+      "Je reçois l'argent",
+  'Who are you looking for?':
+      "Qui cherchez-vous ?",
+  'New requests':
+      "Nouvelles demandes",
+  '{request}. A chat opens with this student. Only exchange money when you both agree.':
+      "{request}. Une discussion s'ouvre avec cet étudiant. N'échangez l'argent que lorsque vous êtes tous les deux d'accord.",
+  'Parallel':
+      "Parallèle",
+  'Official':
+      "Officiel",
+  'Staff hub':
+      "Espace équipe",
+  '{count} tools':
+      "{count} outils",
+  'Search a tool (attestation, alert, bank...)':
+      "Chercher un outil (attestation, alerte, banque...)",
+  'No tool matches "{q}".':
+      "Aucun outil ne correspond à « {q} ».",
+  'Clear':
+      "Effacer",
+  'Find a student by name or number':
+      "Trouver un étudiant par nom ou numéro",
+  'All students and their records':
+      "Tous les étudiants et leurs dossiers",
+  'Numbers per wilaya':
+      "Chiffres par wilaya",
+  'The list to export':
+      "La liste à exporter",
+  'Review and issue attestations':
+      "Vérifier et délivrer les attestations",
+  'Requests to meet the Attaché':
+      "Demandes de rendez-vous avec l'Attaché",
+  'Who opened which document':
+      "Qui a ouvert quel document",
+  'Urgent message to every student':
+      "Message urgent à tous les étudiants",
+  'Images on the home screen':
+      "Images sur l'écran d'accueil",
+  'Phone numbers of the Governors':
+      "Numéros des Gouverneurs",
+  'Contacts shown to students':
+      "Contacts affichés aux étudiants",
+  'Students of your wilaya':
+      "Étudiants de votre wilaya",
+  'Numbers for your wilaya':
+      "Chiffres de votre wilaya",
+  'Who sent their results':
+      "Qui a envoyé ses résultats",
+  'Students to remind':
+      "Étudiants à relancer",
+  'Opening one is recorded':
+      "Chaque ouverture est enregistrée",
+  'Phone numbers and emails':
+      "Numéros et e-mails",
+  'Documents':
+      "Documents",
+  'Communication':
+      "Communication",
+  'Money':
+      "Argent",
+  'Your request expired':
+      "Votre demande a expiré",
+  'Post the same request again?':
+      "Publier la même demande à nouveau ?",
+  '{request}. Post the same request again?':
+      "{request}. Publier la même demande à nouveau ?",
+  'No, thanks':
+      "Non, merci",
+  'Post again':
+      "Republier",
+  'Your request is posted again.':
+      "Votre demande est publiée à nouveau.",
+  'Your request expired. Tap to post it again.':
+      "Votre demande a expiré. Touchez pour la republier.",
+  'This is not your request':
+      "Ce n'est pas votre demande",
+  'Only an expired request can be posted again':
+      "Seule une demande expirée peut être republiée",
+  'You already posted this request again':
+      "Vous avez déjà republié cette demande",
 };

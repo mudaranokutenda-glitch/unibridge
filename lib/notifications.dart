@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'app_theme.dart';
 import 'requests.dart';
+import 'request_row.dart';
 import 'rates.dart';
 import 'student_space.dart';
 import 'student_info.dart';
@@ -151,6 +152,8 @@ IconData _notificationIcon(String type) {
       return Icons.how_to_reg_outlined;
     case 'APPOINTMENT_UPDATE':
       return Icons.event_outlined;
+    case 'REQUEST_EXPIRED':
+      return Icons.timer_off_outlined;
     default:
       return Icons.notifications_none;
   }
@@ -166,6 +169,8 @@ Color _notificationColor(String type) {
       return AppColors.cancelled;
     case 'VERIFIED_BADGE_AWARDED':
       return AppColors.verified;
+    case 'REQUEST_EXPIRED':
+      return AppColors.expired;
     default:
       return AppColors.sky;
   }
@@ -297,9 +302,69 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  // "Your request expired": show it and offer to post the same one again.
+  Future<void> askRepost(Map<String, dynamic> n) async {
+    final id = n['request_id']?.toString();
+    if (id == null) {
+      // An old notification without a link: just open My requests.
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const MyRequestsScreen()));
+      return;
+    }
+    Map<String, dynamic>? r;
+    try {
+      r = await supabase
+          .from('transaction_requests')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+    } catch (e) {
+      debugPrint('Could not load the expired request: $e');
+    }
+    if (!mounted) return;
+    final again = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.timer_off_outlined),
+        title: Text(tr('Your request expired')),
+        content: Text(r == null
+            ? tr('Post the same request again?')
+            : tr('{request}. Post the same request again?',
+                {'request': requestHeadline(r)})),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(tr('No, thanks')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(tr('Post again')),
+          ),
+        ],
+      ),
+    );
+    if (again != true || !mounted) return;
+    try {
+      await supabase.rpc('repost_expired_request', params: {'p_request_id': id});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('Your request is posted again.'))),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    }
+  }
+
   // Opens the screen that belongs to this notification. It stays in the list.
   Future<void> open(Map<String, dynamic> n) async {
     final type = '${n['type']}';
+    if (type == 'REQUEST_EXPIRED') {
+      await askRepost(n);
+      return;
+    }
     Widget? screen;
     switch (type) {
       case 'MATCH_FOUND':

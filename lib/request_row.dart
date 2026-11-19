@@ -79,14 +79,26 @@ String durationShort(Duration d) {
   return '${mins}m';
 }
 
-// The text shown instead of "Open" on an open request: "Expires in 1d 4h".
+// Status under the amount. The time left before expiry is NOT shown to
+// users (they get a notification when a request expires).
 String requestStatusText(Map<String, dynamic> r) {
   if (requestIsExpired(r)) return tr('Expired');
-  final left = requestTimeLeft(r);
-  if (left != null) {
-    return tr('Expires in {time}', {'time': durationShort(left)});
-  }
   return statusLabel(r['status']);
+}
+
+// What a request asks for, as people read it:
+//   the creator SENDS money    -> "Anyone to receive 30 USD"
+//   the creator RECEIVES money -> "Anyone to send 30 USD"
+String requestHeadline(Map<String, dynamic> r, {bool withAmount = true}) {
+  final amount = formatAmount(r['amount'], r['currency']);
+  if (r['type'] == 'SEND') {
+    return withAmount
+        ? tr('Anyone to receive {amount}', {'amount': amount})
+        : tr('Anyone to receive');
+  }
+  return withAmount
+      ? tr('Anyone to send {amount}', {'amount': amount})
+      : tr('Anyone to send');
 }
 
 // "50 USD" instead of "50.0 USD"
@@ -129,7 +141,9 @@ class RequestRow extends StatelessWidget {
   // Line 1 when there is no person (e.g. "Waiting for a match").
   final String? placeholderTitle;
   final String subtitle;
-  final String amount;
+  // Optional bold line under the name ("Anyone to receive 30 USD").
+  final String? headline;
+  final String amount; // '' = no amount column
   final String status;
   // Small button on the far end (Match / Cancel), optional.
   final Widget? action;
@@ -141,8 +155,9 @@ class RequestRow extends StatelessWidget {
     super.key,
     required this.person,
     required this.subtitle,
-    required this.amount,
-    required this.status,
+    this.headline,
+    this.amount = '',
+    this.status = '',
     this.placeholderIcon = Icons.person_outline,
     this.placeholderTitle,
     this.action,
@@ -203,6 +218,19 @@ class RequestRow extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                    if (headline != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        headline!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
@@ -213,6 +241,7 @@ class RequestRow extends StatelessWidget {
                   ],
                 ),
               ),
+              if (amount.isNotEmpty || status.isNotEmpty) ...[
               const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -235,6 +264,7 @@ class RequestRow extends StatelessWidget {
                   ),
                 ],
               ),
+              ],
               if (action != null) ...[const SizedBox(width: 8), action!],
             ],
           ),
@@ -327,7 +357,7 @@ class MyProfileBar extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: frameColor, width: 1.5),
+          side: BorderSide(color: frameColor, width: 3),
         ),
         child: InkWell(
           onTap: onTap,
@@ -341,7 +371,7 @@ class MyProfileBar extends StatelessWidget {
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: scheme.primary, width: 2),
+                    border: Border.all(color: frameColor, width: 3),
                   ),
                   child: avatar(p, radius: 18),
                 ),

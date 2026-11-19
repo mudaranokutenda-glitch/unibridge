@@ -16,6 +16,7 @@ import 'posters.dart';
 import 'request_row.dart';
 import 'bottom_bar.dart';
 import 'app_icons.dart';
+import 'app_theme.dart';
 import 'errors.dart';
 import 'l10n.dart';
 
@@ -123,104 +124,10 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
 
-  // Filters (null = all)
-  String? filterType;
-  String? filterCurrency;
-  String? filterWilaya;
-
+  // The wilaya of the person who posted the request ('' if unknown).
   String creatorWilaya(Map<String, dynamic> r) {
     final w = (profiles[r['creator_id']]?['wilaya'] ?? '').toString().trim();
     return w == 'OTHER' ? '' : w;
-  }
-
-  List<String> optionsOf(String Function(Map<String, dynamic>) read) {
-    final values = <String, String>{}; // lower case -> as written
-    for (final r in requests) {
-      final v = read(r).trim();
-      if (v.isNotEmpty) values.putIfAbsent(v.toLowerCase(), () => v);
-    }
-    return values.values.toList()..sort();
-  }
-
-  List<Map<String, dynamic>> get visibleRequests => requests.where((r) {
-        if (filterType != null && r['type'] != filterType) return false;
-        if (filterCurrency != null && r['currency'] != filterCurrency) {
-          return false;
-        }
-        if (filterWilaya != null &&
-            creatorWilaya(r).toLowerCase() != filterWilaya!.toLowerCase()) {
-          return false;
-        }
-        return true;
-      }).toList();
-
-  bool get hasFilters =>
-      filterType != null || filterCurrency != null || filterWilaya != null;
-
-  Widget filterDropdown({
-    required String label,
-    required String? value,
-    required Map<String, String> options, // value -> text shown
-    required ValueChanged<String?> onChanged,
-  }) {
-    // Keep the chosen value in the list even if no request uses it anymore
-    // (a dropdown crashes when its value is missing from the items).
-    if (value != null && !options.containsKey(value)) {
-      options = {...options, value: value};
-    }
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: 8),
-      child: DropdownButton<String?>(
-        value: value,
-        underline: const SizedBox.shrink(),
-        items: [
-          DropdownMenuItem<String?>(value: null, child: Text(tr('{label}: All', {'label': label}))),
-          for (final e in options.entries)
-            DropdownMenuItem<String?>(value: e.key, child: Text(e.value)),
-        ],
-        onChanged: onChanged,
-      ),
-    );
-  }
-
-  Widget filterBar() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsetsDirectional.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          filterDropdown(
-            label: tr('Type'),
-            value: filterType,
-            options: {'SEND': tr('Send'), 'RECEIVE': tr('Receive')},
-            onChanged: (v) => setState(() => filterType = v),
-          ),
-          filterDropdown(
-            label: tr('Currency'),
-            value: filterCurrency,
-            options: {
-              for (final c in optionsOf((r) => '${r['currency'] ?? ''}')) c: c
-            },
-            onChanged: (v) => setState(() => filterCurrency = v),
-          ),
-          filterDropdown(
-            label: tr('Wilaya'),
-            value: filterWilaya,
-            options: {for (final w in optionsOf(creatorWilaya)) w: w},
-            onChanged: (v) => setState(() => filterWilaya = v),
-          ),
-          if (hasFilters)
-            TextButton(
-              onPressed: () => setState(() {
-                filterType = null;
-                filterCurrency = null;
-                filterWilaya = null;
-              }),
-              child: Text(tr('Clear filters')),
-            ),
-        ],
-      ),
-    );
   }
 
   // Live updates: any change in transaction_requests reloads both lists.
@@ -358,11 +265,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       builder: (context) => AlertDialog(
         title: Text(tr('Match with {name}?', {'name': name})),
         content: Text(tr(
-            '{type} · {amount}. A chat opens with this student. Only exchange money when you both agree.',
-            {
-              'type': typeLabel(r['type']),
-              'amount': formatAmount(r['amount'], r['currency']),
-            })),
+            '{request}. A chat opens with this student. Only exchange money when you both agree.',
+            {'request': requestHeadline(r)})),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -465,9 +369,33 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         ],
       ];
 
-  // One scrolling page: posters, My requests, then Open requests.
+  // "New requests (9)": the title with the number in green.
+  Widget newRequestsHeader(int count) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 4),
+      child: Text.rich(
+        TextSpan(
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: scheme.primary,
+                fontWeight: FontWeight.w800,
+              ),
+          children: [
+            TextSpan(text: tr('New requests')),
+            const TextSpan(text: ' '),
+            TextSpan(
+              text: '($count)',
+              style: const TextStyle(
+                  color: AppColors.success, fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // One scrolling page: posters, NEW requests (on top), suggestions, mine.
   Widget requestList() {
-    final visible = visibleRequests;
     return RefreshIndicator(
       onRefresh: loadRequests,
       child: ListView(
@@ -487,6 +415,13 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
               child: Center(child: CircularProgressIndicator()),
             )
           else ...[
+            newRequestsHeader(requests.length),
+            if (requests.isEmpty)
+              emptyLine(tr('No open requests right now.'))
+            else
+              ...withDividers([
+                for (final r in requests) openRequestRow(r),
+              ]),
             if (suggestions.isNotEmpty) ...[
               sectionHeader(tr('Suggested matches')),
               for (final x in suggestions) suggestionCard(x),
@@ -500,16 +435,6 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
                   myRequestRow(context, r, profiles,
                       ratedIds: ratedIds,
                       onChanged: () => loadRequests(quiet: true)),
-              ]),
-            sectionHeader(tr('New unmatched requests')),
-            if (requests.isNotEmpty) filterBar(),
-            if (visible.isEmpty)
-              emptyLine(requests.isEmpty
-                  ? tr('No open requests right now.')
-                  : tr('No requests match these filters.'))
-            else
-              ...withDividers([
-                for (final r in visible) openRequestRow(r),
               ]),
           ],
         ],
@@ -606,17 +531,18 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
 
   Widget openRequestRow(Map<String, dynamic> r) {
     final creator = profiles[r['creator_id']];
+    final busy = matchingId == r['id'].toString();
     return RequestRow(
       person: creator,
+      // "Anyone to receive 30 USD" right under the name.
+      headline: requestHeadline(r),
       subtitle: [
-        typeLabel(r['type']),
+        if (creatorWilaya(r).isNotEmpty) creatorWilaya(r),
         ratingText(creator),
         completedText(creator),
       ].join(' · '),
-      amount: formatAmount(r['amount'], r['currency']),
-      status: requestStatusText(r),
       action: SmallRowButton(
-        label: matchingId == r['id'].toString() ? '...' : tr('Match'),
+        label: busy ? '...' : tr('Match'),
         onPressed: matchingId != null ? null : () => matchWithRequest(r),
       ),
       // Not matched yet, so no chat: show who created it.

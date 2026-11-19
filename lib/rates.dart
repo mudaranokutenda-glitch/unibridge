@@ -116,155 +116,202 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
     }
   }
 
-  Widget _rateRow(String label, Map<String, dynamic>? row) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: Text(label)),
-          Expanded(
-            flex: 2,
-            child: Text(
-              row == null ? '—' : _fmtRate(asDouble(row['buy_rate'])),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+  // One currency, one source: flag, "USD → DZD", buy and sell.
+  Widget _currencyCard(String pair, Map<String, dynamic>? row,
+      {String? note}) {
+    final scheme = Theme.of(context).colorScheme;
+    final code = pair.split('/').first;
+    final updated = DateTime.tryParse(row?['updated_at']?.toString() ?? '');
+
+    Widget box(String label, double? value) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 12, color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 2),
+                Text(row == null ? '—' : '${_fmtRate(value)} DA',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800)),
+              ],
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              row == null ? '—' : _fmtRate(asDouble(row['sell_rate'])),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _pairCard(String pair, Map<String, Map<String, dynamic>> bySource) {
-    final bank = bySource['bank'];
-    final market = _withOffset(bySource['black_market'], offset);
-
-    String? gapText;
-    if (bank != null && market != null) {
-      final bankMid = _rateMid(bank);
-      final marketMid = _rateMid(market);
-      if (bankMid != null && marketMid != null && bankMid > 0) {
-        final gap = (marketMid - bankMid) / bankMid * 100;
-        gapText =
-            tr(gap >= 0
-                ? 'Indicative rate is {pct}% higher than the bank'
-                : 'Indicative rate is {pct}% lower than the bank',
-            {'pct': gap.abs().toStringAsFixed(0)});
-      }
-    }
-
-    DateTime? newest;
-    for (final row in [bank, market]) {
-      final d = DateTime.tryParse(row?['updated_at']?.toString() ?? '');
-      if (d != null && (newest == null || d.isAfter(newest))) newest = d;
-    }
+        );
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              pair.replaceAll('/', ' → '),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(flex: 3, child: Text('')),
+                Text(currencyFlag(code), style: const TextStyle(fontSize: 34)),
+                const SizedBox(width: 12),
                 Expanded(
-                  flex: 2,
-                  child: Text(tr('Buy'),
-                      textAlign: TextAlign.right,
-                      style: TextStyle(color: kMutedText, fontSize: 12)),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(tr('Sell'),
-                      textAlign: TextAlign.right,
-                      style: TextStyle(color: kMutedText, fontSize: 12)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(pair.replaceAll('/', ' → '),
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w800)),
+                      Text(tr('Updated {ago}', {'ago': updatedAgo(updated)}),
+                          style: const TextStyle(
+                              fontSize: 12, color: kMutedText)),
+                    ],
+                  ),
                 ),
               ],
             ),
-            _rateRow(tr('Bank'), bank),
-            _rateRow(tr('Indicative rate (Annaba)'), market),
-            if (gapText != null) ...[
-              const SizedBox(height: 8),
-              Text(gapText, style: const TextStyle(color: AppColors.warning)),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              tr('Updated {ago}', {'ago': updatedAgo(newest)}),
-              style: const TextStyle(fontSize: 12, color: kMutedText),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                box(tr('Buy'), asDouble(row?['buy_rate'])),
+                const SizedBox(width: 10),
+                box(tr('Sell'), asDouble(row?['sell_rate'])),
+              ],
             ),
+            if (note != null) ...[
+              const SizedBox(height: 10),
+              Text(note, style: const TextStyle(color: AppColors.warning)),
+            ],
           ],
         ),
       ),
     );
   }
 
+  // How far the parallel rate is from the bank rate ("12% higher").
+  String? _gapNote(Map<String, Map<String, dynamic>> bySource) {
+    final bank = bySource['bank'];
+    final market = _withOffset(bySource['black_market'], offset);
+    if (bank == null || market == null) return null;
+    final bankMid = _rateMid(bank);
+    final marketMid = _rateMid(market);
+    if (bankMid == null || marketMid == null || bankMid <= 0) return null;
+    final gap = (marketMid - bankMid) / bankMid * 100;
+    return tr(
+        gap >= 0
+            ? 'Indicative rate is {pct}% higher than the bank'
+            : 'Indicative rate is {pct}% lower than the bank',
+        {'pct': gap.abs().toStringAsFixed(0)});
+  }
+
+  Widget _footer() => Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          tr('Buy = what you get when you sell foreign currency. Sell = what you pay to buy it. These rates are indicative and updated by hand, so always agree the exact rate with the other person before exchanging anything.'),
+          style: const TextStyle(fontSize: 12, color: kMutedText),
+        ),
+      );
+
+  // A tab body that can be pulled down to refresh.
+  Widget _tab(List<Widget> children) => RefreshIndicator(
+        onRefresh: load,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: children,
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final pairs = rates.keys.toList()..sort();
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('Exchange rates'))),
-      body: RefreshIndicator(
-        onRefresh: load,
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : errorMessage != null
-                ? ListView(
-                    children: [
-                      const SizedBox(height: 100),
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            errorMessage!,
-                            style: const TextStyle(color: AppColors.cancelled),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : pairs.isEmpty
-                    ? ListView(
-                        children: [
-                          SizedBox(height: 100),
-                          Center(child: Text(tr('No rates available yet.'))),
-                        ],
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          _RateCalculator(
-                              rates: {
-                            for (final cur in ['USD', 'EUR'])
-                              cur: _withOffset(
-                                  rates['$cur/DZD']?['black_market'], offset),
-                          }),
-                          for (final pair in pairs)
-                            _pairCard(pair, rates[pair]!),
-                          Text(
-                            tr('Buy = what you get when you sell foreign currency. Sell = what you pay to buy it. These rates are indicative and updated by hand, so always agree the exact rate with the other person before exchanging anything.'),
-                            style: TextStyle(fontSize: 12, color: kMutedText),
-                          ),
-                        ],
-                      ),
+    Widget body;
+    if (loading) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (errorMessage != null) {
+      body = _tab([
+        const SizedBox(height: 80),
+        Center(
+          child: Text(errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.cancelled)),
+        ),
+      ]);
+    } else if (pairs.isEmpty) {
+      body = _tab([
+        const SizedBox(height: 80),
+        Center(child: Text(tr('No rates available yet.'))),
+      ]);
+    } else {
+      body = TabBarView(
+        children: [
+          // 1. Parallel market (Annaba), with the offset.
+          _tab([
+            Text(tr('Indicative rate (Annaba)'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            for (final pair in pairs)
+              _currencyCard(
+                  pair, _withOffset(rates[pair]!['black_market'], offset),
+                  note: _gapNote(rates[pair]!)),
+            _footer(),
+          ]),
+          // 2. Official bank rate.
+          _tab([
+            Text(tr('Bank'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            for (final pair in pairs)
+              _currencyCard(pair, rates[pair]!['bank']),
+            _footer(),
+          ]),
+          // 3. Calculator (uses the parallel rates).
+          _tab([
+            _RateCalculator(rates: {
+              for (final cur in ['USD', 'EUR'])
+                cur: _withOffset(rates['$cur/DZD']?['black_market'], offset),
+            }),
+          ]),
+        ],
+      );
+    }
+
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(tr('Exchange rates')),
+          bottom: TabBar(
+            tabs: [
+              Tab(icon: const Icon(Icons.trending_up), text: tr('Parallel')),
+              Tab(
+                  icon: const Icon(Icons.account_balance_outlined),
+                  text: tr('Official')),
+              Tab(
+                  icon: const Icon(Icons.calculate_outlined),
+                  text: tr('Calculator')),
+            ],
+          ),
+        ),
+        body: body,
       ),
     );
   }
 }
+
+// Flag shown for each currency.
+String currencyFlag(String code) => const {
+      'USD': '🇺🇸',
+      'EUR': '🇪🇺',
+      'DZD': '🇩🇿',
+      'GBP': '🇬🇧',
+      'ZAR': '🇿🇦',
+      'CAD': '🇨🇦',
+      'CNY': '🇨🇳',
+      'TRY': '🇹🇷',
+      'AED': '🇦🇪',
+      'SAR': '🇸🇦',
+    }[code.toUpperCase()] ??
+    '💱';
 
 // ---------------- Calculator (at the top of the rates screen) ----------------
 // Uses only the DISPLAYED indicative rates (parallel market with the offset).
@@ -332,9 +379,11 @@ class _RateCalculatorState extends State<_RateCalculator> {
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'USD', label: Text('USD')),
-                ButtonSegment(value: 'EUR', label: Text('EUR')),
+              segments: [
+                ButtonSegment(
+                    value: 'USD', label: Text('${currencyFlag('USD')} USD')),
+                ButtonSegment(
+                    value: 'EUR', label: Text('${currencyFlag('EUR')} EUR')),
               ],
               selected: {currency},
               onSelectionChanged: (v) => setState(() => currency = v.first),

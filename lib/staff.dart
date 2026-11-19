@@ -47,6 +47,89 @@ String studentName(Map<String, dynamic>? r) =>
     r == null ? tr('No student record') : '${r['last_name']} ${r['first_name']}';
 
 // The staff buttons shown in the Profile tab.
+// ---------------- Staff hub ----------------
+// On the Profile tab staff and Governors see ONE card. It opens the Staff hub:
+// a search box and all their tools as coloured tiles, grouped by topic.
+
+class StaffTool {
+  final IconData icon;
+  final String label;
+  final String description;
+  final String group;
+  final Color color;
+  final Widget Function() screen;
+  const StaffTool(this.icon, this.label, this.description, this.group,
+      this.color, this.screen);
+}
+
+List<StaffTool> staffToolsFor(MyRole role) {
+  const students = Color(0xFF2F80ED);
+  const documents = Color(0xFF8E5CF7);
+  const contact = Color(0xFFE08A1E);
+  const money = Color(0xFF2E9E5B);
+  if (role.isStaff) {
+    return [
+      StaffTool(Icons.person_search_outlined, tr('Search students'),
+          tr('Find a student by name or number'), tr('Students'), students,
+          () => const StaffSearchScreen()),
+      StaffTool(Icons.groups_outlined, tr('Students'),
+          tr('All students and their records'), tr('Students'), students,
+          () => StudentsScreen(role: role)),
+      StaffTool(Icons.bar_chart_outlined, tr('Dashboard'),
+          tr('Numbers per wilaya'), tr('Students'), students,
+          () => const StudentsDashboardScreen()),
+      StaffTool(Icons.table_chart_outlined, tr('Final list of students'),
+          tr('The list to export'), tr('Students'), students,
+          () => const FinalListScreen()),
+      StaffTool(Icons.workspace_premium_outlined, tr('Attestation requests'),
+          tr('Review and issue attestations'), tr('Documents'), documents,
+          () => const AttestationRequestsScreen()),
+      StaffTool(Icons.event_outlined, tr('Appointments'),
+          tr('Requests to meet the Attaché'), tr('Documents'), documents,
+          () => const StaffAppointmentsScreen()),
+      StaffTool(Icons.history, tr('Recent access'),
+          tr('Who opened which document'), tr('Documents'), documents,
+          () => const RecentAccessScreen()),
+      StaffTool(Icons.campaign_outlined, tr('Emergency alert'),
+          tr('Urgent message to every student'), tr('Communication'), contact,
+          () => const EmergencyAlertScreen()),
+      StaffTool(Icons.view_carousel_outlined, tr('Posters'),
+          tr('Images on the home screen'), tr('Communication'), contact,
+          () => const ManagePostersScreen()),
+      StaffTool(Icons.contact_phone_outlined, tr('Governors\' contacts'),
+          tr('Phone numbers of the Governors'), tr('Communication'), contact,
+          () => const ManageContactsScreen(onlyKind: 'governor')),
+      StaffTool(Icons.edit_note_outlined, tr('Manage contacts'),
+          tr('Contacts shown to students'), tr('Communication'), contact,
+          () => const ManageContactsScreen()),
+    ];
+  }
+  if (role.isRep) {
+    return [
+      StaffTool(Icons.groups_outlined, tr('Students'),
+          tr('Students of your wilaya'), tr('Students'), students,
+          () => StudentsScreen(role: role)),
+      StaffTool(Icons.bar_chart_outlined, tr('Dashboard'),
+          tr('Numbers for your wilaya'), tr('Students'), students,
+          () => const StudentsDashboardScreen()),
+      StaffTool(Icons.fact_check_outlined, tr('Results tracker'),
+          tr('Who sent their results'), tr('Students'), students,
+          () => const ResultsTrackerScreen()),
+      StaffTool(Icons.assignment_late_outlined, tr('No student record yet'),
+          tr('Students to remind'), tr('Students'), students,
+          () => const MissingRecordsScreen()),
+      StaffTool(Icons.account_balance_outlined, tr('Bank accounts'),
+          tr('Opening one is recorded'), tr('Money'), money,
+          () => const GovernorBankAccountsScreen()),
+      StaffTool(Icons.support_agent_outlined, tr('Contact the Educational Attaché'),
+          tr('Phone numbers and emails'), tr('Communication'), contact,
+          () => const ContactsScreen()),
+    ];
+  }
+  return [];
+}
+
+// The single card on the Profile tab.
 class StaffSection extends StatelessWidget {
   final MyRole role;
   const StaffSection({super.key, required this.role});
@@ -54,40 +137,196 @@ class StaffSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!role.canSeeStudents) return const SizedBox.shrink();
-    void open(Widget screen) =>
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-
-    Widget button(IconData icon, String label, Widget screen) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: OutlinedButton.icon(
-            onPressed: () => open(screen),
-            icon: Icon(icon),
-            label: Text(label),
+    final tools = staffToolsFor(role);
+    final title = role.isStaff
+        ? tr('Staff ({role})', {'role': role.role})
+        : tr('Governor of {wilaya}', {'wilaya': role.repWilaya});
+    return Material(
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => StaffHubScreen(role: role))),
+        child: Ink(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1F63C2), Color(0xFF6A3FD1)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          role.isStaff
-              ? tr('Staff ({role})', {'role': role.role})
-              : tr('Governor of {wilaya}', {'wilaya': role.repWilaya}),
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.admin_panel_settings_outlined,
+                    color: Colors.white, size: 30),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr('Staff hub'),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$title · ${tr('{count} tools', {'count': tools.length})}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        StaffToolsSection(role: role),
-        button(Icons.groups_outlined, tr('Students'), StudentsScreen(role: role)),
-        if (role.isStaff) ...[
-          button(Icons.workspace_premium_outlined, tr('Attestation requests'),
-              const AttestationRequestsScreen()),
-          button(Icons.table_chart_outlined, tr('Final list of students'),
-              const FinalListScreen()),
-          button(Icons.view_carousel_outlined, tr('Posters'),
-              const ManagePostersScreen()),
-          button(Icons.history, tr('Recent access'), const RecentAccessScreen()),
+      ),
+    );
+  }
+}
+
+// All tools: search box + tiles grouped by topic.
+class StaffHubScreen extends StatefulWidget {
+  final MyRole role;
+  const StaffHubScreen({super.key, required this.role});
+
+  @override
+  State<StaffHubScreen> createState() => _StaffHubScreenState();
+}
+
+class _StaffHubScreenState extends State<StaffHubScreen> {
+  final searchController = TextEditingController();
+  String query = '';
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  Widget tile(StaffTool t) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => t.screen())),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: t.color.withValues(alpha: 0.35)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: t.color.withValues(alpha: 0.14),
+                child: Icon(t.icon, color: t.color),
+              ),
+              const Spacer(),
+              Text(t.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 2),
+              Text(t.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = query.trim().toLowerCase();
+    final tools = staffToolsFor(widget.role)
+        .where((t) =>
+            q.isEmpty ||
+            t.label.toLowerCase().contains(q) ||
+            t.description.toLowerCase().contains(q) ||
+            t.group.toLowerCase().contains(q))
+        .toList();
+    final groups = <String, List<StaffTool>>{};
+    for (final t in tools) {
+      groups.putIfAbsent(t.group, () => []).add(t);
+    }
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Staff hub'))),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        children: [
+          TextField(
+            controller: searchController,
+            onChanged: (v) => setState(() => query = v),
+            decoration: InputDecoration(
+              hintText: tr('Search a tool (attestation, alert, bank...)'),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: tr('Clear'),
+                      icon: const Icon(Icons.close),
+                      onPressed: () => setState(() {
+                        searchController.clear();
+                        query = '';
+                      }),
+                    ),
+            ),
+          ),
+          if (tools.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 48),
+              child: Center(
+                child: Text(tr('No tool matches "{q}".', {'q': query}),
+                    style: TextStyle(color: scheme.onSurfaceVariant)),
+              ),
+            ),
+          for (final entry in groups.entries) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
+              child: Text(entry.key,
+                  style: TextStyle(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15)),
+            ),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.25,
+              children: [for (final t in entry.value) tile(t)],
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

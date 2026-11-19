@@ -189,7 +189,7 @@ class ProfileHero extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(3),
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: verified ? AppColors.verified : Colors.white,
@@ -935,7 +935,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
                     ),
                   ),
                   if (role.canSeeStudents) ...[
-                    profileSectionTitle(context, tr('Staff')),
+                    const SizedBox(height: 16),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: StaffSection(role: role),
