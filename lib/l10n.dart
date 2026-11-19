@@ -1219,4 +1219,30 @@ const Map<String, String> _t = {
       "Son de démarrage",
   'Plays when the app opens, never on silent.':
       "Joué à l'ouverture de l'application, jamais en mode silencieux.",
+
+  // Onboarding fixes (2026-11-19)
+  'Wrong email or password.':
+      "Email ou mot de passe incorrect.",
+  'Enter a valid email address.':
+      "Entrez une adresse email valide.",
+  'Too many tries. Wait a few minutes and try again.':
+      "Trop d'essais. Attendez quelques minutes et réessayez.",
+  'No internet connection. Check it and try again.':
+      "Pas de connexion internet. Vérifiez-la et réessayez.",
+  'Enter your full name (2 to 80 characters)':
+      "Entrez votre nom complet (2 à 80 caractères)",
+  'Enter your password.':
+      "Entrez votre mot de passe.",
+  'Google sign-in is not available right now. Use your email and password, or try again later.':
+      "La connexion Google n'est pas disponible pour le moment. Utilisez votre email et votre mot de passe, ou réessayez plus tard.",
+  'Google sign-in failed. Check your internet and try again.':
+      "Échec de la connexion Google. Vérifiez votre internet et réessayez.",
+  'Could not save. Check your internet and try again.':
+      "Impossible d'enregistrer. Vérifiez votre internet et réessayez.",
+  'Full name (required)':
+      "Nom complet (obligatoire)",
+  'As on your passport. You cannot change it later.':
+      "Comme sur votre passeport. Vous ne pourrez pas le modifier ensuite.",
+  'Your name is already set. Contact UniBridge support to change it.':
+      "Votre nom est déjà enregistré. Contactez le support UniBridge pour le modifier.",
 };

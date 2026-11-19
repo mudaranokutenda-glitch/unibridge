@@ -17,6 +17,33 @@ bool _googleSignInInitialized = false;
 // "Remember me" keeps ONLY the email address, on this phone. Never the password.
 const String _kRememberedEmail = 'remembered_email';
 
+// A short, translated message for the errors Supabase gives at log in / sign up.
+String authErrorText(AuthException e) {
+  final code = e.code ?? '';
+  final msg = e.message.toLowerCase();
+  if (code == 'invalid_credentials' || msg.contains('invalid login')) {
+    return tr('Wrong email or password.');
+  }
+  if (code == 'user_already_exists' || msg.contains('already registered')) {
+    return tr('This email already has an account. Please log in.');
+  }
+  if (code == 'weak_password' || msg.contains('password should')) {
+    return tr('Password must have at least 6 characters.');
+  }
+  if (code == 'email_address_invalid' || msg.contains('invalid email')) {
+    return tr('Enter a valid email address.');
+  }
+  if (code.contains('rate_limit') || msg.contains('rate limit') ||
+      msg.contains('too many')) {
+    return tr('Too many tries. Wait a few minutes and try again.');
+  }
+  if (msg.contains('network') || msg.contains('socket') ||
+      msg.contains('failed host lookup')) {
+    return tr('No internet connection. Check it and try again.');
+  }
+  return tr('Something went wrong: {error}', {'error': e.message});
+}
+
 // ---------------- Sign up / Log in screen ----------------
 
 class AuthScreen extends StatefulWidget {
@@ -71,7 +98,34 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  // Checks the form before anything is sent. Returns the problem, or null.
+  String? checkForm() {
+    final email = emailController.text.trim();
+    if (isSignUp) {
+      final name = fullNameController.text.trim().replaceAll(RegExp(r'\s+'), ' ');
+      if (name.length < 2 || name.length > 80) {
+        return tr('Enter your full name (2 to 80 characters)');
+      }
+    }
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      return tr('Enter a valid email address.');
+    }
+    if (passwordController.text.isEmpty) return tr('Enter your password.');
+    if (isSignUp && passwordController.text.length < 6) {
+      return tr('Password must have at least 6 characters.');
+    }
+    return null;
+  }
+
   Future<void> submit() async {
+    final problem = checkForm();
+    if (problem != null) {
+      setState(() {
+        errorMessage = problem;
+        emailNotConfirmed = false;
+      });
+      return;
+    }
     setState(() {
       loading = true;
       errorMessage = null;
@@ -83,7 +137,8 @@ class _AuthScreenState extends State<AuthScreen> {
           email: emailController.text.trim(),
           password: passwordController.text,
           data: {
-            'full_name': fullNameController.text.trim(),
+            'full_name':
+                fullNameController.text.trim().replaceAll(RegExp(r'\s+'), ' '),
           },
         );
         // No session = the email still has to be confirmed with the 6-digit code.
@@ -91,8 +146,10 @@ class _AuthScreenState extends State<AuthScreen> {
           // An email that already has an account comes back with no identities
           // (Supabase hides it on purpose): no code is sent in that case.
           if (res.user != null && (res.user!.identities ?? []).isEmpty) {
-            setState(() => errorMessage =
-                tr('This email already has an account. Please log in.'));
+            if (mounted) {
+              setState(() => errorMessage =
+                  tr('This email already has an account. Please log in.'));
+            }
             return;
           }
           if (mounted) await openCodeScreen(EmailCodeMode.signup);
@@ -114,6 +171,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } on AuthException catch (e) {
+      if (!mounted) return;
       if (!isSignUp &&
           (e.code == 'email_not_confirmed' ||
               e.message.toLowerCase().contains('not confirmed'))) {
@@ -123,10 +181,13 @@ class _AuthScreenState extends State<AuthScreen> {
               tr('Your email is not confirmed yet. Enter the code we sent you.');
         });
       } else {
-        setState(() => errorMessage = e.message);
+        setState(() => errorMessage = authErrorText(e));
       }
     } catch (e) {
-      setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
+      if (mounted) {
+        setState(() =>
+            errorMessage = tr('Something went wrong: {error}', {'error': e}));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -156,7 +217,7 @@ class _AuthScreenState extends State<AuthScreen> {
         await openCodeScreen(EmailCodeMode.signup);
       }
     } on AuthException catch (e) {
-      if (mounted) setState(() => errorMessage = e.message);
+      if (mounted) setState(() => errorMessage = authErrorText(e));
     } catch (e) {
       if (mounted) {
         setState(() =>
@@ -183,7 +244,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await supabase.auth.resetPasswordForEmail(email);
       if (mounted) await openCodeScreen(EmailCodeMode.recovery);
     } on AuthException catch (e) {
-      if (mounted) setState(() => errorMessage = e.message);
+      if (mounted) setState(() => errorMessage = authErrorText(e));
     } catch (e) {
       if (mounted) {
         setState(() =>
@@ -227,8 +288,32 @@ class _AuthScreenState extends State<AuthScreen> {
           );
         }
       }
+    } on GoogleSignInException catch (e) {
+      if (!mounted) return;
+      final info = (e.description ?? '').toLowerCase();
+      if (e.code == GoogleSignInExceptionCode.canceled &&
+          !info.contains('reauth')) {
+        // The user closed the Google window: nothing to show.
+        debugPrint('Google sign-in canceled: $e');
+      } else if (info.contains('reauth') || info.contains('[16]') ||
+          info.contains('10:')) {
+        // Google does not recognise this copy of the app (SHA-1 / client set-up).
+        debugPrint('Google sign-in set-up problem: $e');
+        setState(() => errorMessage = tr(
+            'Google sign-in is not available right now. Use your email and password, or try again later.'));
+      } else {
+        debugPrint('Google sign-in failed: $e');
+        setState(() => errorMessage =
+            tr('Google sign-in failed. Check your internet and try again.'));
+      }
+    } on AuthException catch (e) {
+      if (mounted) setState(() => errorMessage = authErrorText(e));
     } catch (e) {
-      setState(() => errorMessage = tr('Google sign-in failed: {error}', {'error': e}));
+      debugPrint('Google sign-in failed: $e');
+      if (mounted) {
+        setState(() => errorMessage =
+            tr('Google sign-in failed. Check your internet and try again.'));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }

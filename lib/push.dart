@@ -126,7 +126,17 @@ VoidCallback? onEmergencyAlertReceived;
 
 StreamSubscription<String>? _tokenRefreshSub;
 
+// Never throws: if notifications cannot be set up (no Google Play services,
+// permission refused, no internet), the user still gets into the app.
 Future<void> setupPushNotifications() async {
+  try {
+    await _setupPushNotifications();
+  } catch (e) {
+    debugPrint('Push notifications not set up: $e');
+  }
+}
+
+Future<void> _setupPushNotifications() async {
   final user = supabase.auth.currentUser;
   if (user == null) return;
 

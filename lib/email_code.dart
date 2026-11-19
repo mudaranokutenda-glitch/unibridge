@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'app_theme.dart';
 import 'push.dart';
 import 'profile_setup.dart';
+import 'auth.dart';
 import 'l10n.dart';
 
 // ---------------- Email code (6 digits) ----------------
@@ -14,6 +16,37 @@ import 'l10n.dart';
 // (see REPORT.md, part "Valid emails only").
 
 enum EmailCodeMode { signup, recovery }
+
+// "Forgot password": a right code already logs the user in. If they leave before
+// choosing the new password (back button, app closed), they are logged out
+// again, so a half-finished reset never leaves them inside the app.
+const String _kPendingPasswordReset = 'pending_password_reset';
+
+Future<void> _setPendingPasswordReset(bool pending) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (pending) {
+      await prefs.setBool(_kPendingPasswordReset, true);
+    } else {
+      await prefs.remove(_kPendingPasswordReset);
+    }
+  } catch (e) {
+    debugPrint('Could not save the password reset state: $e');
+  }
+}
+
+// Called at app start (intro.dart): a reset left unfinished means log out.
+Future<void> cancelUnfinishedPasswordReset() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kPendingPasswordReset) == true) {
+      await prefs.remove(_kPendingPasswordReset);
+      await supabase.auth.signOut();
+    }
+  } catch (e) {
+    debugPrint('Could not cancel the unfinished password reset: $e');
+  }
+}
 
 class EmailCodeScreen extends StatefulWidget {
   final String email;
@@ -33,6 +66,7 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
   int secondsLeft = 60; // a code was just sent, so wait before sending another
   bool busy = false;
   bool codeAccepted = false; // recovery only: now ask for the new password
+  bool passwordSaved = false; // recovery only: the new password was saved
   String? error;
   String? info;
 
@@ -44,6 +78,13 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
 
   @override
   void dispose() {
+    // Left the page after the right code but without a new password: log out.
+    if (codeAccepted && !passwordSaved) {
+      supabase.auth
+          .signOut()
+          .then((_) => _setPendingPasswordReset(false))
+          .catchError((Object e) => debugPrint('Sign out failed: $e'));
+    }
     timer?.cancel();
     codeController.dispose();
     passwordController.dispose();
@@ -81,7 +122,7 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
       startCountdown();
       setState(() => info = tr('A new code was sent.'));
     } on AuthException catch (e) {
-      if (mounted) setState(() => error = e.message);
+      if (mounted) setState(() => error = authErrorText(e));
     } catch (e) {
       if (mounted) {
         setState(() => error = tr('Something went wrong: {error}', {'error': e}));
@@ -115,7 +156,8 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
         await finish();
       } else {
         // The code was right: ask for the new password.
-        setState(() => codeAccepted = true);
+        await _setPendingPasswordReset(true);
+        if (mounted) setState(() => codeAccepted = true);
       }
     } on AuthException {
       if (mounted) setState(() => error = tr('Wrong or expired code. Try again.'));
@@ -144,12 +186,14 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
     });
     try {
       await supabase.auth.updateUser(UserAttributes(password: p1));
+      passwordSaved = true;
+      await _setPendingPasswordReset(false);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(tr('Password changed.'))));
       await finish();
     } on AuthException catch (e) {
-      if (mounted) setState(() => error = e.message);
+      if (mounted) setState(() => error = authErrorText(e));
     } catch (e) {
       if (mounted) {
         setState(() => error = tr('Something went wrong: {error}', {'error': e}));

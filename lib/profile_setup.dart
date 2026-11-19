@@ -54,9 +54,6 @@ final List<TextInputFormatter> kPhoneInput = [
   LengthLimitingTextInputFormatter(14),
 ];
 
-// Marker used by the gate when the phone table cannot be read yet.
-const String kPhoneCheckSkipped = '__skipped__';
-
 Future<String?> loadMyPhone() async {
   final row = await supabase
       .from('user_phones')
@@ -78,8 +75,18 @@ Future<void> saveMyPhone(String phone) async {
 bool hasProfilePhoto(Map<String, dynamic>? p) =>
     (p?['profile_picture_url'] ?? '').toString().trim().isNotEmpty;
 
+bool hasName(Map<String, dynamic>? p) =>
+    (p?['full_name'] ?? '').toString().trim().isNotEmpty;
+
+// Cleans a typed name: no spaces at the ends, single spaces inside.
+String cleanName(String v) => v.trim().replaceAll(RegExp(r'\s+'), ' ');
+bool isValidName(String v) {
+  final n = cleanName(v);
+  return n.length >= 2 && n.length <= 80;
+}
+
 // Complete = a photo AND a wilaya from the fixed list of 58.
-// (The gate also checks the phone number, see ProfileGate.)
+// (The gate also checks the name and the phone number, see ProfileGate.)
 bool isProfileComplete(Map<String, dynamic>? p) =>
     hasProfilePhoto(p) && validWilaya(p?['wilaya']) != null;
 
@@ -130,15 +137,9 @@ class _ProfileGateState extends State<ProfileGate> {
     });
     try {
       final p = await loadMyProfileStrict();
-      String? ph;
-      try {
-        ph = await loadMyPhone();
-      } catch (e) {
-        // The phone table does not exist yet (SQL file 02 not run): do not
-        // lock everybody out, just skip the phone check for now.
-        debugPrint('Phone check skipped: $e');
-        ph = kPhoneCheckSkipped;
-      }
+      // If the phone cannot be read (no internet), the whole check fails and
+      // the "Try again" screen is shown. The phone is never skipped.
+      final ph = await loadMyPhone();
       if (!mounted) return;
       setState(() {
         me = p;
@@ -183,12 +184,8 @@ class _ProfileGateState extends State<ProfileGate> {
         ),
       );
     }
-    final phoneOk = phone == kPhoneCheckSkipped || isValidPhone(phone);
-    if (!isProfileComplete(me) || !phoneOk) {
-      return ProfileSetupScreen(
-          profile: me,
-          phone: phone == kPhoneCheckSkipped ? null : phone,
-          onSaved: check);
+    if (!isProfileComplete(me) || !hasName(me) || !isValidPhone(phone)) {
+      return ProfileSetupScreen(profile: me, phone: phone, onSaved: check);
     }
     return const HomeScreen(); // opens on the Requests tab
   }
@@ -213,6 +210,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   String? wilaya;
   final locationController = TextEditingController();
   final phoneController = TextEditingController();
+  final nameController = TextEditingController(); // only when the name is missing
+  bool nameSaved = false; // set_my_name worked (a retry must not call it again)
   bool saving = false;
   String? errorMessage;
 
@@ -228,12 +227,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   void dispose() {
     locationController.dispose();
     phoneController.dispose();
+    nameController.dispose();
     super.dispose();
   }
 
   bool get hasPhoto => newPhotoBytes != null || hasProfilePhoto(widget.profile);
+  bool get nameMissing => !hasName(widget.profile);
   bool get canSave =>
-      hasPhoto && wilaya != null && isNewPhoneFormat(phoneController.text) && !saving;
+      hasPhoto &&
+      wilaya != null &&
+      isNewPhoneFormat(phoneController.text) &&
+      (!nameMissing || isValidName(nameController.text)) &&
+      !saving;
 
   Future<void> pickPhoto() async {
     final bytes = await pickProfilePhotoBytes();
@@ -247,6 +252,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
     try {
       final myId = supabase.auth.currentUser!.id;
+      // The name can be set only once, and only when it is empty (database
+      // function set_my_name, sql/2026-11-19-03).
+      if (nameMissing && !nameSaved) {
+        await supabase.rpc('set_my_name',
+            params: {'p_name': cleanName(nameController.text)});
+        nameSaved = true;
+      }
       final location = locationController.text.trim();
       final updates = <String, dynamic>{
         'wilaya': wilaya,
@@ -261,7 +273,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       // Check that it was really saved (if the account has no profile row,
       // the update changes nothing and gives no error).
       final saved = await loadMyProfileStrict();
-      if (!isProfileComplete(saved)) {
+      if (!isProfileComplete(saved) || !hasName(saved)) {
         if (mounted) {
           setState(() => errorMessage = tr(
               'Your profile could not be saved. Please contact UniBridge support.'));
@@ -269,10 +281,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         return;
       }
       await widget.onSaved();
+    } on PostgrestException catch (e) {
+      // Messages written by the database (for example about the name).
+      if (mounted) setState(() => errorMessage = tr(e.message));
     } catch (e) {
+      debugPrint('Profile save failed: $e');
       if (mounted) {
-        setState(() =>
-            errorMessage = tr('Could not save: {error}', {'error': e}));
+        setState(() => errorMessage =
+            tr('Could not save. Check your internet and try again.'));
       }
     } finally {
       if (mounted) setState(() => saving = false);
@@ -329,17 +345,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            // The name cannot be changed in the app (database rules).
-            Text(tr('Name'), style: muted),
-            const SizedBox(height: 2),
-            name.isNotEmpty
-                ? Text(name,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600))
-                : Text(
-                    tr('Your name is missing. Contact UniBridge support to add it.'),
-                    style: TextStyle(color: scheme.error),
-                  ),
+            // The name cannot be changed in the app (database rules). Only a
+            // missing name can be typed here, once.
+            if (name.isNotEmpty) ...[
+              Text(tr('Name'), style: muted),
+              const SizedBox(height: 2),
+              Text(name,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600)),
+            ] else
+              TextField(
+                controller: nameController,
+                enabled: !saving && !nameSaved,
+                textCapitalization: TextCapitalization.words,
+                inputFormatters: [LengthLimitingTextInputFormatter(80)],
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: tr('Full name (required)'),
+                  helperText: tr(
+                      'As on your passport. You cannot change it later.'),
+                  helperMaxLines: 2,
+                ),
+              ),
             const SizedBox(height: 16),
             WilayaDropdown(
               value: wilaya,

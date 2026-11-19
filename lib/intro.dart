@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'config.dart';
 import 'auth.dart';
+import 'email_code.dart';
 import 'profile_setup.dart';
 import 'app_icons.dart';
 import 'app_theme.dart';
@@ -49,7 +50,10 @@ class _IntroScreenState extends State<IntroScreen>
   }
 
   // After the animation: the same screen the app showed before the intro existed.
-  void goOn() {
+  Future<void> goOn() async {
+    if (!mounted) return;
+    // A "Forgot password" left half-way must not leave the user logged in.
+    await cancelUnfinishedPasswordReset();
     if (!mounted) return;
     final next = supabase.auth.currentSession == null
         ? const AuthScreen()
