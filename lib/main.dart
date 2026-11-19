@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,8 +20,11 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
-  await initLocalNotifications();
+  // Push notifications are for the Android app only (not the web version).
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
+    await initLocalNotifications();
+  }
 
   await Supabase.initialize(
     url: supabaseUrl,

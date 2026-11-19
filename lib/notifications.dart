@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -52,7 +53,9 @@ class NotificationCenter {
         )
         .subscribe();
     try {
-      _pushSub = FirebaseMessaging.onMessage.listen((_) => refreshSoon());
+      if (!kIsWeb) {
+        _pushSub = FirebaseMessaging.onMessage.listen((_) => refreshSoon());
+      }
     } catch (e) {
       debugPrint('Push listener not available: $e');
     }

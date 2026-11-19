@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,6 +16,11 @@ import 'l10n.dart';
 import 'errors.dart';
 
 bool _googleSignInInitialized = false;
+
+// The address Google sends the browser back to (web version only):
+// this page without "?code=..." etc. It must be in Supabase > Auth >
+// URL Configuration > Redirect URLs.
+String webGoogleRedirect() => '${Uri.base.origin}${Uri.base.path}';
 
 // GoogleSignIn must be initialised once before any other call.
 Future<void> _ensureGoogleSignIn() async {
@@ -278,6 +284,24 @@ class _AuthScreenState extends State<AuthScreen> {
       loading = true;
       errorMessage = null;
     });
+    // Web version: Supabase sends the browser to Google and back to this page.
+    // The page then opens already logged in (see webGoogleRedirect).
+    if (kIsWeb) {
+      try {
+        await supabase.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: webGoogleRedirect(),
+        );
+      } catch (e) {
+        if (mounted) {
+          setState(() => errorMessage =
+              tr('Google sign-in failed. Check your internet and try again.'));
+        }
+        debugPrint('Google sign-in (web) failed: $e');
+      }
+      if (mounted) setState(() => loading = false);
+      return;
+    }
     try {
       final googleSignIn = GoogleSignIn.instance;
       await _ensureGoogleSignIn();
@@ -622,8 +646,10 @@ Future<void> confirmAndLogOut(BuildContext context) async {
   // Forget the Google account too, so the next Google sign-in lets the user
   // choose an account again.
   try {
-    await _ensureGoogleSignIn();
-    await GoogleSignIn.instance.signOut();
+    if (!kIsWeb) {
+      await _ensureGoogleSignIn();
+      await GoogleSignIn.instance.signOut();
+    }
   } catch (e) {
     debugPrint('Google sign-out failed: $e');
   }

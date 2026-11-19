@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'config.dart';
 import 'auth.dart';
@@ -54,6 +55,20 @@ class _IntroScreenState extends State<IntroScreen>
     if (!mounted) return;
     // A "Forgot password" left half-way must not leave the user logged in.
     await cancelUnfinishedPasswordReset();
+    // Web version, just back from Google: wait (max 6 s) until Supabase has
+    // finished logging in from the address (?code=...).
+    if (kIsWeb &&
+        supabase.auth.currentSession == null &&
+        (Uri.base.queryParameters.containsKey('code') ||
+            Uri.base.fragment.contains('access_token'))) {
+      try {
+        await supabase.auth.onAuthStateChange
+            .firstWhere((s) => s.session != null)
+            .timeout(const Duration(seconds: 6));
+      } catch (e) {
+        debugPrint('Google login (web) did not finish: $e');
+      }
+    }
     if (!mounted) return;
     final next = supabase.auth.currentSession == null
         ? const AuthScreen()

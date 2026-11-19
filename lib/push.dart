@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -103,6 +104,7 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
 StreamSubscription<RemoteMessage>? _foregroundSub;
 
 void listenForForegroundNotifications(BuildContext context) {
+  if (kIsWeb) return; // no push on the web version
   _foregroundSub?.cancel();
   _foregroundSub =
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -130,6 +132,7 @@ StreamSubscription<String>? _tokenRefreshSub;
 // Never throws: if notifications cannot be set up (no Google Play services,
 // permission refused, no internet), the user still gets into the app.
 Future<void> setupPushNotifications() async {
+  if (kIsWeb) return; // no push on the web version
   try {
     await _setupPushNotifications();
   } catch (e) {
@@ -195,7 +198,7 @@ Future<void> clearPushToken() async {
         .from('profiles')
         .update({'fcm_token': null})
         .eq('id', user.id);
-    await FirebaseMessaging.instance.deleteToken();
+    if (!kIsWeb) await FirebaseMessaging.instance.deleteToken();
   } catch (e) {
     debugPrint('Could not clear FCM token: $e');
   }
