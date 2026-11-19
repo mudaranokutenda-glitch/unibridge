@@ -17,6 +17,7 @@ import 'profile_setup.dart';
 import 'student_info.dart';
 import 'l10n.dart';
 import 'errors.dart';
+import 'notifications.dart';
 
 // ---------------- Student space: record, results, attestation ----------------
 // Security is in sql/2026-11-05-04-student-space.sql and 05-attestations.sql.
@@ -301,7 +302,10 @@ class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr('Student space'))),
+      appBar: AppBar(
+        title: Text(tr('Student space')),
+        actions: const [NotificationBell()],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await loadHeader();

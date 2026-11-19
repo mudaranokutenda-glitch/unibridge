@@ -14,6 +14,7 @@ import 'wilayas.dart';
 import 'profile_setup.dart';
 import 'l10n.dart';
 import 'errors.dart';
+import 'notifications.dart';
 
 // ---------------- Public profile helpers ----------------
 
@@ -604,6 +605,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     }
 
     // The account is gone: sign out on this phone and go to the login screen.
+    NotificationCenter.stop();
     try {
       await supabase.auth.signOut();
     } catch (e) {
@@ -697,7 +699,10 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('My profile'))),
+      appBar: AppBar(
+        title: Text(tr('My profile')),
+        actions: const [NotificationBell()],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

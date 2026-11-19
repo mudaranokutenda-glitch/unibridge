@@ -9,6 +9,7 @@ import 'app_theme.dart';
 import 'profiles.dart';
 import 'l10n.dart';
 import 'errors.dart';
+import 'notifications.dart';
 
 // ---------------- Marketplace ----------------
 
@@ -570,6 +571,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       appBar: AppBar(
         title: Text(tr('Marketplace')),
         actions: [
+          const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.menu),
             tooltip: tr('Categories'),

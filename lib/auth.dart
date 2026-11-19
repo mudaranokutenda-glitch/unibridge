@@ -10,6 +10,7 @@ import 'email_code.dart';
 import 'app_theme.dart';
 import 'sky_background.dart';
 import 'legal.dart';
+import 'notifications.dart';
 import 'l10n.dart';
 import 'errors.dart';
 
@@ -617,6 +618,7 @@ Future<void> confirmAndLogOut(BuildContext context) async {
   if (confirmed != true) return;
 
   await clearPushToken();
+  NotificationCenter.stop();
   // Forget the Google account too, so the next Google sign-in lets the user
   // choose an account again.
   try {

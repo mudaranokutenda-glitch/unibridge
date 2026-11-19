@@ -62,6 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Covers the case where the app was already signed in from a previous
     // session (so AuthScreen's submit() never ran this time).
     setupPushNotifications();
+    // The red number on every bell (live).
+    NotificationCenter.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) listenForForegroundNotifications(context);
     });

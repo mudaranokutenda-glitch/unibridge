@@ -1316,4 +1316,33 @@ const Map<String, String> _t = {
       "Vous ne faisiez pas partie de cet échange",
   'Not signed in':
       "Non connecté",
+  // Notifications (2026-11-19)
+  'Notifications ({count} new)':
+      "Notifications ({count} nouvelles)",
+  'Today':
+      "Aujourd'hui",
+  'Yesterday':
+      "Hier",
+  'Earlier':
+      "Plus tôt",
+  'Clear all notifications?':
+      "Effacer toutes les notifications ?",
+  'They will be deleted. This cannot be undone.':
+      "Elles seront supprimées. Impossible d'annuler.",
+  'Clear all':
+      "Tout effacer",
+  'You\'re all caught up':
+      "Vous êtes à jour",
+  'Matches, confirmations and updates will appear here.':
+      "Les échanges, confirmations et nouvelles apparaîtront ici.",
+  'Swipe left to delete one notification.':
+      "Glissez vers la gauche pour supprimer une notification.",
+  'Someone matched with your request. Chat is now open.':
+      "Quelqu'un a accepté votre demande. La discussion est ouverte.",
+  'Transaction complete. You can now rate each other.':
+      "Échange terminé. Vous pouvez maintenant vous noter.",
+  'The other party confirmed their side. Please confirm yours once done.':
+      "L'autre personne a confirmé. Confirmez votre côté une fois fait.",
+  'A dispute was opened on one of your transactions.':
+      "Un litige a été ouvert sur un de vos échanges.",
 };
