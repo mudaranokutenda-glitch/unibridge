@@ -55,3 +55,8 @@ app.*.map.json
 supabase/.temp/
 sql/2026-11-05-roles.sql
 sql/tests/00-test-accounts.local.sql
+tests-for-review.txt
+.env*
+*adminsdk*.json
+*service-account*.json
+supabase/.temp/
