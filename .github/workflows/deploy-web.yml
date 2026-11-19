@@ -1,8 +1,12 @@
-# Builds the web version of UniBridge and publishes it on GitHub Pages:
+# Builds the web version of UniBridge and puts it in the "gh-pages" branch.
+# GitHub Pages shows that branch at:
 #   https://mudaranokutenda-glitch.github.io/unibridge/
 # Runs on every push to the branches below, or by hand (Actions tab > Run workflow).
-# One-time set-up: repo Settings > Pages > Source = "GitHub Actions".
-# No secret is needed: the Supabase anon key in lib/config.dart is public by design.
+#
+# One-time set-up (after the first green run):
+#   repo Settings > Pages > Source = "Deploy from a branch" > gh-pages / (root)
+# No environment rules and no secret are needed (GITHUB_TOKEN is automatic,
+# the Supabase anon key in lib/config.dart is public by design).
 name: Deploy web to GitHub Pages
 
 on:
@@ -11,17 +15,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write # to update the gh-pages branch
 
-# Only one deployment at a time; a newer push cancels the older one.
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,17 +40,13 @@ jobs:
 
       # Opening any address of the site shows the app (no GitHub 404 page).
       - run: cp build/web/index.html build/web/404.html
+      # Tell GitHub not to process the files (keeps folders that start with _).
+      - run: touch build/web/.nojekyll
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: peaceiris/actions-gh-pages@v4
         with:
-          path: build/web
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "Web build from ${{ github.ref_name }}"
