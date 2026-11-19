@@ -14,6 +14,13 @@ import 'l10n.dart';
 
 bool _googleSignInInitialized = false;
 
+// GoogleSignIn must be initialised once before any other call.
+Future<void> _ensureGoogleSignIn() async {
+  if (_googleSignInInitialized) return;
+  await GoogleSignIn.instance.initialize(serverClientId: googleWebClientId);
+  _googleSignInInitialized = true;
+}
+
 // "Remember me" keeps ONLY the email address, on this phone. Never the password.
 const String _kRememberedEmail = 'remembered_email';
 
@@ -58,6 +65,7 @@ class _AuthScreenState extends State<AuthScreen> {
   String? errorMessage;
   bool emailNotConfirmed = false; // login refused: the email was never confirmed
   bool rememberMe = false;
+  bool showPassword = false;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -67,6 +75,14 @@ class _AuthScreenState extends State<AuthScreen> {
   void initState() {
     super.initState();
     loadRememberedEmail();
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    fullNameController.dispose();
+    super.dispose();
   }
 
   Future<void> loadRememberedEmail() async {
@@ -262,11 +278,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     try {
       final googleSignIn = GoogleSignIn.instance;
-
-      if (!_googleSignInInitialized) {
-        await googleSignIn.initialize(serverClientId: googleWebClientId);
-        _googleSignInInitialized = true;
-      }
+      await _ensureGoogleSignIn();
 
       final googleUser = await googleSignIn.authenticate();
       final idToken = googleUser.authentication.idToken;
@@ -326,13 +338,21 @@ class _AuthScreenState extends State<AuthScreen> {
     required IconData icon,
     bool obscure = false,
     TextInputType? keyboard,
+    Widget? suffix,
+    ValueChanged<String>? onSubmitted,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboard,
+      autocorrect: !obscure && keyboard != TextInputType.emailAddress,
+      enableSuggestions: !obscure,
+      textInputAction:
+          onSubmitted != null ? TextInputAction.done : TextInputAction.next,
+      onSubmitted: onSubmitted,
       decoration: InputDecoration(
         labelText: label,
+        suffixIcon: suffix,
         prefixIcon: Padding(
           padding: const EdgeInsetsDirectional.only(start: 8, end: 8),
           child: CircleAvatar(
@@ -424,7 +444,18 @@ class _AuthScreenState extends State<AuthScreen> {
                             controller: passwordController,
                             label: tr('Password'),
                             icon: Icons.lock,
-                            obscure: true,
+                            obscure: !showPassword,
+                            suffix: IconButton(
+                              tooltip: showPassword
+                                  ? tr('Hide password')
+                                  : tr('Show password'),
+                              icon: Icon(showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: () =>
+                                  setState(() => showPassword = !showPassword),
+                            ),
+                            onSubmitted: (_) => loading ? null : submit(),
                           ),
                           if (!isSignUp) ...[
                             const SizedBox(height: AppSpace.s),
@@ -503,11 +534,15 @@ class _AuthScreenState extends State<AuthScreen> {
                           const SizedBox(height: AppSpace.s),
                           Center(
                             child: TextButton(
-                              onPressed: () => setState(() {
-                                isSignUp = !isSignUp;
-                                errorMessage = null;
-                                emailNotConfirmed = false;
-                              }),
+                              // Not while a request is running: the answer
+                              // would be read for the wrong mode.
+                              onPressed: loading
+                                  ? null
+                                  : () => setState(() {
+                                        isSignUp = !isSignUp;
+                                        errorMessage = null;
+                                        emailNotConfirmed = false;
+                                      }),
                               child: Text(isSignUp
                                   ? tr('Already have an account? Log in')
                                   : tr("Don't have an account? Sign up")),
@@ -581,6 +616,14 @@ Future<void> confirmAndLogOut(BuildContext context) async {
   if (confirmed != true) return;
 
   await clearPushToken();
+  // Forget the Google account too, so the next Google sign-in lets the user
+  // choose an account again.
+  try {
+    await _ensureGoogleSignIn();
+    await GoogleSignIn.instance.signOut();
+  } catch (e) {
+    debugPrint('Google sign-out failed: $e');
+  }
   await supabase.auth.signOut();
   if (context.mounted) {
     Navigator.of(context).pushAndRemoveUntil(

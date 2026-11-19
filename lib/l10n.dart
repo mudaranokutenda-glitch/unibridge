@@ -1245,4 +1245,8 @@ const Map<String, String> _t = {
       "Comme sur votre passeport. Vous ne pourrez pas le modifier ensuite.",
   'Your name is already set. Contact UniBridge support to change it.':
       "Votre nom est déjà enregistré. Contactez le support UniBridge pour le modifier.",
+  'Hide password':
+      "Masquer le mot de passe",
+  'Show password':
+      "Afficher le mot de passe",
 };

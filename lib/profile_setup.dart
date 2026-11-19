@@ -109,6 +109,20 @@ Future<Map<String, dynamic>?> loadMyProfileStrict() async {
   return rows.isEmpty ? null : rows.first;
 }
 
+// true when an error means "this login is no longer valid" (not "no internet").
+bool isSessionExpired(Object e) {
+  if (e is AuthException) {
+    final m = e.message.toLowerCase();
+    return !(m.contains('network') || m.contains('socket') ||
+        m.contains('failed host lookup') || m.contains('timeout'));
+  }
+  if (e is PostgrestException) {
+    return e.code == 'PGRST301' || e.code == 'PGRST303' ||
+        e.message.toLowerCase().contains('jwt');
+  }
+  return false;
+}
+
 // ---------------- Gate: shown after login and at every app start ----------
 
 // Shows the set-up page while my profile is incomplete, otherwise the app.
@@ -149,6 +163,19 @@ class _ProfileGateState extends State<ProfileGate> {
     } catch (e) {
       debugPrint('Profile check failed: $e');
       if (!mounted) return;
+      if (isSessionExpired(e)) {
+        // The login on this phone is no longer valid (password changed,
+        // account deleted, logged out elsewhere): back to the login screen.
+        try {
+          await supabase.auth.signOut();
+        } catch (_) {}
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (route) => false,
+        );
+        return;
+      }
       setState(() {
         failed = true;
         loading = false;
@@ -479,7 +506,12 @@ class _PhoneFieldState extends State<PhoneField> {
   void changed() {
     // The first 0 of a local number is not part of the 9 digits.
     if (digits.text.startsWith('0')) {
-      digits.text = digits.text.replaceFirst(RegExp(r'^0+'), '');
+      final t = digits.text.replaceFirst(RegExp(r'^0+'), '');
+      // Keep the cursor at the end (setting .text alone can move it).
+      digits.value = TextEditingValue(
+        text: t,
+        selection: TextSelection.collapsed(offset: t.length),
+      );
     }
     widget.controller.text = composed;
     widget.onChanged?.call(composed);
