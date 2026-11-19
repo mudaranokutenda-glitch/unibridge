@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'config.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Consent before uploading personal documents ----------------
 // Shown before the first upload of a student card, results or passport.
@@ -94,7 +95,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
       if (!mounted) return;
       setState(() => saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr('Could not save: {error}', {'error': e}))),
+        SnackBar(content: Text(tr('Could not save: {error}', {'error': friendlyError(e, short: true)}))),
       );
     }
   }

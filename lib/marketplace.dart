@@ -8,6 +8,7 @@ import 'config.dart';
 import 'app_theme.dart';
 import 'profiles.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Marketplace ----------------
 
@@ -362,7 +363,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        errorMessage = tr('Could not load listings: {error}', {'error': e});
+        errorMessage = tr('Could not load listings: {error}', {'error': friendlyError(e, short: true)});
         loading = false;
       });
     }
@@ -748,7 +749,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           : tr('Marked as sold. Other students can no longer see it.'));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      _snack(tr('Could not update: {error}', {'error': e}));
+      _snack(tr('Could not update: {error}', {'error': friendlyError(e, short: true)}));
       if (mounted) setState(() => busy = false);
     }
   }
@@ -779,7 +780,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       _snack(tr('Listing deleted.'));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      _snack(tr('Could not delete: {error}', {'error': e}));
+      _snack(tr('Could not delete: {error}', {'error': friendlyError(e, short: true)}));
       if (mounted) setState(() => busy = false);
     }
   }
@@ -1128,7 +1129,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
+      setState(() => errorMessage = friendlyError(e));
     } finally {
       if (mounted) setState(() => loading = false);
     }

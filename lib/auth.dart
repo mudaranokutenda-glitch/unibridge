@@ -11,6 +11,7 @@ import 'app_theme.dart';
 import 'sky_background.dart';
 import 'legal.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 bool _googleSignInInitialized = false;
 
@@ -202,7 +203,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         setState(() =>
-            errorMessage = tr('Something went wrong: {error}', {'error': e}));
+            errorMessage = friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => loading = false);
@@ -237,7 +238,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         setState(() =>
-            errorMessage = tr('Something went wrong: {error}', {'error': e}));
+            errorMessage = friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => loading = false);
@@ -264,7 +265,7 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         setState(() =>
-            errorMessage = tr('Something went wrong: {error}', {'error': e}));
+            errorMessage = friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => loading = false);

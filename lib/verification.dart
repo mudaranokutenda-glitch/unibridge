@@ -8,6 +8,7 @@ import 'app_theme.dart';
 import 'profiles.dart';
 import 'consent.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Student verification request ----------------
 
@@ -52,7 +53,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        errorMessage = tr('Could not load: {error}', {'error': e});
+        errorMessage = tr('Could not load: {error}', {'error': friendlyError(e, short: true)});
         loading = false;
       });
     }
@@ -94,7 +95,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       cardBytes = null;
       await load();
     } catch (e) {
-      setState(() => errorMessage = tr('Could not send: {error}', {'error': e}));
+      setState(() => errorMessage = tr('Could not send: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => submitting = false);
     }

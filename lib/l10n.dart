@@ -1249,4 +1249,71 @@ const Map<String, String> _t = {
       "Masquer le mot de passe",
   'Show password':
       "Afficher le mot de passe",
+  // Errors, chat and requests (2026-11-19)
+  'no internet connection.':
+      "pas de connexion internet.",
+  'not allowed.':
+      "non autorisé.",
+  'You are not allowed to do this.':
+      "Vous n'êtes pas autorisé à faire ceci.",
+  'it already exists.':
+      "cela existe déjà.",
+  'This already exists.':
+      "Cela existe déjà.",
+  'it is no longer available.':
+      "ce n'est plus disponible.",
+  'This is no longer available.':
+      "Ce n'est plus disponible.",
+  'please log in again.':
+      "reconnectez-vous.",
+  'Your login has expired. Please log in again.':
+      "Votre connexion a expiré. Reconnectez-vous.",
+  'the file is too big.':
+      "le fichier est trop grand.",
+  'This file is too big.':
+      "Ce fichier est trop grand.",
+  'please try again.':
+      "réessayez.",
+  'Something went wrong. Try again.':
+      "Un problème est survenu. Réessayez.",
+  'Message not sent: {error}':
+      "Message non envoyé : {error}",
+  'Did you really send the money?':
+      "Avez-vous vraiment envoyé l'argent ?",
+  'Did you really receive the money?':
+      "Avez-vous vraiment reçu l'argent ?",
+  'Confirm only when it is really done. This cannot be undone.':
+      "Confirmez seulement quand c'est vraiment fait. Impossible d'annuler ensuite.",
+  'Yes, confirm':
+      "Oui, confirmer",
+  'This request was cancelled.':
+      "Cette demande a été annulée.",
+  'Could not load this exchange.':
+      "Impossible de charger cet échange.",
+  'this student':
+      "cet étudiant",
+  'Match with {name}?':
+      "Accepter l'échange avec {name} ?",
+  '{type} · {amount}. A chat opens with this student. Only exchange money when you both agree.':
+      "{type} · {amount}. Une discussion s'ouvre avec cet étudiant. N'échangez l'argent que lorsque vous êtes tous les deux d'accord.",
+  'Request is no longer open':
+      "Cette demande n'est plus ouverte",
+  'Cannot match your own request':
+      "Vous ne pouvez pas accepter votre propre demande",
+  'You cannot match with this user.':
+      "Vous ne pouvez pas faire d'échange avec cet utilisateur.",
+  'You are not part of this transaction':
+      "Vous ne faites pas partie de cet échange",
+  'You can only confirm your own side':
+      "Vous ne pouvez confirmer que votre côté",
+  'You already confirmed your side':
+      "Vous avez déjà confirmé votre côté",
+  'A problem can only be reported while the exchange is in progress':
+      "Un problème ne peut être signalé que pendant l'échange",
+  'Ratings only unlock after a completed transaction':
+      "La note n'est possible qu'après un échange terminé",
+  'You were not part of this transaction':
+      "Vous ne faisiez pas partie de cet échange",
+  'Not signed in':
+      "Non connecté",
 };

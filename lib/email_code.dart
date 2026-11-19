@@ -9,6 +9,7 @@ import 'push.dart';
 import 'profile_setup.dart';
 import 'auth.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Email code (6 digits) ----------------
 // Used after sign-up (confirm the email) and for "Forgot password".
@@ -125,7 +126,7 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
       if (mounted) setState(() => error = authErrorText(e));
     } catch (e) {
       if (mounted) {
-        setState(() => error = tr('Something went wrong: {error}', {'error': e}));
+        setState(() => error = friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -163,7 +164,7 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
       if (mounted) setState(() => error = tr('Wrong or expired code. Try again.'));
     } catch (e) {
       if (mounted) {
-        setState(() => error = tr('Something went wrong: {error}', {'error': e}));
+        setState(() => error = friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -196,7 +197,7 @@ class _EmailCodeScreenState extends State<EmailCodeScreen> {
       if (mounted) setState(() => error = authErrorText(e));
     } catch (e) {
       if (mounted) {
-        setState(() => error = tr('Something went wrong: {error}', {'error': e}));
+        setState(() => error = friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => busy = false);

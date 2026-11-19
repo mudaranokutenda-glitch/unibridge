@@ -5,6 +5,7 @@ import 'config.dart';
 import 'app_theme.dart';
 import 'profiles.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Exchange rates ----------------
 
@@ -109,7 +110,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        errorMessage = tr('Could not load rates: {error}', {'error': e});
+        errorMessage = tr('Could not load rates: {error}', {'error': friendlyError(e, short: true)});
         loading = false;
       });
     }

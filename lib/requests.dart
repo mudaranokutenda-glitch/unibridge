@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'config.dart';
 import 'app_theme.dart';
 import 'profiles.dart';
 import 'chat.dart';
 import 'request_row.dart';
+import 'errors.dart';
 import 'l10n.dart';
 
 // ---------------- My requests (mine + matched) ----------------
@@ -29,8 +31,10 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       errorMessage = null;
     });
     try {
-      final amount = double.tryParse(amountController.text.trim());
-      if (amount == null || amount <= 0) {
+      // "50,5" (French keyboard) is the same as "50.5".
+      final amount = double.tryParse(
+          amountController.text.trim().replaceAll(' ', '').replaceAll(',', '.'));
+      if (amount == null || amount <= 0 || amount > 1000000) {
         setState(() {
           errorMessage = tr('Enter a valid amount');
           loading = false;
@@ -47,9 +51,9 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
     } on PostgrestException catch (e) {
       // Messages written by the database (for example the limit of 3 open
       // requests) are shown as they are.
-      setState(() => errorMessage = e.message);
+      if (mounted) setState(() => errorMessage = friendlyError(e));
     } catch (e) {
-      setState(() => errorMessage = tr('Something went wrong: {error}', {'error': e}));
+      if (mounted) setState(() => errorMessage = friendlyError(e));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -80,7 +84,11 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
             TextField(
               controller: amountController,
               decoration: InputDecoration(labelText: tr('Amount')),
-              keyboardType: TextInputType.number,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+              ],
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -121,6 +129,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   Map<String, Map<String, dynamic>> profiles = {};
   Set<String> ratedIds = {};
   bool loading = true;
+  String? loadError;
 
   @override
   void initState() {
@@ -129,27 +138,38 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   }
 
   Future<void> load() async {
-    setState(() => loading = true);
-    final myId = supabase.auth.currentUser!.id;
-    final data = await supabase
-        .from('transaction_requests')
-        .select()
-        .or('creator_id.eq.$myId,matched_with_id.eq.$myId')
-        .isFilter('archived_at', null)
-        .order('updated_at', ascending: false);
-    final loaded = List<Map<String, dynamic>>.from(data);
-    final loadedProfiles = await fetchPublicProfiles(
-      loaded.map((r) => otherPartyId(r, myId)),
-    );
-    final rated = await fetchMyRatedRequestIds();
-    await loadRequestExpiryHours();
-    if (!mounted) return;
     setState(() {
-      myRequests = loaded;
-      profiles = loadedProfiles;
-      ratedIds = rated;
-      loading = false;
+      loading = true;
+      loadError = null;
     });
+    try {
+      final myId = supabase.auth.currentUser!.id;
+      final data = await supabase
+          .from('transaction_requests')
+          .select()
+          .or('creator_id.eq.$myId,matched_with_id.eq.$myId')
+          .isFilter('archived_at', null)
+          .order('updated_at', ascending: false);
+      final loaded = List<Map<String, dynamic>>.from(data);
+      final loadedProfiles = await fetchPublicProfiles(
+        loaded.map((r) => otherPartyId(r, myId)),
+      );
+      final rated = await fetchMyRatedRequestIds();
+      await loadRequestExpiryHours();
+      if (!mounted) return;
+      setState(() {
+        myRequests = loaded;
+        profiles = loadedProfiles;
+        ratedIds = rated;
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        loadError = friendlyError(e);
+      });
+    }
   }
 
   @override
@@ -160,7 +180,19 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         onRefresh: load,
         child: loading
             ? const Center(child: CircularProgressIndicator())
-            : myRequests.isEmpty
+            : loadError != null
+                ? ListView(
+                    children: [
+                      const SizedBox(height: 100),
+                      Center(child: Text(loadError!, textAlign: TextAlign.center)),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: FilledButton(
+                            onPressed: load, child: Text(tr('Try again'))),
+                      ),
+                    ],
+                  )
+                : myRequests.isEmpty
                 ? ListView(
                     children: [
                       SizedBox(height: 100),
@@ -296,7 +328,7 @@ Future<void> cancelMyRequest(BuildContext context, String requestId) async {
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr('Could not cancel: {error}', {'error': e}))),
+        SnackBar(content: Text(tr('Could not cancel: {error}', {'error': friendlyError(e, short: true)}))),
       );
     }
   }

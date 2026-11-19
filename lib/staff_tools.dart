@@ -7,6 +7,7 @@ import 'student_info.dart';
 import 'student_space.dart';
 import 'wilayas.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Educational Attaché and Governor tools ----------------
 // Every check is done in the database (sql/2026-11-11-13 and -14) or in the
@@ -43,7 +44,7 @@ class _StaffSearchScreenState extends State<StaffSearchScreen> {
         searched = true;
       });
     } catch (e) {
-      if (mounted) showSnack(context, tr('Error: {error}', {'error': e}));
+      if (mounted) showSnack(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => searching = false);
     }
@@ -166,7 +167,7 @@ class _StaffStudentScreenState extends State<StaffStudentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -279,7 +280,7 @@ class _StudentsDashboardScreenState extends State<StudentsDashboardScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -479,7 +480,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                 ? tr('Test sent to your phone only.')
                 : tr('The test could not be sent to your phone.'));
       } catch (e) {
-        if (mounted) showSnack(context, tr('Could not send: {error}', {'error': e}));
+        if (mounted) showSnack(context, tr('Could not send: {error}', {'error': friendlyError(e, short: true)}));
       } finally {
         if (mounted) setState(() => sending = false);
       }
@@ -504,7 +505,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       title.clear();
       message.clear();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not send: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not send: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -600,7 +601,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -728,7 +729,7 @@ class _ResultsTrackerScreenState extends State<ResultsTrackerScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -844,7 +845,7 @@ class _MissingRecordsScreenState extends State<MissingRecordsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -910,7 +911,7 @@ class _GovernorBankAccountsScreenState extends State<GovernorBankAccountsScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -1052,7 +1053,7 @@ class _RecentAccessScreenState extends State<RecentAccessScreen> {
       if (!mounted) return;
       setState(() {
         loading = false;
-        errorText = '$e';
+        errorText = friendlyError(e);
       });
     }
   }

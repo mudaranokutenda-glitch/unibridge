@@ -10,6 +10,7 @@ import 'roles.dart';
 import 'student_space.dart';
 import 'wilayas.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Student space: contacts, guide, help, appointments --------
 // Security is in sql/2026-11-11-09 (contacts), -10 (guide, help) and
@@ -123,7 +124,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -226,7 +227,7 @@ class _ManageContactsScreenState extends State<ManageContactsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -245,7 +246,7 @@ class _ManageContactsScreenState extends State<ManageContactsScreen> {
       await supabase.from('staff_contacts').delete().eq('id', c['id']);
       load();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -471,7 +472,7 @@ class _GuideScreenState extends State<GuideScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -550,7 +551,7 @@ class _GuideSectionScreenState extends State<GuideSectionScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -621,7 +622,7 @@ Future<void> openGuidePdf(BuildContext context, String path) async {
     if (context.mounted) await openLink(context, url);
   } catch (e) {
     if (context.mounted) {
-      showSnack(context, tr('Could not open the file: {error}', {'error': e}));
+      showSnack(context, tr('Could not open the file: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 }
@@ -692,7 +693,7 @@ class _GuideItemEditScreenState extends State<GuideItemEditScreen> {
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not save: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not save: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -705,7 +706,7 @@ class _GuideItemEditScreenState extends State<GuideItemEditScreen> {
       if (pdfPath != null) await supabase.storage.from('guide').remove([pdfPath!]);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -818,7 +819,7 @@ class _HelpScreenState extends State<HelpScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -929,7 +930,7 @@ class _FaqEditDialogState extends State<FaqEditDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => saving = false);
-        showSnack(context, tr('Could not save: {error}', {'error': e}));
+        showSnack(context, tr('Could not save: {error}', {'error': friendlyError(e, short: true)}));
       }
     }
   }
@@ -940,7 +941,7 @@ class _FaqEditDialogState extends State<FaqEditDialog> {
       await supabase.from('faqs').delete().eq('id', widget.faq!['id']);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -1032,7 +1033,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -1088,7 +1089,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       // appointments) are shown as they are.
       if (mounted) showSnack(context, e.message);
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not send: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not send: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -1101,7 +1102,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           params: {'p_id': id, 'p_action': action});
       load();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Error: {error}', {'error': e}));
+      if (mounted) showSnack(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -1242,7 +1243,7 @@ class _StaffAppointmentsScreenState extends State<StaffAppointmentsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -1291,7 +1292,7 @@ class _StaffAppointmentsScreenState extends State<StaffAppointmentsScreen> {
       });
       load();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Error: {error}', {'error': e}));
+      if (mounted) showSnack(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }

@@ -16,6 +16,7 @@ import 'posters.dart';
 import 'request_row.dart';
 import 'bottom_bar.dart';
 import 'app_icons.dart';
+import 'errors.dart';
 import 'l10n.dart';
 
 // ---------------- Home: bottom navigation with 4 tabs ----------------
@@ -116,6 +117,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   Map<String, dynamic>? recentAlert; // emergency alert of the last 3 days
   String? hiddenAlertId; // the alert I closed
   String? respondingTo; // suggestion being accepted / declined
+  String? matchingId; // request being matched (the button is locked meanwhile)
   Map<String, Map<String, dynamic>> profiles = {};
   bool loading = true;
 
@@ -337,13 +339,42 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       setState(() => loading = false);
       if (!quiet) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     }
   }
 
-  Future<void> matchWithRequest(String requestId) async {
+  Future<void> matchWithRequest(Map<String, dynamic> r) async {
+    final String requestId = r['id'].toString();
+    if (matchingId != null) return;
+    // Matching opens a real exchange with this person: ask first.
+    final creator = profiles[r['creator_id']];
+    final name = creator == null ? tr('this student') : publicDisplayName(creator);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr('Match with {name}?', {'name': name})),
+        content: Text(tr(
+            '{type} · {amount}. A chat opens with this student. Only exchange money when you both agree.',
+            {
+              'type': typeLabel(r['type']),
+              'amount': formatAmount(r['amount'], r['currency']),
+            })),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(tr('Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(tr('Match')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => matchingId = requestId);
     try {
       await supabase.rpc('match_request', params: {'p_request_id': requestId});
       loadRequests();
@@ -357,9 +388,11 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       loadRequests(quiet: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
+    } finally {
+      if (mounted) setState(() => matchingId = null);
     }
   }
 
@@ -508,7 +541,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       await loadRequests(quiet: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     } finally {
@@ -581,8 +614,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       amount: formatAmount(r['amount'], r['currency']),
       status: requestStatusText(r),
       action: SmallRowButton(
-        label: tr('Match'),
-        onPressed: () => matchWithRequest(r['id']),
+        label: matchingId == r['id'].toString() ? '...' : tr('Match'),
+        onPressed: matchingId != null ? null : () => matchWithRequest(r),
       ),
       // Not matched yet, so no chat: show who created it.
       onTap: creator == null

@@ -5,6 +5,7 @@ import 'profiles.dart';
 import 'student_info.dart';
 import 'student_space.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // Student space membership approval (SQL: sql/2026-11-16-01-members.sql).
 // The REAL protection is in the database rules (RLS). This file only shows the
@@ -82,7 +83,7 @@ class _MembershipGateState extends State<MembershipGate> {
       if (mounted) {
         setState(() {
           state = _Gate.error;
-          errorText = '$e';
+          errorText = friendlyError(e);
         });
       }
     }
@@ -97,7 +98,7 @@ class _MembershipGateState extends State<MembershipGate> {
       // Messages written by the database are shown as they are.
       if (mounted) showSnack(context, e.message);
     } catch (e) {
-      if (mounted) showSnack(context, tr('Error: {error}', {'error': e}));
+      if (mounted) showSnack(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -250,7 +251,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
       if (mounted) {
         setState(() {
           loading = false;
-          errorText = '$e';
+          errorText = friendlyError(e);
         });
       }
     }
@@ -277,7 +278,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
     } on PostgrestException catch (e) {
       if (mounted) showSnack(context, e.message);
     } catch (e) {
-      if (mounted) showSnack(context, tr('Error: {error}', {'error': e}));
+      if (mounted) showSnack(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => busyId = null);
     }

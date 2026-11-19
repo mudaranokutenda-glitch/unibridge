@@ -8,6 +8,7 @@ import 'config.dart';
 import 'app_theme.dart';
 import 'student_space.dart' show showSnack, shortDate;
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- E2. Sliding posters at the top of the Requests tab ----------------
 // The database only returns posters that are active and between their start
@@ -225,7 +226,7 @@ class _ManagePostersScreenState extends State<ManagePostersScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -261,7 +262,7 @@ class _ManagePostersScreenState extends State<ManagePostersScreen> {
       await supabase.storage.from('posters').remove([p['image_path']]);
       await load();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -443,7 +444,7 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
                   {'n': position})
               : tr('Could not save: {error}', {'error': e.message}));
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not save: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not save: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => saving = false);
     }

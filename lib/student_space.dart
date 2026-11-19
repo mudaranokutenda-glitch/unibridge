@@ -16,6 +16,7 @@ import 'wilayas.dart';
 import 'profile_setup.dart';
 import 'student_info.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Student space: record, results, attestation ----------------
 // Security is in sql/2026-11-05-04-student-space.sql and 05-attestations.sql.
@@ -62,7 +63,7 @@ Future<void> openPrivateFile(
     await openLink(context, url);
   } catch (e) {
     if (context.mounted) {
-      showSnack(context, tr('Could not open the file: {error}', {'error': e}));
+      showSnack(context, tr('Could not open the file: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 }
@@ -470,7 +471,7 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -508,7 +509,7 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
       exists = true;
       if (mounted) showSnack(context, tr('Record saved.'));
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not save: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not save: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -714,7 +715,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -815,7 +816,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
       await load();
       if (mounted) showSnack(context, tr('Results uploaded.'));
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not upload: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not upload: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => uploading = false);
     }
@@ -846,7 +847,7 @@ class _MyResultsScreenState extends State<MyResultsScreen> {
       await supabase.from('academic_results').delete().eq('id', r['id']);
       await load();
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not delete: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -1012,7 +1013,7 @@ class _AttestationScreenState extends State<AttestationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -1071,7 +1072,7 @@ class _AttestationScreenState extends State<AttestationScreen> {
     } catch (e) {
       // If only the upload worked, the scan stays in the student's private
       // folder (only they can see it) until they delete their account.
-      if (mounted) showSnack(context, tr('Could not send: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not send: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => sending = false);
     }

@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firebase_options.dart';
 import 'config.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Phone notification bar (Android channels) ----------------
 //
@@ -252,7 +253,7 @@ class _NewRequestNotificationsTileState
       if (!mounted) return;
       setState(() => on = !value);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr('Could not save: {error}', {'error': e}))),
+        SnackBar(content: Text(tr('Could not save: {error}', {'error': friendlyError(e, short: true)}))),
       );
     }
   }

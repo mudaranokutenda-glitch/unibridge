@@ -13,6 +13,7 @@ import 'staff.dart';
 import 'wilayas.dart';
 import 'profile_setup.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Public profile helpers ----------------
 
@@ -273,7 +274,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     }
@@ -384,7 +385,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Could not send report: {error}', {'error': e}))),
+          SnackBar(content: Text(tr('Could not send report: {error}', {'error': friendlyError(e, short: true)}))),
         );
       }
     }
@@ -598,7 +599,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       showDeleteError(text);
       return;
     } catch (e) {
-      showDeleteError(tr('Could not delete account: {error}', {'error': e}));
+      showDeleteError(tr('Could not delete account: {error}', {'error': friendlyError(e, short: true)}));
       return;
     }
 
@@ -687,7 +688,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
         );
       }
     } catch (e) {
-      setState(() => errorMessage = tr('Could not save: {error}', {'error': e}));
+      setState(() => errorMessage = tr('Could not save: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -866,7 +867,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
       if (!mounted) return;
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr('Could not load blocked users: {error}', {'error': e}))),
+        SnackBar(content: Text(tr('Could not load blocked users: {error}', {'error': friendlyError(e, short: true)}))),
       );
     }
   }
@@ -882,7 +883,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     }

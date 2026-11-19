@@ -11,6 +11,7 @@ import 'posters.dart';
 import 'student_info.dart';
 import 'staff_tools.dart';
 import 'l10n.dart';
+import 'errors.dart';
 
 // ---------------- Staff screens (attache, admin, rep) ----------------
 // Hiding these buttons is NOT the security. The database rules and the
@@ -37,7 +38,7 @@ Future<void> openStaffDocument(
     if (context.mounted) await openLink(context, res['url'] as String);
   } catch (e) {
     if (context.mounted) {
-      showSnack(context, tr('Could not open the file: {error}', {'error': e}));
+      showSnack(context, tr('Could not open the file: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 }
@@ -133,7 +134,7 @@ class _AttestationRequestsScreenState extends State<AttestationRequestsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -223,7 +224,7 @@ class _AttestationReviewScreenState extends State<AttestationReviewScreen> {
       await reload();
       if (mounted) showSnack(context, done);
     } catch (e) {
-      if (mounted) showSnack(context, tr('Error: {error}', {'error': e}));
+      if (mounted) showSnack(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -444,7 +445,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -583,7 +584,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': e}));
+      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
     }
   }
 
@@ -778,7 +779,7 @@ class _FinalListScreenState extends State<FinalListScreen> {
       });
       if (mounted) await openLink(context, res['url'] as String);
     } catch (e) {
-      if (mounted) showSnack(context, tr('Could not build: {error}', {'error': e}));
+      if (mounted) showSnack(context, tr('Could not build: {error}', {'error': friendlyError(e, short: true)}));
     } finally {
       if (mounted) setState(() => building = null);
     }

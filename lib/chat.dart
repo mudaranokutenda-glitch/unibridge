@@ -4,7 +4,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
 import 'profiles.dart';
+import 'errors.dart';
 import 'l10n.dart';
+
+// While the exchange is running: confirm and "report a problem" are possible.
+const Set<String> kRunningStatuses = {
+  'MATCHED',
+  'IN_PROGRESS',
+  'SENDER_DONE',
+  'RECEIVER_DONE',
+};
 
 // ---------------- Chat screen (with confirm / dispute / rating) ----------------
 
@@ -30,6 +39,13 @@ class _ChatScreenState extends State<ChatScreen> {
   int selectedStars = 5;
   final ratingCommentController = TextEditingController();
   bool ratingLoading = false;
+  bool sendingText = false;
+  bool loadFailed = false; // the request could not be loaded
+
+  // Live: when the other person confirms or reports a problem, this screen
+  // updates by itself (no need to leave and come back).
+  RealtimeChannel? requestChannel;
+  Timer? reloadTimer;
 
   @override
   void initState() {
@@ -40,16 +56,57 @@ class _ChatScreenState extends State<ChatScreen> {
         .eq('request_id', widget.requestId)
         .order('created_at');
     loadRequest();
+    requestChannel = supabase
+        .channel('chat-request-${widget.requestId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'transaction_requests',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.requestId,
+          ),
+          callback: (_) => reloadSoon(),
+        )
+        .subscribe();
+  }
+
+  void reloadSoon() {
+    reloadTimer?.cancel();
+    reloadTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) loadRequest();
+    });
+  }
+
+  @override
+  void dispose() {
+    reloadTimer?.cancel();
+    final channel = requestChannel;
+    if (channel != null) supabase.removeChannel(channel);
+    messageController.dispose();
+    ratingCommentController.dispose();
+    super.dispose();
   }
 
   Future<void> loadRequest() async {
-    final data = await supabase
-        .from('transaction_requests')
-        .select()
-        .eq('id', widget.requestId)
-        .single();
+    final Map<String, dynamic> data;
+    try {
+      data = await supabase
+          .from('transaction_requests')
+          .select()
+          .eq('id', widget.requestId)
+          .single();
+    } catch (e) {
+      debugPrint('Could not load the request: $e');
+      if (mounted && request == null) setState(() => loadFailed = true);
+      return;
+    }
     if (!mounted) return;
-    setState(() => request = data);
+    setState(() {
+      request = data;
+      loadFailed = false;
+    });
 
     // The small round pictures beside the messages: loaded once per chat,
     // mine and the other person's, with one call to get_public_profiles.
@@ -66,7 +123,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     if (data['status'] == 'COMPLETED') {
-      checkIfRated();
+      try {
+        await checkIfRated();
+      } catch (e) {
+        debugPrint('Could not check the rating: $e');
+      }
     }
 
     // If one of us blocked the other, new messages are not allowed.
@@ -93,16 +154,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> sendMessage() async {
     final text = messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || sendingText) return;
+    setState(() => sendingText = true);
     messageController.clear();
-
-    await supabase.from('messages').insert({
-      'request_id': widget.requestId,
-      'sender_id': supabase.auth.currentUser!.id,
-      'type': 'TEXT',
-      'content': text,
-    });
-
+    try {
+      await supabase.from('messages').insert({
+        'request_id': widget.requestId,
+        'sender_id': supabase.auth.currentUser!.id,
+        'type': 'TEXT',
+        'content': text,
+      });
+    } catch (e) {
+      // Not sent: give the text back so it is not lost.
+      if (mounted) {
+        if (messageController.text.isEmpty) messageController.text = text;
+        showError(tr('Message not sent: {error}',
+            {'error': friendlyError(e, short: true)}));
+        setState(() => sendingText = false);
+      }
+      return;
+    }
+    if (mounted) setState(() => sendingText = false);
     await notifyOtherPerson(text);
   }
 
@@ -175,7 +247,9 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Could not send photo: {error}', {'error': e}))),
+          SnackBar(
+              content: Text(tr('Could not send photo: {error}',
+                  {'error': friendlyError(e, short: true)}))),
         );
       }
     } finally {
@@ -190,6 +264,28 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> confirm(String role) async {
+    // Confirming cannot be undone: ask first.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(role == 'SENDER'
+            ? tr('Did you really send the money?')
+            : tr('Did you really receive the money?')),
+        content: Text(tr(
+            'Confirm only when it is really done. This cannot be undone.')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(tr('Not yet')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(tr('Yes, confirm')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
     setState(() => actionLoading = true);
     try {
       await supabase.rpc('confirm_transaction', params: {
@@ -206,7 +302,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     } finally {
@@ -256,7 +352,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     } finally {
@@ -283,7 +379,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Error: {error}', {'error': e}))),
+          SnackBar(content: Text(friendlyError(e))),
         );
       }
     } finally {
@@ -310,7 +406,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(tr('Chat')),
         actions: [
-          if (status != null && status != 'COMPLETED' && status != 'DISPUTED')
+          if (kRunningStatuses.contains(status))
             IconButton(
               icon: const Icon(Icons.flag_outlined),
               tooltip: tr('Report a problem'),
@@ -399,7 +495,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Text(tr('⚠️ Dispute opened on this transaction'),
                   textAlign: TextAlign.center),
             )
-          else if (status != null)
+          else if (kRunningStatuses.contains(status))
             Container(
               width: double.infinity,
               color: scheme.secondaryContainer,
@@ -421,6 +517,29 @@ class _ChatScreenState extends State<ChatScreen> {
                         ? tr("I sent the money")
                         : tr("I received the money")),
                   ),
+                ],
+              ),
+            )
+          else if (status == 'CANCELLED')
+            Container(
+              width: double.infinity,
+              color: scheme.surfaceContainerHighest,
+              padding: const EdgeInsets.all(12),
+              child: Text(tr('This request was cancelled.'),
+                  textAlign: TextAlign.center),
+            )
+          else if (loadFailed)
+            Container(
+              width: double.infinity,
+              color: scheme.errorContainer,
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  Expanded(
+                      child: Text(tr('Could not load this exchange.'),
+                          textAlign: TextAlign.center)),
+                  TextButton(
+                      onPressed: loadRequest, child: Text(tr('Try again'))),
                 ],
               ),
             ),
@@ -500,7 +619,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          if (chatBlocked && status != 'COMPLETED' && status != 'DISPUTED')
+          if (chatBlocked && kRunningStatuses.contains(status))
             SafeArea(
               child: Container(
                 width: double.infinity,
@@ -512,7 +631,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             )
-          else if (status != 'COMPLETED' && status != 'DISPUTED')
+          else if (kRunningStatuses.contains(status))
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(8),
@@ -541,7 +660,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.send),
-                      onPressed: sendMessage,
+                      tooltip: tr('Send'),
+                      onPressed: sendingText ? null : sendMessage,
                     ),
                   ],
                 ),
