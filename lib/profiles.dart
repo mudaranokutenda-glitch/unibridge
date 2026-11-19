@@ -15,6 +15,7 @@ import 'profile_setup.dart';
 import 'l10n.dart';
 import 'errors.dart';
 import 'notifications.dart';
+import 'rates.dart';
 
 // ---------------- Public profile helpers ----------------
 
@@ -98,18 +99,228 @@ Widget avatar(Map<String, dynamic>? p, {double radius = 20}) {
   );
 }
 
-Widget _statRow(String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
-      ],
-    ),
-  );
+// ---------------- Profile header (my profile + other people) ----------------
+
+// Trust level shown as a word (the raw number means nothing to students).
+// No completed exchange yet = "New".
+(String, Color) trustLevel(Map<String, dynamic> p) {
+  final completed = _asInt(p['completed_count']);
+  final score = _asInt(p['trust_score']);
+  if (completed == 0) return (tr('New'), Colors.white);
+  if (score >= 70) return (tr('Trusted'), const Color(0xFF7CF2A9));
+  if (score >= 50) return (tr('Good'), Colors.white);
+  return (tr('Low'), const Color(0xFFFFC46B));
 }
+
+class ProfileHero extends StatelessWidget {
+  final Map<String, dynamic>? profile;
+  final Uint8List? newPhoto; // a photo picked but not saved yet
+  final VoidCallback? onTapPhoto; // null = the photo cannot be changed here
+  const ProfileHero(
+      {super.key, required this.profile, this.newPhoto, this.onTapPhoto});
+
+  Widget _stat(String value, String label, {Color color = Colors.white}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value,
+                  maxLines: 1,
+                  style: TextStyle(
+                      color: color, fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 2),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85), fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = profile ?? const <String, dynamic>{};
+    final verified = p['is_verified'] == true;
+    final place = profile == null ? '' : profilePlace(p);
+    final ratingCount = _asInt(p['rating_count']);
+    final avg = asDouble(p['avg_rating']);
+    final (trustText, trustColor) = trustLevel(p);
+    final joined = _memberSince(p['joined']);
+
+    final photo = newPhoto != null
+        ? CircleAvatar(radius: 46, backgroundImage: MemoryImage(newPhoto!))
+        : avatar(profile, radius: 46);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF6BB0FF), AppColors.sky, AppColors.skyDark],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
+          children: [
+            GestureDetector(
+              onTap: onTapPhoto,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: verified ? AppColors.verified : Colors.white,
+                    ),
+                    child: photo,
+                  ),
+                  if (onTapPhoto != null)
+                    PositionedDirectional(
+                      end: -2,
+                      bottom: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.sky, width: 2),
+                        ),
+                        child: const Icon(Icons.photo_camera,
+                            size: 16, color: AppColors.sky),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    profile == null ? '' : publicDisplayName(p),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800),
+                  ),
+                ),
+                if (verified) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.verified, color: AppColors.verified, size: 22),
+                ],
+              ],
+            ),
+            if (place.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.place_outlined, size: 15, color: Colors.white),
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text(place,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.92))),
+                  ),
+                ],
+              ),
+            ],
+            if (joined != '—') ...[
+              const SizedBox(height: 2),
+              Text(tr('Member since {date}', {'date': joined}),
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _stat(
+                    ratingCount > 0 && avg != null
+                        ? '★ ${avg.toStringAsFixed(1)}'
+                        : '—',
+                    ratingCount > 0
+                        ? tr('{count} reviews', {'count': ratingCount})
+                        : tr('No ratings yet')),
+                const SizedBox(width: 8),
+                _stat('${_asInt(p['completed_count'])}', tr('completed')),
+                const SizedBox(width: 8),
+                _stat(trustText, tr('trust level'), color: trustColor),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Small grey title above a group of settings.
+Widget profileSectionTitle(BuildContext context, String text) => Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 8),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
+
+// A rounded card holding rows (ListTiles) with thin lines between them.
+Widget profileGroup(List<Widget> rows) => Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 56),
+            rows[i],
+          ],
+        ],
+      ),
+    );
+
+Widget profileChip(String text, Color color, {IconData? icon}) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+          ],
+          Text(text,
+              style: TextStyle(
+                  color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
 
 // Small card showing who someone is: name, badge, place, rating, history.
 class ProfileSummary extends StatelessWidget {
@@ -421,84 +632,96 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           : p == null
               ? Center(child: Text(tr('Profile unavailable')))
               : ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.only(bottom: 24),
                   children: [
-                    Center(child: avatar(p, radius: 40)),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    ProfileHero(profile: p),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Flexible(
-                          child: Text(
-                            publicDisplayName(p),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        if (p['is_verified'] == true) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.verified, color: AppColors.verified),
-                        ],
+                        if (p['is_verified'] == true)
+                          profileChip(tr('Verified student'), AppColors.verified,
+                              icon: Icons.verified)
+                        else
+                          profileChip(tr('Not verified yet'), AppColors.expired),
+                        if (_asInt(p['completed_count']) > 0)
+                          profileChip(
+                              tr('{count} exchanges done',
+                                  {'count': _asInt(p['completed_count'])}),
+                              AppColors.success,
+                              icon: Icons.check_circle_outline),
                       ],
                     ),
-                    if (profilePlace(p).isNotEmpty)
-                      Center(
-                        child: Text(
-                          profilePlace(p),
-                          style: const TextStyle(color: kMutedText),
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            _statRow(
-                              tr('Rating'),
-                              _asInt(p['rating_count']) > 0
-                                  ? tr('★ {avg} ({count} reviews)', {'avg': asDouble(p['avg_rating'])?.toStringAsFixed(1), 'count': _asInt(p['rating_count'])})
-                                  : tr('No ratings yet'),
-                            ),
-                            _statRow(tr('Completed transactions'),
-                                '${_asInt(p['completed_count'])}'),
-                            _statRow(tr('Trust score'), '${_asInt(p['trust_score'])}'),
-                            _statRow(tr('Member since'), _memberSince(p['joined'])),
-                            _statRow(tr('Verified'),
-                                p['is_verified'] == true ? tr('Yes') : tr('Not yet')),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(tr('Reviews'),
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    profileSectionTitle(context, tr('Reviews')),
                     if (reviews.isEmpty)
                       Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Text(tr('No reviews yet.'),
-                            style: TextStyle(color: Colors.grey)),
+                            style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant)),
                       )
                     else
-                      ...reviews.map((rev) {
-                        var score = _asInt(rev['score']);
-                        if (score < 0) score = 0;
-                        if (score > 5) score = 5;
-                        final comment =
-                            (rev['comment'] ?? '').toString().trim();
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
+                      for (final rev in reviews) reviewCard(context, rev),
+                    if (!isMe) ...[
+                      profileSectionTitle(context, tr('Safety')),
+                      profileGroup([
+                        ListTile(
+                          leading: const Icon(Icons.flag_outlined),
+                          title: Text(tr('Report user')),
+                          onTap: reportUser,
+                        ),
+                        ListTile(
+                          leading: Icon(iBlocked
+                              ? Icons.lock_open_outlined
+                              : Icons.block),
                           title: Text(
-                            '★' * score + '☆' * (5 - score),
-                            style: const TextStyle(color: Colors.amber),
-                          ),
-                          subtitle: comment.isEmpty ? null : Text(comment),
-                        );
-                      }),
+                              iBlocked ? tr('Unblock user') : tr('Block user')),
+                          onTap: toggleBlock,
+                        ),
+                      ]),
+                    ],
                   ],
                 ),
+    );
+  }
+
+  Widget reviewCard(BuildContext context, Map<String, dynamic> rev) {
+    var score = _asInt(rev['score']);
+    if (score < 0) score = 0;
+    if (score > 5) score = 5;
+    final comment = (rev['comment'] ?? '').toString().trim();
+    final when = DateTime.tryParse('${rev['created_at']}');
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('★' * score + '☆' * (5 - score),
+                    style: const TextStyle(
+                        color: Colors.amber, fontSize: 16, letterSpacing: 1)),
+                const Spacer(),
+                if (when != null)
+                  Text(updatedAgo(when),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ],
+            ),
+            if (comment.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(comment),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -698,6 +921,9 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final myId = supabase.auth.currentUser!.id;
+    final verified = me?['is_verified'] == true;
+    final busy = saving || deleting;
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('My profile')),
@@ -705,129 +931,167 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Center(
-                  child: GestureDetector(
-                    onTap: saving ? null : pickPhoto,
-                    child: newPhotoBytes != null
-                        ? CircleAvatar(
-                            radius: 48,
-                            backgroundImage: MemoryImage(newPhotoBytes!),
-                          )
-                        : avatar(me, radius: 48),
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 32),
+                children: [
+                  ProfileHero(
+                    profile: me,
+                    newPhoto: newPhotoBytes,
+                    onTapPhoto: busy ? null : pickPhoto,
                   ),
-                ),
-                const SizedBox(height: 6),
-                Center(
-                  child: Text(tr('Tap the picture to change it'),
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
-                ),
-                const SizedBox(height: 20),
-                Text(tr('This is how others see you:'),
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: ProfileSummary(profile: me, tappable: false),
+                  if (newPhotoBytes != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(tr('New photo chosen. Tap Save changes.'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: AppColors.sky, fontWeight: FontWeight.w600)),
+                    ),
+
+                  // ---- Your details (the only part that Save changes) ----
+                  profileSectionTitle(context, tr('Your details')),
+                  Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          WilayaDropdown(
+                            value: wilaya,
+                            onChanged:
+                                busy ? null : (v) => setState(() => wilaya = v),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: locationController,
+                            enabled: !busy,
+                            decoration: InputDecoration(
+                              labelText: tr('Location (city / area)'),
+                              prefixIcon: const Icon(Icons.place_outlined),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          PhoneField(
+                            controller: phoneController,
+                            enabled: !busy,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            tr("Your name comes from sign-up and can't be changed here."),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant),
+                          ),
+                          if (errorMessage != null) ...[
+                            const SizedBox(height: 12),
+                            Text(errorMessage!,
+                                style:
+                                    const TextStyle(color: AppColors.cancelled)),
+                          ],
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: busy ? null : save,
+                            icon: saving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
+                                : const Icon(Icons.check),
+                            label: Text(
+                                saving ? tr('Saving...') : tr('Save changes')),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  tr('Your name comes from sign-up and can\'t be changed here.'),
-                  style: TextStyle(fontSize: 12, color: kMutedText),
-                ),
-                const SizedBox(height: 20),
-                WilayaDropdown(
-                  value: wilaya,
-                  onChanged: saving ? null : (v) => setState(() => wilaya = v),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: locationController,
-                  decoration: InputDecoration(
-                    labelText: tr('Location (city / area)'),
+
+                  // ---- Account: rows that open a page ----
+                  profileSectionTitle(context, tr('Account')),
+                  profileGroup([
+                    ListTile(
+                      leading: Icon(Icons.verified_outlined,
+                          color: verified ? AppColors.verified : null),
+                      title: Text(tr('Verification')),
+                      trailing: verified
+                          ? profileChip(tr('Verified'), AppColors.verified)
+                          : profileChip(tr('Get verified'), AppColors.sky),
+                      onTap: busy
+                          ? null
+                          : () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => const VerificationScreen())),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.visibility_outlined),
+                      title: Text(tr('See my public profile')),
+                      subtitle: Text(tr('This is how others see you.')),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => UserProfileScreen(userId: myId))),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.block),
+                      title: Text(tr('Blocked users')),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: busy
+                          ? null
+                          : () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => const BlockedUsersScreen())),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.description_outlined),
+                      title: Text(tr('Terms and privacy')),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const LegalScreen())),
+                    ),
+                  ]),
+
+                  if (role.canSeeStudents) ...[
+                    profileSectionTitle(context, tr('Staff')),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: StaffSection(role: role),
+                    ),
+                  ],
+
+                  // ---- Settings ----
+                  profileSectionTitle(context, tr('Settings')),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: SettingsSection(),
                   ),
-                ),
-                const SizedBox(height: 12),
-                PhoneField(
-                  controller: phoneController,
-                  enabled: !saving,
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 20),
-                if (errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(errorMessage!,
-                        style: const TextStyle(color: AppColors.cancelled)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: NewRequestNotificationsTile(),
                   ),
-                OutlinedButton.icon(
-                  onPressed: saving
-                      ? null
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const VerificationScreen()),
-                          );
-                        },
-                  icon: const Icon(Icons.verified_outlined),
-                  label: Text(tr('Get verified')),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: saving
-                      ? null
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const BlockedUsersScreen()),
-                          );
-                        },
-                  icon: const Icon(Icons.block),
-                  label: Text(tr('Blocked users')),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const LegalScreen()),
-                    );
-                  },
-                  icon: const Icon(Icons.description_outlined),
-                  label: Text(tr('Terms and privacy')),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: saving ? null : save,
-                  child: Text(saving ? tr('Saving...') : tr('Save')),
-                ),
-                if (role.canSeeStudents) ...[
-                  const SizedBox(height: 24),
-                  StaffSection(role: role),
+
+                  // ---- Leave: log out / delete (kept apart, at the end) ----
+                  const SizedBox(height: 12),
+                  profileGroup([
+                    ListTile(
+                      leading: const Icon(Icons.logout),
+                      title: Text(tr('Log out')),
+                      onTap: busy ? null : () => confirmAndLogOut(context),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.delete_forever,
+                          color: AppColors.cancelled),
+                      title: Text(
+                        deleting ? tr('Deleting...') : tr('Delete my account'),
+                        style: const TextStyle(color: AppColors.cancelled),
+                      ),
+                      onTap: busy ? null : deleteAccount,
+                    ),
+                  ]),
                 ],
-                const SizedBox(height: 24),
-                const SettingsSection(),
-                const SizedBox(height: 12),
-                const NewRequestNotificationsTile(),
-                const SizedBox(height: 24),
-                OutlinedButton.icon(
-                  onPressed: (saving || deleting)
-                      ? null
-                      : () => confirmAndLogOut(context),
-                  icon: const Icon(Icons.logout),
-                  label: Text(tr('Log out')),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: (saving || deleting) ? null : deleteAccount,
-                  style: TextButton.styleFrom(foregroundColor: AppColors.cancelled),
-                  icon: const Icon(Icons.delete_forever),
-                  label: Text(deleting ? tr('Deleting...') : tr('Delete my account')),
-                ),
-              ],
+              ),
             ),
     );
   }

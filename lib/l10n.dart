@@ -1345,4 +1345,45 @@ const Map<String, String> _t = {
       "L'autre personne a confirmé. Confirmez votre côté une fois fait.",
   'A dispute was opened on one of your transactions.':
       "Un litige a été ouvert sur un de vos échanges.",
+  // Profile redesign (2026-11-19)
+  'New':
+      "Nouveau",
+  'Trusted':
+      "Fiable",
+  'Good':
+      "Bon",
+  'Low':
+      "Faible",
+  'Member since {date}':
+      "Membre depuis {date}",
+  '{count} reviews':
+      "{count} avis",
+  'completed':
+      "terminés",
+  'trust level':
+      "confiance",
+  'Verified student':
+      "Étudiant vérifié",
+  'Not verified yet':
+      "Pas encore vérifié",
+  '{count} exchanges done':
+      "{count} échanges faits",
+  'Safety':
+      "Sécurité",
+  'New photo chosen. Tap Save changes.':
+      "Nouvelle photo choisie. Touchez Enregistrer.",
+  'Your details':
+      "Vos informations",
+  'Account':
+      "Compte",
+  'Verification':
+      "Vérification",
+  'See my public profile':
+      "Voir mon profil public",
+  'This is how others see you.':
+      "C'est ce que les autres voient.",
+  'Staff':
+      "Équipe",
+  'Settings':
+      "Paramètres",
 };
