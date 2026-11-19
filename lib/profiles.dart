@@ -735,17 +735,366 @@ class EditMyProfileScreen extends StatefulWidget {
   State<EditMyProfileScreen> createState() => _EditMyProfileScreenState();
 }
 
+// The Profile tab: header + "Edit profile" (bottom sheet) + verification.
+// Everything else (language, theme, blocked users, log out...) is on the
+// Settings page (gear at the top).
 class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
-  String? wilaya; // one of the 58, or null = not chosen
+  Map<String, dynamic>? me;
+  String? phone;
+  MyRole role = MyRole.student;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    final myId = supabase.auth.currentUser!.id;
+    final profiles = await fetchPublicProfiles([myId]);
+    final loadedRole = await loadMyRole();
+    String? loadedPhone;
+    try {
+      loadedPhone = await loadMyPhone();
+    } catch (e) {
+      debugPrint('Could not load phone: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      me = profiles[myId];
+      role = loadedRole;
+      phone = loadedPhone;
+      loading = false;
+    });
+  }
+
+  Future<void> openEditSheet() async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => EditProfileSheet(profile: me, phone: phone),
+    );
+    if (saved == true) {
+      await load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Profile saved.'))),
+        );
+      }
+    }
+  }
+
+  void openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileSettingsScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final myId = supabase.auth.currentUser!.id;
+    final verified = me?['is_verified'] == true;
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(tr('My profile')),
+        actions: [
+          const NotificationBell(),
+          IconButton(
+            tooltip: tr('Settings'),
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: openSettings,
+          ),
+        ],
+      ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 32),
+                children: [
+                  ProfileHero(profile: me, onTapPhoto: openEditSheet),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: openEditSheet,
+                            icon: const Icon(Icons.edit_outlined),
+                            label: Text(tr('Edit profile')),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        UserProfileScreen(userId: myId))),
+                            icon: const Icon(Icons.visibility_outlined),
+                            label: Text(tr('Public view')),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // One card only: verification (the most useful next step).
+                  Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      leading: CircleAvatar(
+                        backgroundColor: (verified
+                                ? AppColors.verified
+                                : AppColors.sky)
+                            .withValues(alpha: 0.15),
+                        child: Icon(Icons.verified,
+                            color: verified
+                                ? AppColors.verified
+                                : AppColors.sky),
+                      ),
+                      title: Text(verified
+                          ? tr('You are verified')
+                          : tr('Get the gold tick')),
+                      subtitle: Text(verified
+                          ? tr('Other students see the gold tick on your profile.')
+                          : tr('Verified students are trusted more and match faster.')),
+                      trailing: verified
+                          ? null
+                          : Icon(Icons.chevron_right, color: scheme.primary),
+                      onTap: verified
+                          ? null
+                          : () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => const VerificationScreen())),
+                    ),
+                  ),
+                  if (role.canSeeStudents) ...[
+                    profileSectionTitle(context, tr('Staff')),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: StaffSection(role: role),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+// ---------------- Edit profile (bottom sheet) ----------------
+// Photo, wilaya, city and phone. The name is shown but cannot be changed.
+// Returns true (Navigator.pop) after a successful save.
+
+class EditProfileSheet extends StatefulWidget {
+  final Map<String, dynamic>? profile;
+  final String? phone;
+  const EditProfileSheet({super.key, required this.profile, this.phone});
+
+  @override
+  State<EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends State<EditProfileSheet> {
+  String? wilaya;
   final locationController = TextEditingController();
   final phoneController = TextEditingController();
-  Map<String, dynamic>? me;
-  MyRole role = MyRole.student;
+  late final TextEditingController nameController;
   Uint8List? newPhotoBytes;
-  bool loading = true;
   bool saving = false;
-  bool deleting = false;
   String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.profile;
+    wilaya = validWilaya(p?['wilaya']);
+    locationController.text = (p?['location'] ?? '').toString();
+    phoneController.text = widget.phone ?? '';
+    nameController = TextEditingController(
+        text: p == null ? '' : publicDisplayName(p));
+  }
+
+  @override
+  void dispose() {
+    locationController.dispose();
+    phoneController.dispose();
+    nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> pickPhoto() async {
+    final bytes = await pickProfilePhotoBytes();
+    if (bytes != null && mounted) setState(() => newPhotoBytes = bytes);
+  }
+
+  Future<void> save() async {
+    if (wilaya == null) {
+      setState(() => errorMessage = tr('Choose your wilaya.'));
+      return;
+    }
+    if (!isNewPhoneFormat(phoneController.text)) {
+      setState(() =>
+          errorMessage = tr('Choose +213 or +263 and enter the 9 digits.'));
+      return;
+    }
+    setState(() {
+      saving = true;
+      errorMessage = null;
+    });
+    try {
+      final myId = supabase.auth.currentUser!.id;
+      final location = locationController.text.trim();
+      final updates = <String, dynamic>{
+        'wilaya': wilaya,
+        'location': location.isEmpty ? null : location,
+      };
+      if (newPhotoBytes != null) {
+        updates['profile_picture_url'] = await uploadProfilePhoto(newPhotoBytes!);
+      }
+      await supabase.from('profiles').update(updates).eq('id', myId);
+      await saveMyPhone(phoneController.text);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => errorMessage = tr('Could not save: {error}',
+            {'error': friendlyError(e, short: true)}));
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      // Moves up with the keyboard.
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(tr('Edit profile'),
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 16),
+            Center(
+              child: GestureDetector(
+                onTap: saving ? null : pickPhoto,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    newPhotoBytes != null
+                        ? CircleAvatar(
+                            radius: 44,
+                            backgroundImage: MemoryImage(newPhotoBytes!))
+                        : avatar(widget.profile, radius: 44),
+                    PositionedDirectional(
+                      end: -2,
+                      bottom: -2,
+                      child: CircleAvatar(
+                        radius: 15,
+                        backgroundColor: AppColors.sky,
+                        child: const Icon(Icons.photo_camera,
+                            size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(tr('Tap the picture to change it'),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 16),
+            // The name is shown but can't be changed (database rule).
+            TextField(
+              controller: nameController,
+              readOnly: true,
+              enableInteractiveSelection: false,
+              decoration: InputDecoration(
+                labelText: tr('Full name'),
+                prefixIcon: const Icon(Icons.person_outline),
+                suffixIcon: const Icon(Icons.lock_outline, size: 18),
+                helperText: tr("Your name can't be changed."),
+                filled: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            WilayaDropdown(
+              value: wilaya,
+              onChanged: saving ? null : (v) => setState(() => wilaya = v),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: locationController,
+              enabled: !saving,
+              decoration: InputDecoration(
+                labelText: tr('City or area (optional)'),
+                prefixIcon: const Icon(Icons.place_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            PhoneField(
+              controller: phoneController,
+              enabled: !saving,
+              onChanged: (_) => setState(() {}),
+            ),
+            if (errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(errorMessage!,
+                  style: const TextStyle(color: AppColors.cancelled)),
+            ],
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: saving ? null : save,
+              icon: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check),
+              label: Text(saving ? tr('Saving...') : tr('Save changes')),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: saving ? null : () => Navigator.of(context).pop(false),
+              child: Text(tr('Cancel')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- Settings (gear on the Profile tab) ----------------
+
+class ProfileSettingsScreen extends StatefulWidget {
+  const ProfileSettingsScreen({super.key});
+
+  @override
+  State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
+}
+
+class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
+  bool deleting = false;
 
   void showDeleteError(String text) {
     if (!mounted) return;
@@ -845,254 +1194,57 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
-  Future<void> load() async {
-    final myId = supabase.auth.currentUser!.id;
-    final profiles = await fetchPublicProfiles([myId]);
-    final p = profiles[myId];
-    final loadedRole = await loadMyRole();
-    String? phone;
-    try {
-      phone = await loadMyPhone();
-    } catch (e) {
-      debugPrint('Could not load phone: $e');
-    }
-    if (!mounted) return;
-    setState(() {
-      me = p;
-      role = loadedRole;
-      phoneController.text = phone ?? '';
-      wilaya = validWilaya(p?['wilaya']);
-      locationController.text = (p?['location'] ?? '').toString();
-      loading = false;
-    });
-  }
-
-  // Shared with the "Set up your profile" page (profile_setup.dart).
-  Future<void> pickPhoto() async {
-    final bytes = await pickProfilePhotoBytes();
-    if (bytes != null && mounted) setState(() => newPhotoBytes = bytes);
-  }
-
-  Future<void> save() async {
-    setState(() {
-      saving = true;
-      errorMessage = null;
-    });
-    try {
-      final myId = supabase.auth.currentUser!.id;
-      if (!isNewPhoneFormat(phoneController.text)) {
-        setState(() => errorMessage =
-            tr('Choose +213 or +263 and enter the 9 digits.'));
-        return;
-      }
-      final updates = <String, dynamic>{
-        'wilaya': wilaya ?? 'OTHER',
-        'location': locationController.text.trim().isEmpty
-            ? null
-            : locationController.text.trim(),
-      };
-
-      if (newPhotoBytes != null) {
-        updates['profile_picture_url'] =
-            await uploadProfilePhoto(newPhotoBytes!);
-      }
-
-      await supabase.from('profiles').update(updates).eq('id', myId);
-      await saveMyPhone(phoneController.text);
-      // This screen is a tab now, so stay here and show the new card.
-      newPhotoBytes = null;
-      await load();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Profile saved.'))),
-        );
-      }
-    } catch (e) {
-      setState(() => errorMessage = tr('Could not save: {error}', {'error': friendlyError(e, short: true)}));
-    } finally {
-      if (mounted) setState(() => saving = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final myId = supabase.auth.currentUser!.id;
-    final verified = me?['is_verified'] == true;
-    final busy = saving || deleting;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tr('My profile')),
-        actions: const [NotificationBell()],
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: load,
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 32),
-                children: [
-                  ProfileHero(
-                    profile: me,
-                    newPhoto: newPhotoBytes,
-                    onTapPhoto: busy ? null : pickPhoto,
-                  ),
-                  if (newPhotoBytes != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(tr('New photo chosen. Tap Save changes.'),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: AppColors.sky, fontWeight: FontWeight.w600)),
-                    ),
-
-                  // ---- Your details (the only part that Save changes) ----
-                  profileSectionTitle(context, tr('Your details')),
-                  Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          WilayaDropdown(
-                            value: wilaya,
-                            onChanged:
-                                busy ? null : (v) => setState(() => wilaya = v),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: locationController,
-                            enabled: !busy,
-                            decoration: InputDecoration(
-                              labelText: tr('Location (city / area)'),
-                              prefixIcon: const Icon(Icons.place_outlined),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          PhoneField(
-                            controller: phoneController,
-                            enabled: !busy,
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            tr("Your name comes from sign-up and can't be changed here."),
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant),
-                          ),
-                          if (errorMessage != null) ...[
-                            const SizedBox(height: 12),
-                            Text(errorMessage!,
-                                style:
-                                    const TextStyle(color: AppColors.cancelled)),
-                          ],
-                          const SizedBox(height: 16),
-                          FilledButton.icon(
-                            onPressed: busy ? null : save,
-                            icon: saving
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.check),
-                            label: Text(
-                                saving ? tr('Saving...') : tr('Save changes')),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // ---- Account: rows that open a page ----
-                  profileSectionTitle(context, tr('Account')),
-                  profileGroup([
-                    ListTile(
-                      leading: Icon(Icons.verified_outlined,
-                          color: verified ? AppColors.verified : null),
-                      title: Text(tr('Verification')),
-                      trailing: verified
-                          ? profileChip(tr('Verified'), AppColors.verified)
-                          : profileChip(tr('Get verified'), AppColors.sky),
-                      onTap: busy
-                          ? null
-                          : () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => const VerificationScreen())),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.visibility_outlined),
-                      title: Text(tr('See my public profile')),
-                      subtitle: Text(tr('This is how others see you.')),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => UserProfileScreen(userId: myId))),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.block),
-                      title: Text(tr('Blocked users')),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: busy
-                          ? null
-                          : () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => const BlockedUsersScreen())),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.description_outlined),
-                      title: Text(tr('Terms and privacy')),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => const LegalScreen())),
-                    ),
-                  ]),
-
-                  if (role.canSeeStudents) ...[
-                    profileSectionTitle(context, tr('Staff')),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: StaffSection(role: role),
-                    ),
-                  ],
-
-                  // ---- Settings ----
-                  profileSectionTitle(context, tr('Settings')),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: SettingsSection(),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: NewRequestNotificationsTile(),
-                  ),
-
-                  // ---- Leave: log out / delete (kept apart, at the end) ----
-                  const SizedBox(height: 12),
-                  profileGroup([
-                    ListTile(
-                      leading: const Icon(Icons.logout),
-                      title: Text(tr('Log out')),
-                      onTap: busy ? null : () => confirmAndLogOut(context),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.delete_forever,
-                          color: AppColors.cancelled),
-                      title: Text(
-                        deleting ? tr('Deleting...') : tr('Delete my account'),
-                        style: const TextStyle(color: AppColors.cancelled),
-                      ),
-                      onTap: busy ? null : deleteAccount,
-                    ),
-                  ]),
-                ],
-              ),
+      appBar: AppBar(title: Text(tr('Settings'))),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          profileSectionTitle(context, tr('App')),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: SettingsSection(),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: NewRequestNotificationsTile(),
+          ),
+          profileSectionTitle(context, tr('Privacy')),
+          profileGroup([
+            ListTile(
+              leading: const Icon(Icons.block),
+              title: Text(tr('Blocked users')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const BlockedUsersScreen())),
             ),
+            ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: Text(tr('Terms and privacy')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const LegalScreen())),
+            ),
+          ]),
+          profileSectionTitle(context, tr('Account')),
+          profileGroup([
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: Text(tr('Log out')),
+              onTap: deleting ? null : () => confirmAndLogOut(context),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.delete_forever, color: AppColors.cancelled),
+              title: Text(
+                deleting ? tr('Deleting...') : tr('Delete my account'),
+                style: const TextStyle(color: AppColors.cancelled),
+              ),
+              onTap: deleting ? null : deleteAccount,
+            ),
+          ]),
+        ],
+      ),
     );
   }
 }

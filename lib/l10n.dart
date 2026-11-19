@@ -1386,4 +1386,23 @@ const Map<String, String> _t = {
       "Équipe",
   'Settings':
       "Paramètres",
+  // Profile sheet + settings (2026-11-19)
+  'Edit profile':
+      "Modifier le profil",
+  'Public view':
+      "Vue publique",
+  'Get the gold tick':
+      "Obtenez le badge doré",
+  'Other students see the gold tick on your profile.':
+      "Les autres étudiants voient le badge doré sur votre profil.",
+  'Verified students are trusted more and match faster.':
+      "Les étudiants vérifiés inspirent plus confiance et trouvent un échange plus vite.",
+  'Choose your wilaya.':
+      "Choisissez votre wilaya.",
+  'Your name can\'t be changed.':
+      "Votre nom ne peut pas être modifié.",
+  'App':
+      "Application",
+  'Privacy':
+      "Confidentialité",
 };

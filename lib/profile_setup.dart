@@ -374,13 +374,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             const SizedBox(height: 20),
             // The name cannot be changed in the app (database rules). Only a
             // missing name can be typed here, once.
-            if (name.isNotEmpty) ...[
-              Text(tr('Name'), style: muted),
-              const SizedBox(height: 2),
-              Text(name,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
-            ] else
+            if (name.isNotEmpty)
+              // Name from sign-up or Google: shown in the box, locked.
+              TextFormField(
+                initialValue: name,
+                readOnly: true,
+                enableInteractiveSelection: false,
+                decoration: InputDecoration(
+                  labelText: tr('Full name'),
+                  prefixIcon: const Icon(Icons.person_outline),
+                  suffixIcon: const Icon(Icons.lock_outline, size: 18),
+                  helperText: tr("Your name can't be changed."),
+                  filled: true,
+                ),
+              )
+            else
               TextField(
                 controller: nameController,
                 enabled: !saving && !nameSaved,
