@@ -1513,4 +1513,23 @@ const Map<String, String> _t = {
       "Seule une demande expirée peut être republiée",
   'You already posted this request again':
       "Vous avez déjà republié cette demande",
+  // Live rates (2026-11-19)
+  'Estimated from the official rate.':
+      "Estimé à partir du taux officiel.",
+  'Parallel rates':
+      "Taux parallèles",
+  'Type today\'s square rate':
+      "Saisir le taux du square du jour",
+  'Type today\'s square rate in Annaba (DA). It replaces the estimate for 24 hours.':
+      "Saisissez le taux du square d'Annaba du jour (DA). Il remplace l'estimation pendant 24 heures.",
+  'Fill in both buy and sell for {pair}.':
+      "Remplissez l'achat et la vente pour {pair}.",
+  'Parallel rates saved.':
+      "Taux parallèles enregistrés.",
+  'Only the Educational Attaché or the admin can change the rates':
+      "Seuls l'Attaché ou l'admin peuvent modifier les taux",
+  'Enter real rates (more than 0)':
+      "Entrez de vrais taux (plus de 0)",
+  'The buy rate cannot be higher than the sell rate':
+      "Le taux d'achat ne peut pas dépasser le taux de vente",
 };

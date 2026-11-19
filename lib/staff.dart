@@ -10,6 +10,7 @@ import 'student_space.dart';
 import 'posters.dart';
 import 'student_info.dart';
 import 'staff_tools.dart';
+import 'rates.dart';
 import 'l10n.dart';
 import 'errors.dart';
 
@@ -90,6 +91,9 @@ List<StaffTool> staffToolsFor(MyRole role) {
       StaffTool(Icons.history, tr('Recent access'),
           tr('Who opened which document'), tr('Documents'), documents,
           () => const RecentAccessScreen()),
+      StaffTool(Icons.currency_exchange, tr('Parallel rates'),
+          tr("Type today's square rate"), tr('Communication'), contact,
+          () => const ParallelRatesEditScreen()),
       StaffTool(Icons.campaign_outlined, tr('Emergency alert'),
           tr('Urgent message to every student'), tr('Communication'), contact,
           () => const EmergencyAlertScreen()),

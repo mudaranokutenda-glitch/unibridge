@@ -204,6 +204,17 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
         {'pct': gap.abs().toStringAsFixed(0)});
   }
 
+  // Under a parallel rate: "Estimated..." (no staff rate today) + the gap.
+  String? _parallelNote(Map<String, Map<String, dynamic>> bySource) {
+    final parts = <String>[
+      if (bySource['black_market']?['location'] == 'estimate')
+        tr('Estimated from the official rate.'),
+    ];
+    final gap = _gapNote(bySource);
+    if (gap != null) parts.add(gap);
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
   Widget _footer() => Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
@@ -252,7 +263,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
             for (final pair in pairs)
               _currencyCard(
                   pair, _withOffset(rates[pair]!['black_market'], offset),
-                  note: _gapNote(rates[pair]!)),
+                  note: _parallelNote(rates[pair]!)),
             _footer(),
           ]),
           // 2. Official bank rate.
@@ -434,6 +445,164 @@ class _RateCalculatorState extends State<_RateCalculator> {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+// ---------------- Parallel rates (Staff hub, Attaché / admin) ----------------
+// Today's square rate in Annaba. It is shown instead of the estimate for
+// parallel_manual_hours (24 h by default). Saved by set_parallel_rate (SQL).
+
+class ParallelRatesEditScreen extends StatefulWidget {
+  const ParallelRatesEditScreen({super.key});
+
+  @override
+  State<ParallelRatesEditScreen> createState() =>
+      _ParallelRatesEditScreenState();
+}
+
+class _ParallelRatesEditScreenState extends State<ParallelRatesEditScreen> {
+  static const pairs = ['USD/DZD', 'EUR/DZD'];
+  final buy = {for (final p in pairs) p: TextEditingController()};
+  final sell = {for (final p in pairs) p: TextEditingController()};
+  bool loading = true;
+  bool saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  @override
+  void dispose() {
+    for (final c in [...buy.values, ...sell.values]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  // Prefill with the newest parallel rate of each pair.
+  Future<void> load() async {
+    try {
+      final data = await supabase
+          .from('exchange_rates')
+          .select()
+          .eq('source', 'black_market')
+          .order('updated_at', ascending: false)
+          .limit(20);
+      for (final p in pairs) {
+        final row = List<Map<String, dynamic>>.from(data)
+            .where((r) => r['pair'] == p)
+            .firstOrNull;
+        if (row != null) {
+          buy[p]!.text = _fmtRate(asDouble(row['buy_rate']));
+          sell[p]!.text = _fmtRate(asDouble(row['sell_rate']));
+        }
+      }
+    } catch (e) {
+      debugPrint('Could not load parallel rates: $e');
+    }
+    if (mounted) setState(() => loading = false);
+  }
+
+  double? _read(TextEditingController c) =>
+      double.tryParse(c.text.trim().replaceAll(' ', '').replaceAll(',', '.'));
+
+  Future<void> save() async {
+    setState(() => saving = true);
+    try {
+      for (final p in pairs) {
+        final b = _read(buy[p]!);
+        final s = _read(sell[p]!);
+        if (b == null && s == null) continue; // left empty: not changed
+        if (b == null || s == null) {
+          throw tr('Fill in both buy and sell for {pair}.', {'pair': p});
+        }
+        await supabase.rpc('set_parallel_rate',
+            params: {'p_pair': p, 'p_buy': b, 'p_sell': s});
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Parallel rates saved.'))));
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e is String ? e : friendlyError(e))));
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final input = [
+      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+      LengthLimitingTextInputFormatter(8),
+    ];
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Parallel rates'))),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(tr("Type today's square rate in Annaba (DA). It replaces the estimate for 24 hours.")),
+                const SizedBox(height: 12),
+                for (final p in pairs)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${currencyFlag(p.split('/').first)}  ${p.replaceAll('/', ' → ')}',
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: buy[p],
+                                  enabled: !saving,
+                                  keyboardType: const TextInputType
+                                      .numberWithOptions(decimal: true),
+                                  inputFormatters: input,
+                                  decoration:
+                                      InputDecoration(labelText: tr('Buy')),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: sell[p],
+                                  enabled: !saving,
+                                  keyboardType: const TextInputType
+                                      .numberWithOptions(decimal: true),
+                                  inputFormatters: input,
+                                  decoration:
+                                      InputDecoration(labelText: tr('Sell')),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: saving ? null : save,
+                  icon: const Icon(Icons.check),
+                  label: Text(saving ? tr('Saving...') : tr('Save')),
+                ),
+              ],
+            ),
     );
   }
 }
