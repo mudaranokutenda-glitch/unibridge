@@ -22,7 +22,9 @@ double? _rateMid(Map<String, dynamic> row) {
 }
 
 // Used when the setting cannot be read (the table may not exist yet).
-const double kDefaultParallelOffset = -2;
+const double kDefaultParallelOffset = 0; // the Algiers rate, as it is
+// exchange_rates.location of the rates saved by the bot (update-rates).
+const String kAutoRateLocation = 'Square Port-Saïd';
 
 // The parallel-market row as it is SHOWN: the offset is added to buy and sell.
 // The stored data is not changed.
@@ -204,11 +206,16 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
         {'pct': gap.abs().toStringAsFixed(0)});
   }
 
-  // Under a parallel rate: "Estimated..." (no staff rate today) + the gap.
+  // Under a parallel rate: who gave it, a warning if it is old, the gap.
   String? _parallelNote(Map<String, Map<String, dynamic>> bySource) {
+    final row = bySource['black_market'];
+    final updated = DateTime.tryParse(row?['updated_at']?.toString() ?? '');
+    final old = updated != null &&
+        DateTime.now().difference(updated.toLocal()).inHours >= 36;
     final parts = <String>[
-      if (bySource['black_market']?['location'] == 'estimate')
-        tr('Estimated from the official rate.'),
+      if (row != null && row['location'] != kAutoRateLocation)
+        tr('Typed by the Educational Attaché.'),
+      if (old) tr('This rate may be out of date.'),
     ];
     final gap = _gapNote(bySource);
     if (gap != null) parts.add(gap);
@@ -218,7 +225,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
   Widget _footer() => Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
-          tr('Buy = what you get when you sell foreign currency. Sell = what you pay to buy it. These rates are indicative and updated by hand, so always agree the exact rate with the other person before exchanging anything.'),
+          tr('Buy = what you get when you sell foreign currency. Sell = what you pay to buy it. The parallel rate is the Algiers rate (Square Port-Saïd), checked every hour from several public sources. It is indicative: always agree the exact rate with the other person before exchanging anything.'),
           style: const TextStyle(fontSize: 12, color: kMutedText),
         ),
       );
@@ -255,9 +262,9 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
     } else {
       body = TabBarView(
         children: [
-          // 1. Parallel market (Annaba), with the offset.
+          // 1. Parallel market: the Algiers rate (Square Port-Saïd).
           _tab([
-            Text(tr('Indicative rate (Annaba)'),
+            Text(tr('Square Port-Saïd · Algiers'),
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 10),
             for (final pair in pairs)
@@ -550,7 +557,7 @@ class _RateCalculatorState extends State<_RateCalculator> {
 
 
 // ---------------- Parallel rates (Staff hub, Attaché / admin) ----------------
-// Today's square rate in Annaba. It is shown instead of the estimate for
+// Today's Algiers square rate, typed by staff when the automatic rate is wrong. It wins over the automatic rate for
 // parallel_manual_hours (24 h by default). Saved by set_parallel_rate (SQL).
 
 class ParallelRatesEditScreen extends StatefulWidget {
@@ -649,7 +656,7 @@ class _ParallelRatesEditScreenState extends State<ParallelRatesEditScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text(tr("Type today's square rate in Annaba (DA). It replaces the estimate for 24 hours.")),
+                Text(tr("Only if the automatic rate is wrong: type today's Algiers square rate (DA). It replaces the automatic rate for 24 hours.")),
                 const SizedBox(height: 12),
                 for (final p in pairs)
                   Card(
