@@ -7,6 +7,8 @@ import 'config.dart';
 import 'app_theme.dart';
 import 'profiles.dart';
 import 'presence.dart';
+import 'push.dart' show openChatRequestId, clearNotificationBar;
+import 'chat_wallpaper.dart';
 import 'errors.dart';
 import 'l10n.dart';
 
@@ -53,6 +55,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // While this chat is open, its new messages don't ring as notifications.
+    openChatRequestId = widget.requestId;
+    clearNotificationBar();
     messagesStream = supabase
         .from('messages')
         .stream(primaryKey: ['id'])
@@ -84,6 +89,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    if (openChatRequestId == widget.requestId) openChatRequestId = null;
     reloadTimer?.cancel();
     final channel = requestChannel;
     if (channel != null) supabase.removeChannel(channel);
@@ -704,44 +710,46 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: messagesStream,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final messages = snapshot.data!;
-                if (messages.isEmpty) {
-                  return Center(child: Text(tr('No messages yet. Say hi!')));
-                }
-                return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    // The list is newest first (index 0 = bottom).
-                    final m = messages[index];
-                    final older =
-                        index + 1 < messages.length ? messages[index + 1] : null;
-                    final when = _localTime(m['created_at']);
-                    final olderWhen =
-                        older == null ? null : _localTime(older['created_at']);
-                    final newDay = when != null &&
-                        (olderWhen == null || !_sameDay(when, olderWhen));
-                    final sameSenderAsOlder = older != null &&
-                        !newDay &&
-                        older['sender_id'] == m['sender_id'] &&
-                        older['type'] != 'SYSTEM';
-                    return Column(
-                      children: [
-                        if (newDay) _dayChip(context, when),
-                        _messageBubble(context, m, myId,
-                            when: when, firstOfGroup: !sameSenderAsOlder),
-                      ],
-                    );
-                  },
-                );
-              },
+            child: ChatWallpaper(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: messagesStream,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final messages = snapshot.data!;
+                  if (messages.isEmpty) {
+                    return Center(child: Text(tr('No messages yet. Say hi!')));
+                  }
+                  return ListView.builder(
+                    reverse: true,
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      // The list is newest first (index 0 = bottom).
+                      final m = messages[index];
+                      final older =
+                          index + 1 < messages.length ? messages[index + 1] : null;
+                      final when = _localTime(m['created_at']);
+                      final olderWhen =
+                          older == null ? null : _localTime(older['created_at']);
+                      final newDay = when != null &&
+                          (olderWhen == null || !_sameDay(when, olderWhen));
+                      final sameSenderAsOlder = older != null &&
+                          !newDay &&
+                          older['sender_id'] == m['sender_id'] &&
+                          older['type'] != 'SYSTEM';
+                      return Column(
+                        children: [
+                          if (newDay) _dayChip(context, when),
+                          _messageBubble(context, m, myId,
+                              when: when, firstOfGroup: !sameSenderAsOlder),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
           if (chatBlocked && kRunningStatuses.contains(status))

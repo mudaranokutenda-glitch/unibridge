@@ -8,6 +8,8 @@ import 'firebase_options.dart';
 import 'config.dart';
 import 'l10n.dart';
 import 'errors.dart';
+import 'chat.dart';
+import 'notifications.dart';
 
 // ---------------- Phone notification bar (Android channels) ----------------
 //
@@ -28,6 +30,13 @@ const String kEmergencyChannelId = 'emergency';
 
 final FlutterLocalNotificationsPlugin localNotifications =
     FlutterLocalNotificationsPlugin();
+
+// Lets a tapped notification open a page (main.dart gives it to MaterialApp).
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+// The chat open on screen right now (set by ChatScreen). A new message for
+// this chat is already visible, so no notification is shown for it.
+String? openChatRequestId;
 
 AndroidNotificationChannel _generalChannel() => AndroidNotificationChannel(
       kGeneralChannelId,
@@ -55,6 +64,9 @@ Future<void> initLocalNotifications() async {
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
+      // Tap on a notification shown while the app was open.
+      onDidReceiveNotificationResponse: (response) =>
+          _openFromPayload(response.payload),
     );
     final android = localNotifications.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -69,7 +81,7 @@ int _nextNotificationId = 0;
 
 // Shows a notification in the phone's notification bar (app open).
 Future<void> showLocalNotification(String title, String body,
-    {bool emergency = false}) async {
+    {bool emergency = false, String? payload}) async {
   final channel = emergency ? _emergencyChannel() : _generalChannel();
   try {
     await localNotifications.show(
@@ -88,6 +100,7 @@ Future<void> showLocalNotification(String title, String body,
           styleInformation: BigTextStyleInformation(body),
         ),
       ),
+      payload: payload,
     );
   } catch (e) {
     debugPrint('Could not show notification: $e');
@@ -113,12 +126,92 @@ void listenForForegroundNotifications(BuildContext context) {
         'UniBridge';
     final body = message.notification?.body ?? message.data['body']?.toString() ?? '';
     final emergency = message.data['channel'] == kEmergencyChannelId;
+    final chatId = _chatIdFrom(message.data);
+
+    // A message for the chat I'm reading: it's already on screen.
+    if (chatId != null && chatId == openChatRequestId) return;
 
     // While the app is open, Android does not show the push by itself:
-    // show it in the notification bar.
-    showLocalNotification(title, body, emergency: emergency);
+    // show it in the notification bar (with the phone's default sound).
+    showLocalNotification(title, body,
+        emergency: emergency, payload: _payloadFrom(message.data));
     if (emergency) onEmergencyAlertReceived?.call();
   });
+}
+
+// ---------------- Tapping a notification ----------------
+// Chat message -> opens that chat. Match and other news -> opens the
+// notifications page. New request -> just opens the app (home shows it).
+// Old notifications are removed from the phone's bar when the app opens.
+
+StreamSubscription<RemoteMessage>? _openedSub;
+AppLifecycleListener? _barCleaner;
+
+// A chat push has request_id and no type.
+String? _chatIdFrom(Map<String, dynamic> data) {
+  final type = (data['type'] ?? '').toString();
+  final id = (data['request_id'] ?? '').toString();
+  return type.isEmpty && id.isNotEmpty ? id : null;
+}
+
+String _payloadFrom(Map<String, dynamic> data) {
+  final chatId = _chatIdFrom(data);
+  if (chatId != null) return 'chat:$chatId';
+  final type = (data['type'] ?? '').toString();
+  if (type.isEmpty || type == 'NEW_REQUEST') return 'home';
+  return 'notifications';
+}
+
+void _openFromPayload(String? payload) {
+  if (payload == null || payload.isEmpty || payload == 'home') return;
+  if (supabase.auth.currentUser == null) return;
+  final nav = appNavigatorKey.currentState;
+  if (nav == null) return;
+  if (payload.startsWith('chat:')) {
+    final id = payload.substring(5);
+    if (id == openChatRequestId) return; // already open
+    nav.push(MaterialPageRoute(builder: (_) => ChatScreen(requestId: id)));
+  } else if (payload == 'notifications') {
+    nav.push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+  }
+}
+
+// Removes UniBridge notifications from the phone's notification bar.
+Future<void> clearNotificationBar() async {
+  if (kIsWeb) return;
+  try {
+    await localNotifications.cancelAll();
+  } catch (e) {
+    debugPrint('Could not clear notifications: $e');
+  }
+}
+
+// Called once the home screen is ready (signed in).
+Future<void> listenForNotificationTaps() async {
+  if (kIsWeb) return;
+  clearNotificationBar();
+  _barCleaner ??= AppLifecycleListener(onResume: clearNotificationBar);
+
+  // Tap on a push while the app was in the background.
+  await _openedSub?.cancel();
+  _openedSub = FirebaseMessaging.onMessageOpenedApp
+      .listen((m) => _openFromPayload(_payloadFrom(m.data)));
+
+  try {
+    // Tap on a push while the app was closed.
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      _openFromPayload(_payloadFrom(initial.data));
+      return;
+    }
+    // Tap on a notification we showed ourselves, while the app was closed.
+    final launch = await localNotifications.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp == true) {
+      _openFromPayload(launch!.notificationResponse?.payload);
+    }
+  } catch (e) {
+    debugPrint('Could not read the notification that opened the app: $e');
+  }
 }
 
 // The home screen sets this to reload the alert banner.
@@ -191,6 +284,9 @@ Future<void> clearPushToken() async {
   _tokenRefreshSub = null;
   await _foregroundSub?.cancel();
   _foregroundSub = null;
+  await _openedSub?.cancel();
+  _openedSub = null;
+  await clearNotificationBar();
   if (user == null) return;
 
   try {

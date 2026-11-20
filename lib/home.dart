@@ -66,7 +66,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // The red number on every bell (live).
     NotificationCenter.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) listenForForegroundNotifications(context);
+      if (mounted) {
+        listenForForegroundNotifications(context);
+        listenForNotificationTaps();
+      }
     });
   }
 

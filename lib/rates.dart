@@ -343,6 +343,8 @@ class _RateCalculatorState extends State<_RateCalculator> {
   String currency = 'USD';
   bool iSendForeign = true; // true: I send foreign currency, I receive DA
   final amountController = TextEditingController();
+  // Optional: use only a part of the amount (1 to 100 %). null = off.
+  int? percent;
 
   @override
   void dispose() {
@@ -360,6 +362,72 @@ class _RateCalculatorState extends State<_RateCalculator> {
     return b.toString();
   }
 
+  // 50 -> "50", 12.5 -> "12.5", 12.345 -> "12.35"
+  String _num(double v) {
+    final fixed = v.toStringAsFixed(2);
+    return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  Widget _percentChip(int p) {
+    final selected = percent == p;
+    return ChoiceChip(
+      label: Text('$p%'),
+      selected: selected,
+      onSelected: (_) => setState(() => percent = p),
+    );
+  }
+
+  Widget _resultBox(BuildContext context, double amount, double rate) {
+    final scheme = Theme.of(context).colorScheme;
+    final p = percent;
+    final part = p == null ? amount : amount * p / 100;
+    final muted = TextStyle(color: scheme.onSurfaceVariant, fontSize: 14);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.sky.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (p != null)
+            Text(
+              tr('{percent} of {amount} = {part}', {
+                'percent': '$p%',
+                'amount': '${_num(amount)} $currency',
+                'part': '${_num(part)} $currency',
+              }),
+              style: muted,
+            ),
+          Text(
+            '${_num(part)} $currency × ${_num(rate)} DA/$currency',
+            style: muted,
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              '= ${_thousands(part * rate)} DA',
+              style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.sky),
+            ),
+          ),
+          Text(
+            iSendForeign
+                ? tr('You receive this in dinars.')
+                : tr('You pay this in dinars.'),
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final row = widget.rates[currency];
@@ -367,16 +435,6 @@ class _RateCalculatorState extends State<_RateCalculator> {
         asDouble(row?[iSendForeign ? 'buy_rate' : 'sell_rate']);
     final amount =
         double.tryParse(amountController.text.trim().replaceAll(',', '.'));
-
-    String result;
-    if (rate == null) {
-      result = tr('No rate available for {currency}.', {'currency': currency});
-    } else if (amount == null) {
-      result = '';
-    } else {
-      result = '${amount.toStringAsFixed(amount == amount.roundToDouble() ? 0 : 2)} $currency'
-          ' ${iSendForeign ? '→' : '←'} ${_thousands(amount * rate)} DA';
-    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -412,6 +470,45 @@ class _RateCalculatorState extends State<_RateCalculator> {
                   labelText: tr('Amount in {currency}', {'currency': currency})),
               onChanged: (_) => setState(() {}),
             ),
+            const SizedBox(height: 10),
+            // Optional percentage: off by default.
+            FilterChip(
+              avatar: const Icon(Icons.percent, size: 18),
+              label: Text(percent == null
+                  ? tr('Percentage')
+                  : tr('Percentage: {percent}', {'percent': '$percent%'})),
+              selected: percent != null,
+              onSelected: (on) => setState(() => percent = on ? 50 : null),
+            ),
+            if (percent != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      min: 1,
+                      max: 100,
+                      divisions: 99,
+                      value: percent!.toDouble(),
+                      label: '$percent%',
+                      onChanged: (v) => setState(() => percent = v.round()),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 52,
+                    child: Text('$percent%',
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800)),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [for (final p in [10, 25, 50, 75, 90]) _percentChip(p)],
+              ),
+            ],
             const SizedBox(height: 8),
             RadioGroup<bool>(
               groupValue: iSendForeign,
@@ -433,11 +530,13 @@ class _RateCalculatorState extends State<_RateCalculator> {
                 ],
               ),
             ),
-            if (result.isNotEmpty) ...[
+            if (rate == null) ...[
               const SizedBox(height: 8),
-              Text(result,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(tr('No rate available for {currency}.',
+                  {'currency': currency})),
+            ] else if (amount != null && amount > 0) ...[
+              const SizedBox(height: 8),
+              _resultBox(context, amount, rate),
             ],
             const SizedBox(height: 8),
             Text(tr('Indicative, not a guarantee'),

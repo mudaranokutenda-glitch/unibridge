@@ -49,6 +49,7 @@ class UniBridgeApp extends StatelessWidget {
       builder: (context, language, _) => ValueListenableBuilder<ThemeMode>(
         valueListenable: AppSettings.themeMode,
         builder: (context, themeMode, _) => MaterialApp(
+          navigatorKey: appNavigatorKey, // lets a tapped notification open a chat
           title: 'UniBridge',
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),

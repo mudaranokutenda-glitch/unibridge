@@ -100,8 +100,10 @@ Deno.serve(async (req) => {
     const accessToken = (await (await auth.getClient()).getAccessToken()).token;
     const url = `https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`;
 
-    const kind = r.type === "SEND" ? "Send" : "Receive";
-    const body = `New request: ${kind} ${formatAmount(r.amount)} ${r.currency}`;
+    // Same words as in the app: the creator SENDS, so they look for
+    // "anyone to receive" (and the other way round).
+    const who = r.type === "SEND" ? "Anyone to receive" : "Anyone to send";
+    const body = `${who} ${formatAmount(r.amount)} ${r.currency}`;
 
     async function sendTo(token: string) {
       const res = await fetch(url, {
@@ -113,9 +115,18 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           message: {
             token,
-            notification: { title: "UniBridge", body },
+            notification: { title: "New request", body },
             data: { type: "NEW_REQUEST", request_id: String(r.id), channel: "general" },
-            android: { notification: { channel_id: "general" } },
+            android: {
+              // Deliver at once (even when the phone is sleeping), with the
+              // phone's default notification sound.
+              priority: "HIGH",
+              notification: {
+                channel_id: "general",
+                default_sound: true,
+                notification_priority: "PRIORITY_HIGH",
+              },
+            },
           },
         }),
       });

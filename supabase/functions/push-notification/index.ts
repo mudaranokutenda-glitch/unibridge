@@ -76,7 +76,16 @@ Deno.serve(async (req) => {
               body: String(content ?? "").slice(0, 150),
             },
             data: { type: String(type ?? ""), channel: "general" },
-            android: { notification: { channel_id: "general" } },
+            android: {
+              // Deliver at once (even when the phone is sleeping), with the
+              // phone's default notification sound.
+              priority: "HIGH",
+              notification: {
+                channel_id: "general",
+                default_sound: true,
+                notification_priority: "PRIORITY_HIGH",
+              },
+            },
           },
         }),
       },
