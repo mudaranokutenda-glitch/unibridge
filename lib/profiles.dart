@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'app_theme.dart';
@@ -106,16 +107,103 @@ Widget avatar(Map<String, dynamic>? p, {double radius = 20}) {
 (String, Color) trustLevel(Map<String, dynamic> p) {
   final completed = _asInt(p['completed_count']);
   final score = _asInt(p['trust_score']);
-  if (completed == 0) return (tr('New'), Colors.white);
-  if (score >= 70) return (tr('Trusted'), const Color(0xFF7CF2A9));
-  if (score >= 50) return (tr('Good'), Colors.white);
-  return (tr('Low'), const Color(0xFFFFC46B));
+  if (completed == 0) return (tr('New'), AppColors.sky);
+  if (score >= 70) return (tr('Trusted'), AppColors.success);
+  if (score >= 50) return (tr('Good'), AppColors.sky);
+  return (tr('Low'), AppColors.warning);
+}
+
+// Blue top bar used above the curved profile header.
+AppBar profileAppBar({required Widget title, List<Widget>? actions}) => AppBar(
+      title: title,
+      actions: actions,
+      backgroundColor: AppColors.sky,
+      foregroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      iconTheme: const IconThemeData(color: Colors.white),
+      actionsIconTheme: const IconThemeData(color: Colors.white),
+      titleTextStyle: const TextStyle(
+          color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+    );
+
+// Opens a profile photo full screen (pinch to zoom).
+void openProfilePhoto(BuildContext context, String url, String name) {
+  if (url.isEmpty) return;
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => ProfilePhotoScreen(url: url, name: name),
+    ),
+  );
+}
+
+class ProfilePhotoScreen extends StatelessWidget {
+  final String url;
+  final String name;
+  const ProfilePhotoScreen({super.key, required this.url, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        titleTextStyle: const TextStyle(
+            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+        title: Text(name),
+      ),
+      body: InteractiveViewer(
+        minScale: 1,
+        maxScale: 4,
+        child: Center(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) => progress == null
+                ? child
+                : const Center(
+                    child: CircularProgressIndicator(color: Colors.white)),
+            errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.image_not_supported,
+                color: Colors.white54,
+                size: 48),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// The blue shape under the top bar: a parabola that starts at the top on
+// the left, goes down through the middle of the photo, and comes back up
+// to the top on the right.
+class _ProfileCurve extends CustomClipper<Path> {
+  const _ProfileCurve();
+
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height; // = the middle of the photo
+    // A quadratic curve passes its middle point at (control + ends) / 2,
+    // so the control point at 2h makes the curve go exactly through h.
+    return Path()
+      ..moveTo(0, 0)
+      ..lineTo(w, 0)
+      ..quadraticBezierTo(w / 2, 2 * h, 0, 0)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class ProfileHero extends StatelessWidget {
   final Map<String, dynamic>? profile;
   final Uint8List? newPhoto; // a photo picked but not saved yet
-  final VoidCallback? onTapPhoto; // null = the photo cannot be changed here
+  final VoidCallback? onTapPhoto; // change my photo (null = someone else)
   final bool photoBusy; // true while a new photo is uploading
   const ProfileHero(
       {super.key,
@@ -124,13 +212,23 @@ class ProfileHero extends StatelessWidget {
       this.onTapPhoto,
       this.photoBusy = false});
 
-  Widget _stat(String value, String label, {Color color = Colors.white}) {
+  static const double _photoRadius = 50; // photo 46 + ring 4
+  static const double _photoTop = 14;
+
+  Widget _stat(BuildContext context, String value, String label,
+      {Color? color}) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(14),
+          color: dark ? AppColors.darkCard : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : AppColors.skyLight),
         ),
         child: Column(
           children: [
@@ -139,22 +237,64 @@ class ProfileHero extends StatelessWidget {
               child: Text(value,
                   maxLines: 1,
                   style: TextStyle(
-                      color: color, fontSize: 18, fontWeight: FontWeight.w800)),
+                      color: color ?? scheme.onSurface,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
             ),
             const SizedBox(height: 2),
             Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85), fontSize: 11)),
+                style:
+                    TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
           ],
         ),
       ),
     );
   }
 
+  // Tap on the photo: someone else -> view it. Me -> view or change.
+  Future<void> _photoTapped(BuildContext context, String url, String name) async {
+    if (photoBusy) return;
+    final change = onTapPhoto;
+    if (change == null) {
+      openProfilePhoto(context, url, name);
+      return;
+    }
+    if (url.isEmpty) {
+      change();
+      return;
+    }
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility_outlined),
+              title: Text(tr('View photo')),
+              onTap: () => Navigator.of(context).pop('view'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(tr('Change photo')),
+              onTap: () => Navigator.of(context).pop('change'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    if (choice == 'view') openProfilePhoto(context, url, name);
+    if (choice == 'change') change();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final p = profile ?? const <String, dynamic>{};
     final verified = p['is_verified'] == true;
     final place = profile == null ? '' : profilePlace(p);
@@ -162,136 +302,175 @@ class ProfileHero extends StatelessWidget {
     final avg = asDouble(p['avg_rating']);
     final (trustText, trustColor) = trustLevel(p);
     final joined = _memberSince(p['joined']);
+    final name = profile == null ? '' : publicDisplayName(p);
+    final url = (p['profile_picture_url'] ?? '').toString();
 
     final photo = newPhoto != null
         ? CircleAvatar(radius: 46, backgroundImage: MemoryImage(newPhoto!))
         : avatar(profile, radius: 46);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6BB0FF), AppColors.sky, AppColors.skyDark],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: onTapPhoto,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: verified ? AppColors.verified : Colors.white,
-                    ),
-                    child: photo,
-                  ),
-                  if (photoBusy)
-                    const Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                            color: Colors.black38, shape: BoxShape.circle),
-                        child: Center(
-                          child: SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 3, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (onTapPhoto != null && !photoBusy)
-                    PositionedDirectional(
-                      end: -2,
-                      bottom: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.sky, width: 2),
-                        ),
-                        child: const Icon(Icons.photo_camera,
-                            size: 16, color: AppColors.sky),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    profile == null ? '' : publicDisplayName(p),
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800),
-                  ),
+    final photoWidget = GestureDetector(
+      onTap: () => _photoTapped(context, url, name),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: verified ? AppColors.verified : Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
-                if (verified) ...[
-                  const SizedBox(width: 6),
-                  const Icon(Icons.verified, color: AppColors.verified, size: 22),
-                ],
               ],
             ),
-            if (place.isNotEmpty) ...[
-              const SizedBox(height: 4),
+            child: photo,
+          ),
+          if (photoBusy)
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                    color: Colors.black38, shape: BoxShape.circle),
+                child: Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 3, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          if (onTapPhoto != null && !photoBusy)
+            PositionedDirectional(
+              end: -2,
+              bottom: -2,
+              // The camera badge always changes the photo directly.
+              child: GestureDetector(
+                onTap: onTapPhoto,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.sky, width: 2),
+                  ),
+                  child: const Icon(Icons.photo_camera,
+                      size: 16, color: AppColors.sky),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    return Column(
+      children: [
+        SizedBox(
+          height: _photoTop + 2 * _photoRadius,
+          width: double.infinity,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              // Blue curve: from the top, down through the middle of the
+              // photo, back up to the top.
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: _photoTop + _photoRadius,
+                child: ClipPath(
+                  clipper: _ProfileCurve(),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.sky, AppColors.skyDark],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(top: _photoTop, child: photoWidget),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Column(
+            children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.place_outlined, size: 15, color: Colors.white),
-                  const SizedBox(width: 3),
                   Flexible(
-                    child: Text(place,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.92))),
+                    child: Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800),
+                    ),
                   ),
+                  if (verified) ...[
+                    const SizedBox(width: 6),
+                    const Icon(Icons.verified,
+                        color: AppColors.verified, size: 22),
+                  ],
+                ],
+              ),
+              if (place.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.place_outlined,
+                        size: 15, color: AppColors.sky),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(place,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: scheme.onSurfaceVariant)),
+                    ),
+                  ],
+                ),
+              ],
+              if (joined != '—') ...[
+                const SizedBox(height: 2),
+                Text(tr('Member since {date}', {'date': joined}),
+                    style: TextStyle(
+                        color: scheme.onSurfaceVariant, fontSize: 12)),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _stat(
+                      context,
+                      ratingCount > 0 && avg != null
+                          ? '★ ${avg.toStringAsFixed(1)}'
+                          : '—',
+                      ratingCount > 0
+                          ? tr('{count} reviews', {'count': ratingCount})
+                          : tr('No ratings yet'),
+                      color: ratingCount > 0 ? const Color(0xFFE3A008) : null),
+                  const SizedBox(width: 8),
+                  _stat(context, '${_asInt(p['completed_count'])}',
+                      tr('completed')),
+                  const SizedBox(width: 8),
+                  _stat(context, trustText, tr('trust level'),
+                      color: trustColor),
                 ],
               ),
             ],
-            if (joined != '—') ...[
-              const SizedBox(height: 2),
-              Text(tr('Member since {date}', {'date': joined}),
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _stat(
-                    ratingCount > 0 && avg != null
-                        ? '★ ${avg.toStringAsFixed(1)}'
-                        : '—',
-                    ratingCount > 0
-                        ? tr('{count} reviews', {'count': ratingCount})
-                        : tr('No ratings yet')),
-                const SizedBox(width: 8),
-                _stat('${_asInt(p['completed_count'])}', tr('completed')),
-                const SizedBox(width: 8),
-                _stat(trustText, tr('trust level'), color: trustColor),
-              ],
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -628,7 +807,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final p = profile;
     final isMe = widget.userId == supabase.auth.currentUser?.id;
     return Scaffold(
-      appBar: AppBar(
+      appBar: profileAppBar(
         title: Text(tr('Profile')),
         actions: [
           if (!isMe && p != null)
@@ -853,7 +1032,7 @@ class _EditMyProfileScreenState extends State<EditMyProfileScreen> {
     final verified = me?['is_verified'] == true;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
+      appBar: profileAppBar(
         title: Text(tr('My profile')),
         actions: [
           const NotificationBell(),

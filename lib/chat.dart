@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'profiles.dart';
+import 'presence.dart';
 import 'errors.dart';
 import 'l10n.dart';
 
@@ -191,14 +194,51 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Picks one photo from the gallery, uploads it to the private
+  // Asks "camera or gallery?", then uploads the photo to the private
   // chat-photos bucket and sends it as an IMAGE message.
   Future<void> sendPhoto() async {
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-      maxWidth: 1280,
+    FocusScope.of(context).unfocus();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(tr('Send a photo'),
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _sourceButton(context, Icons.photo_camera,
+                    tr('Take a photo'), const Color(0xFFE5486C),
+                    ImageSource.camera),
+                _sourceButton(context, Icons.photo_library,
+                    tr('Choose from gallery'), const Color(0xFF8E5CF7),
+                    ImageSource.gallery),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
+    if (source == null) return;
+
+    final XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(
+        source: source,
+        imageQuality: 70,
+        maxWidth: 1280,
+      );
+    } catch (e) {
+      debugPrint('Could not open the camera / gallery: $e');
+      showError(tr('Could not open the camera or the gallery.'));
+      return;
+    }
     if (picked == null) return;
 
     final name = picked.name.toLowerCase();
@@ -255,6 +295,41 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => sendingPhoto = false);
     }
+  }
+
+  Widget _sourceButton(BuildContext context, IconData icon, String label,
+      Color color, ImageSource source) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => Navigator.of(context).pop(source),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: color,
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: 120,
+              child: Text(label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void openOtherProfile() {
+    final id = otherProfile?['id']?.toString();
+    if (id == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UserProfileScreen(userId: id)),
+    );
   }
 
   void showError(String text) {
@@ -402,9 +477,103 @@ class _ChatScreenState extends State<ChatScreen> {
             (myRole == 'RECEIVER' && r['receiver_confirmed'] == true));
 
     final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final other = otherProfile;
+    final otherId = other?['id']?.toString();
     return Scaffold(
+      backgroundColor: dark ? AppColors.darkBackground : const Color(0xFFE8F1FB),
       appBar: AppBar(
-        title: Text(tr('Chat')),
+        backgroundColor: AppColors.sky,
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(
+            color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+        titleSpacing: 0,
+        title: other == null
+            ? Text(tr('Chat'))
+            : InkWell(
+                onTap: openOtherProfile,
+                borderRadius: BorderRadius.circular(24),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: ValueListenableBuilder<Set<String>>(
+                    valueListenable: OnlineStatus.online,
+                    builder: (context, online, _) {
+                      final isOnline =
+                          otherId != null && online.contains(otherId);
+                      return Row(
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              avatar(other, radius: 19),
+                              if (isOnline)
+                                Positioned(
+                                  right: -1,
+                                  bottom: -1,
+                                  child: Container(
+                                    width: 13,
+                                    height: 13,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF25D366),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: AppColors.sky, width: 2),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        publicDisplayName(other),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                    if (other['is_verified'] == true) ...[
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.verified,
+                                          size: 16, color: AppColors.verified),
+                                    ],
+                                  ],
+                                ),
+                                Text(
+                                  isOnline ? tr('online') : tr('offline'),
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: isOnline
+                                        ? const Color(0xFFB9FFD0)
+                                        : Colors.white.withValues(alpha: 0.8),
+                                    fontWeight: isOnline
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
         actions: [
           if (kRunningStatuses.contains(status))
             IconButton(
@@ -416,15 +585,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          if (otherProfile != null) ...[
-            Container(
-              width: double.infinity,
-              color: scheme.surface,
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              child: ProfileSummary(profile: otherProfile),
-            ),
-            const Divider(height: 1),
-          ],
           if (status == 'COMPLETED')
             Container(
               width: double.infinity,
@@ -556,63 +716,28 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
                 return ListView.builder(
                   reverse: true,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
+                    // The list is newest first (index 0 = bottom).
                     final m = messages[index];
-                    final isSystem = m['type'] == 'SYSTEM';
-                    final isMine = m['sender_id'] == myId;
-                    final isPhoto = m['type'] == 'IMAGE' &&
-                        m['attachment_url'] != null;
-                    // Location sharing was removed: old ones show as text.
-                    final isLocation = m['type'] == 'LOCATION';
-                    if (isSystem) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Center(
-                          child: Text(
-                            m['content'] ?? '',
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12),
-                          ),
-                        ),
-                      );
-                    }
-                    final bubble = Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: isPhoto
-                          ? const EdgeInsets.all(4)
-                          : const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isMine
-                            ? scheme.primaryContainer
-                            : scheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: isPhoto
-                          ? ChatPhoto(
-                              key: ValueKey(m['id']),
-                              path: m['attachment_url'],
-                            )
-                          : isLocation
-                              ? Text(tr('[Location]'))
-                              : Text(m['content'] ?? ''),
-                    );
-                    // The other person: picture on the start side. Me: on the end side.
-                    final pic = Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: avatar(isMine ? myProfile : otherProfile,
-                          radius: 14),
-                    );
-                    return Row(
-                      mainAxisAlignment: isMine
-                          ? MainAxisAlignment.end
-                          : MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: isMine
-                          ? [Flexible(child: bubble), const SizedBox(width: 6), pic]
-                          : [pic, const SizedBox(width: 6), Flexible(child: bubble)],
+                    final older =
+                        index + 1 < messages.length ? messages[index + 1] : null;
+                    final when = _localTime(m['created_at']);
+                    final olderWhen =
+                        older == null ? null : _localTime(older['created_at']);
+                    final newDay = when != null &&
+                        (olderWhen == null || !_sameDay(when, olderWhen));
+                    final sameSenderAsOlder = older != null &&
+                        !newDay &&
+                        older['sender_id'] == m['sender_id'] &&
+                        older['type'] != 'SYSTEM';
+                    return Column(
+                      children: [
+                        if (newDay) _dayChip(context, when),
+                        _messageBubble(context, m, myId,
+                            when: when, firstOfGroup: !sameSenderAsOlder),
+                      ],
                     );
                   },
                 );
@@ -633,41 +758,252 @@ class _ChatScreenState extends State<ChatScreen> {
             )
           else if (kRunningStatuses.contains(status))
             SafeArea(
+              top: false,
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    IconButton(
-                      icon: sendingPhoto
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.photo_camera_outlined),
-                      tooltip: tr('Send a photo'),
-                      onPressed: sendingPhoto ? null : sendPhoto,
-                    ),
+                    // The long rounded box: text + photo button inside.
                     Expanded(
-                      child: TextField(
-                        controller: messageController,
-                        decoration: InputDecoration(
-                          hintText: tr('Type a message...'),
-                          border: OutlineInputBorder(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: dark ? AppColors.darkCard : Colors.white,
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
-                        onSubmitted: (_) => sendMessage(),
+                        padding: const EdgeInsetsDirectional.only(
+                            start: 18, end: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: messageController,
+                                minLines: 1,
+                                maxLines: 5,
+                                keyboardType: TextInputType.multiline,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                style: const TextStyle(fontSize: 16),
+                                decoration: InputDecoration(
+                                  hintText: tr('Type a message...'),
+                                  filled: false,
+                                  isDense: true,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(vertical: 13),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: sendingPhoto
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : Icon(Icons.photo_camera_outlined,
+                                      color: scheme.onSurfaceVariant),
+                              tooltip: tr('Send a photo'),
+                              onPressed: sendingPhoto ? null : sendPhoto,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.send),
-                      tooltip: tr('Send'),
-                      onPressed: sendingText ? null : sendMessage,
+                    const SizedBox(width: 6),
+                    // Round send button.
+                    Material(
+                      color: AppColors.sky,
+                      shape: const CircleBorder(),
+                      elevation: 1,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: sendingText ? null : sendMessage,
+                        child: SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: sendingText
+                              ? const Padding(
+                                  padding: EdgeInsets.all(15),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.send_rounded,
+                                  color: Colors.white),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  // ---------- message pieces ----------
+
+  static DateTime? _localTime(dynamic iso) =>
+      DateTime.tryParse(iso?.toString() ?? '')?.toLocal();
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  static String _hhmm(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Widget _dayChip(BuildContext context, DateTime? when) {
+    if (when == null) return const SizedBox.shrink();
+    final now = DateTime.now();
+    final String label;
+    if (_sameDay(when, now)) {
+      label = tr('Today');
+    } else if (_sameDay(when, now.subtract(const Duration(days: 1)))) {
+      label = tr('Yesterday');
+    } else {
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      label = '${when.day} ${months[when.month - 1]} ${when.year}';
+    }
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: dark ? AppColors.darkCard : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ),
+      ),
+    );
+  }
+
+  Widget _messageBubble(
+      BuildContext context, Map<String, dynamic> m, String myId,
+      {DateTime? when, bool firstOfGroup = true}) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
+    if (m['type'] == 'SYSTEM') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: dark
+                  ? AppColors.darkCard
+                  : const Color(0xFFFFF5C4), // soft yellow, like WhatsApp
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              m['content'] ?? '',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final isMine = m['sender_id'] == myId;
+    final isPhoto = m['type'] == 'IMAGE' && m['attachment_url'] != null;
+    // Location sharing was removed: old ones show as text.
+    final isLocation = m['type'] == 'LOCATION';
+
+    final bubbleColor = isMine
+        ? (dark ? const Color(0xFF1D4F8F) : const Color(0xFFD3E7FF))
+        : (dark ? AppColors.darkCard : Colors.white);
+    final textColor = dark ? Colors.white : AppColors.text;
+    final timeColor = (dark ? Colors.white : AppColors.text)
+        .withValues(alpha: 0.55);
+    const r = Radius.circular(16);
+    const tail = Radius.circular(4);
+    final radius = BorderRadius.only(
+      topLeft: (!isMine && firstOfGroup) ? tail : r,
+      topRight: (isMine && firstOfGroup) ? tail : r,
+      bottomLeft: r,
+      bottomRight: r,
+    );
+    final time = when == null
+        ? const SizedBox.shrink()
+        : Text(_hhmm(when),
+            style: TextStyle(fontSize: 11, color: timeColor));
+
+    final Widget content;
+    if (isPhoto) {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ChatPhoto(key: ValueKey(m['id']), path: m['attachment_url']),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 3, 6, 1),
+            child: time,
+          ),
+        ],
+      );
+    } else {
+      final text = isLocation ? tr('[Location]') : (m['content'] ?? '').toString();
+      // Text with the time at the end, on the same line when it fits.
+      content = Wrap(
+        alignment: WrapAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.end,
+        spacing: 8,
+        children: [
+          Text(text, style: TextStyle(fontSize: 15.5, color: textColor)),
+          Padding(padding: const EdgeInsets.only(top: 4), child: time),
+        ],
+      );
+    }
+
+    return Align(
+      alignment: isMine
+          ? AlignmentDirectional.centerEnd
+          : AlignmentDirectional.centerStart,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78),
+        child: Container(
+          margin: EdgeInsets.only(top: firstOfGroup ? 6 : 2),
+          padding: isPhoto
+              ? const EdgeInsets.all(4)
+              : const EdgeInsets.fromLTRB(12, 7, 10, 6),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: radius,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: content,
+        ),
       ),
     );
   }

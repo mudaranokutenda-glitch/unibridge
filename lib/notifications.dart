@@ -14,6 +14,7 @@ import 'verification.dart';
 import 'roles.dart';
 import 'errors.dart';
 import 'l10n.dart';
+import 'presence.dart';
 
 // ---------------- Unread count, shared by every bell ----------------
 // One live connection for the whole app (started by the Home screen). It
@@ -33,6 +34,7 @@ class NotificationCenter {
   static void start() {
     final me = supabase.auth.currentUser?.id;
     if (me == null) return;
+    OnlineStatus.start(); // green "online" dot in chats
     if (_userId == me && _channel != null) {
       refresh();
       return;
@@ -66,6 +68,7 @@ class NotificationCenter {
 
   // Called at log out: no count for the next person on this phone.
   static void stop() {
+    OnlineStatus.stop();
     _debounce?.cancel();
     _pushSub?.cancel();
     _pushSub = null;

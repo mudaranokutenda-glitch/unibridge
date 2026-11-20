@@ -603,24 +603,60 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: tr('Search listings'),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: searchText.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          searchController.clear();
-                          setState(() => searchText = '');
-                        },
+            child: Row(
+              children: [
+                // "Sell" pill (like Facebook Marketplace). It replaces the
+                // round + button, which looked like the + in the bottom bar.
+                Material(
+                  color: AppColors.sky.withValues(alpha: 0.14),
+                  shape: const StadiumBorder(),
+                  child: InkWell(
+                    customBorder: const StadiumBorder(),
+                    onTap: openSell,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 11),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.sell_outlined,
+                              size: 18, color: AppColors.sky),
+                          const SizedBox(width: 6),
+                          Text(
+                            tr('Sell'),
+                            style: const TextStyle(
+                                color: AppColors.sky,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ],
                       ),
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: (v) => setState(() => searchText = v),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: tr('Search listings'),
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: searchText.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                setState(() => searchText = '');
+                              },
+                            ),
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => setState(() => searchText = v),
+                  ),
+                ),
+              ],
             ),
           ),
           if (selectedFilter != _filterAll)
@@ -697,16 +733,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CreateListingScreen()),
-          );
-          load();
-        },
-        child: const Icon(Icons.add),
-      ),
     );
+  }
+
+  Future<void> openSell() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CreateListingScreen()),
+    );
+    load();
   }
 }
 
