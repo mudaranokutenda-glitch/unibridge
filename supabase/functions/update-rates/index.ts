@@ -27,6 +27,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const PAIRS = ["USD/DZD", "EUR/DZD"] as const;
 type Pair = (typeof PAIRS)[number];
 const AUTO_LOCATION = "Square Port-Saïd";
+// Locations used by rates typed in the app by staff (set_parallel_rate).
+// Old rows from the previous system ("Alger", "official") are NOT staff rates.
+const STAFF_LOCATIONS = ["Alger (staff)", "Annaba"];
 const USER_AGENT = "UniBridgeRatesBot/1.0 (student exchange app, 1 visit per hour)";
 
 type Quote = { buy: number | null; sell: number };
@@ -281,7 +284,7 @@ Deno.serve(async (req) => {
         .select("id")
         .eq("pair", pair)
         .eq("source", "black_market")
-        .not("location", "in", `("${AUTO_LOCATION}","estimate")`)
+        .in("location", STAFF_LOCATIONS)
         .gte("updated_at", since)
         .limit(1);
       if (manual && manual.length > 0) {

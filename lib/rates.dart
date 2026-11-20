@@ -25,6 +25,8 @@ double? _rateMid(Map<String, dynamic> row) {
 const double kDefaultParallelOffset = 0; // the Algiers rate, as it is
 // exchange_rates.location of the rates saved by the bot (update-rates).
 const String kAutoRateLocation = 'Square Port-Saïd';
+// exchange_rates.location of the rates typed by staff (set_parallel_rate).
+const Set<String> kStaffRateLocations = {'Alger (staff)', 'Annaba'};
 
 // The parallel-market row as it is SHOWN: the offset is added to buy and sell.
 // The stored data is not changed.
@@ -213,7 +215,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
     final old = updated != null &&
         DateTime.now().difference(updated.toLocal()).inHours >= 36;
     final parts = <String>[
-      if (row != null && row['location'] != kAutoRateLocation)
+      if (row != null && kStaffRateLocations.contains(row['location']))
         tr('Typed by the Educational Attaché.'),
       if (old) tr('This rate may be out of date.'),
     ];
