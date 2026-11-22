@@ -173,7 +173,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            tr('Send a clear photo of your student card. Your name and student number must be readable and must match your account. Only the UniBridge team can view this photo. It is used for this check and is never shown to other users.'),
+            tr('Send a clear photo of your student card. Your name and student number must be readable and must match your account. Only the AZSA team can view this photo. It is used for this check and is never shown to other users.'),
             style: TextStyle(fontSize: 13, color: kMutedText),
           ),
           const SizedBox(height: 16),

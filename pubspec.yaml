@@ -76,6 +76,13 @@ flutter:
     - assets/logo/
     - assets/sounds/
 
+  # The font of the app's name (lib/brand.dart). Free licence: assets/fonts/OFL.txt
+  fonts:
+    - family: CinzelDecorative
+      fonts:
+        - asset: assets/fonts/CinzelDecorative-Black.ttf
+          weight: 900
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -107,15 +114,23 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# App icon. Put a 1024x1024 PNG at assets/icon/icon.png, then run:
+# App icon: the AZSA circle. The Android and web icon files are already made
+# (fix 16). Only if you change assets/icon/icon.png, run again:
 #   dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
   min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#FFFFFF"
+    theme_color: "#2F80ED"
 
 # The native splash screen (the very first screen) is set by hand in
 # android/app/src/main/res (values-v31, drawable/launch_background.xml):
-# plain sky blue, no logo, then the app's own intro. Do NOT run
+# plain white, no logo, then the app's own intro with the full AZSA logo. Do NOT run
 # flutter_native_splash: it would overwrite those files.

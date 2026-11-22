@@ -202,7 +202,7 @@ const Map<String, String> _t = {
   'Other': 'Autre',
   'Location': 'Lieu',
   'Profile unavailable': 'Profil indisponible',
-  'UniBridge user': 'Utilisateur UniBridge',
+  'AZSA user': 'Utilisateur AZSA',
 
   // ---- Tabs ----
   'Requests': 'Demandes',
@@ -377,7 +377,7 @@ const Map<String, String> _t = {
   'Delete my account': 'Supprimer mon compte',
   'Deleting...': 'Suppression...',
   'Delete forever': 'Supprimer définitivement',
-  'This cannot be undone.\n\nDeleted: your profile, photos, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chats and ratings (you will show as "UniBridge user").\n\nType DELETE to confirm.': 'Cette action est irréversible.\n\nSupprimés : votre profil, vos photos, annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : échanges terminés, discussions et évaluations (vous apparaîtrez comme « Utilisateur UniBridge »).\n\nTapez DELETE pour confirmer.',
+  'This cannot be undone.\n\nDeleted: your profile, photos, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chats and ratings (you will show as "AZSA user").\n\nType DELETE to confirm.': 'Cette action est irréversible.\n\nSupprimés : votre profil, vos photos, annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : échanges terminés, discussions et évaluations (vous apparaîtrez comme « Utilisateur AZSA »).\n\nTapez DELETE pour confirmer.',
   'Finish or resolve your open transactions first.': "Terminez ou réglez d'abord vos échanges en cours.",
   'Could not delete account: {error}': 'Impossible de supprimer le compte : {error}',
   'Your account has been deleted.': 'Votre compte a été supprimé.',
@@ -394,7 +394,7 @@ const Map<String, String> _t = {
   'Your last request was not approved. You can send a new photo.': "Votre dernière demande n'a pas été approuvée. Vous pouvez envoyer une nouvelle photo.",
   'Your last request was not approved: {note}': "Votre dernière demande n'a pas été approuvée : {note}",
   'A blue tick tells other students that we checked your student card.': "La coche bleue indique aux autres étudiants que nous avons vérifié votre carte d'étudiant.",
-  'Send a clear photo of your student card. Your name and student number must be readable and must match your account. Only the UniBridge team can view this photo. It is used for this check and is never shown to other users.': "Envoyez une photo nette de votre carte d'étudiant. Votre nom et votre numéro doivent être lisibles et correspondre à votre compte. Seule l'équipe UniBridge peut voir cette photo. Elle sert uniquement à cette vérification et n'est jamais montrée aux autres.",
+  'Send a clear photo of your student card. Your name and student number must be readable and must match your account. Only the AZSA team can view this photo. It is used for this check and is never shown to other users.': "Envoyez une photo nette de votre carte d'étudiant. Votre nom et votre numéro doivent être lisibles et correspondre à votre compte. Seule l'équipe AZSA peut voir cette photo. Elle sert uniquement à cette vérification et n'est jamais montrée aux autres.",
   'Tap to choose a photo of your student card': "Touchez pour choisir une photo de votre carte d'étudiant",
   'Sending...': 'Envoi...',
   'Send for review': 'Envoyer pour vérification',
@@ -474,10 +474,10 @@ const Map<String, String> _t = {
   'Add a photo and your wilaya so other students can trust you.': 'Ajoutez une photo et votre wilaya pour que les autres étudiants puissent vous faire confiance.',
   'Tap to add a photo (required)': 'Touchez pour ajouter une photo (obligatoire)',
   'Name': 'Nom',
-  'Your name is missing. Contact UniBridge support to add it.': 'Votre nom est manquant. Contactez le support UniBridge pour l\'ajouter.',
+  'Your name is missing. Contact AZSA support to add it.': 'Votre nom est manquant. Contactez le support AZSA pour l\'ajouter.',
   'Wilaya (required)': 'Wilaya (obligatoire)',
   'City or area (optional)': 'Ville ou quartier (facultatif)',
-  'Your profile could not be saved. Please contact UniBridge support.': 'Votre profil n\'a pas pu être enregistré. Contactez le support UniBridge.',
+  'Your profile could not be saved. Please contact AZSA support.': 'Votre profil n\'a pas pu être enregistré. Contactez le support AZSA.',
   'Could not load your profile. Check your connection.': 'Impossible de charger votre profil. Vérifiez votre connexion.',
   'Try again': 'Réessayer',
 
@@ -737,8 +737,8 @@ const Map<String, String> _t = {
       'Position',
   'Active':
       'Active',
-  'This cannot be undone.\n\nDeleted: your profile, all your photos and files (also the photos you sent in chats, your results, passport and attestations), your student record, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chat text messages and ratings (you will show as "UniBridge user").\n\nType DELETE to confirm.':
-      'Cette action est définitive.\n\nSupprimés : votre profil, toutes vos photos et fichiers (aussi les photos envoyées dans les discussions, vos résultats, passeport et attestations), votre fiche étudiant, vos annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : les transactions terminées, les messages texte et les notes (vous apparaîtrez comme « UniBridge user »).\n\nTapez DELETE pour confirmer.',
+  'This cannot be undone.\n\nDeleted: your profile, all your photos and files (also the photos you sent in chats, your results, passport and attestations), your student record, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chat text messages and ratings (you will show as "AZSA user").\n\nType DELETE to confirm.':
+      'Cette action est définitive.\n\nSupprimés : votre profil, toutes vos photos et fichiers (aussi les photos envoyées dans les discussions, vos résultats, passeport et attestations), votre fiche étudiant, vos annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : les transactions terminées, les messages texte et les notes (vous apparaîtrez comme « AZSA user »).\n\nTapez DELETE pour confirmer.',
   'Could not open the file: {error}':
       'Impossible d\'ouvrir le fichier : {error}',
   'No student record':
@@ -1063,8 +1063,8 @@ const Map<String, String> _t = {
       'Combien de temps c\'est gardé',
   'Your passport scan is deleted after your attestation is issued. The rest stays until you delete it or delete your account. Deleting your account deletes all your files.':
       'Le scan de votre passeport est supprimé après la délivrance de votre attestation. Le reste est gardé jusqu\'à ce que vous le supprimiez ou supprimiez votre compte. La suppression de votre compte supprime tous vos fichiers.',
-  'This cannot be undone.\n\nDeleted: your profile, phone number, all your photos and files (also the photos you sent in chats, your results, passport and attestations), your student record, bank account and passport numbers, appointments, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chat text messages and ratings (you will show as "UniBridge user").\n\nType DELETE to confirm.':
-      'Cette action est définitive.\n\nSupprimés : votre profil, votre numéro de téléphone, toutes vos photos et fichiers (aussi les photos envoyées dans les discussions, vos résultats, passeport et attestations), votre fiche étudiant, vos numéros de compte bancaire et de passeport, vos rendez-vous, annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : les transactions terminées, les messages texte et les notes (vous apparaîtrez comme « UniBridge user »).\n\nTapez DELETE pour confirmer.',
+  'This cannot be undone.\n\nDeleted: your profile, phone number, all your photos and files (also the photos you sent in chats, your results, passport and attestations), your student record, bank account and passport numbers, appointments, listings, open requests, notifications and blocks.\n\nKept for the other person: finished transactions, chat text messages and ratings (you will show as "AZSA user").\n\nType DELETE to confirm.':
+      'Cette action est définitive.\n\nSupprimés : votre profil, votre numéro de téléphone, toutes vos photos et fichiers (aussi les photos envoyées dans les discussions, vos résultats, passeport et attestations), votre fiche étudiant, vos numéros de compte bancaire et de passeport, vos rendez-vous, annonces, demandes ouvertes, notifications et blocages.\n\nConservés pour l\'autre personne : les transactions terminées, les messages texte et les notes (vous apparaîtrez comme « AZSA user »).\n\nTapez DELETE pour confirmer.',
   'Send a test to myself':
       "Envoyer un test à moi-même",
   'Test sent to your phone only.':
@@ -1213,8 +1213,8 @@ const Map<String, String> _t = {
       "Connexion",
   'Glad to see you again.':
       "Ravi de vous revoir.",
-  'Join UniBridge today.':
-      "Rejoignez UniBridge dès aujourd'hui.",
+  'Join AZSA today.':
+      "Rejoignez AZSA dès aujourd'hui.",
   "Don't have an account? Sign up":
       "Pas encore de compte ? Inscrivez-vous",
   'Staff tools':
@@ -1257,8 +1257,8 @@ const Map<String, String> _t = {
       "Nom complet (obligatoire)",
   'As on your passport. You cannot change it later.':
       "Comme sur votre passeport. Vous ne pourrez pas le modifier ensuite.",
-  'Your name is already set. Contact UniBridge support to change it.':
-      "Votre nom est déjà enregistré. Contactez le support UniBridge pour le modifier.",
+  'Your name is already set. Contact AZSA support to change it.':
+      "Votre nom est déjà enregistré. Contactez le support AZSA pour le modifier.",
   'Hide password':
       "Masquer le mot de passe",
   'Show password':

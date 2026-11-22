@@ -1,4 +1,4 @@
-UniBridge startup sound (optional)
+AZSA startup sound (optional)
 ==================================
 
 Put your sound here with this exact name:

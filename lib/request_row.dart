@@ -210,7 +210,7 @@ class RequestRow extends StatelessWidget {
                             p['is_verified'] == true,
                           )
                         : Text(
-                            placeholderTitle ?? tr('UniBridge user'),
+                            placeholderTitle ?? tr('AZSA user'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

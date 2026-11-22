@@ -179,7 +179,7 @@ class _StudentSpaceScreenState extends State<StudentSpaceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name.isEmpty ? tr('UniBridge user') : name,
+                  name.isEmpty ? tr('AZSA user') : name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),

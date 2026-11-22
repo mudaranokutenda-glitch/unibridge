@@ -1330,7 +1330,7 @@ class _StaffAppointmentsScreenState extends State<StaffAppointmentsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(names[a['student_id'].toString()] ?? tr('UniBridge user'),
+                            Text(names[a['student_id'].toString()] ?? tr('AZSA user'),
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
                             Text(appointmentStatusLabel(a['status'])),
                             Text(tr('Asked for: {date}',

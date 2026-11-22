@@ -54,7 +54,7 @@ class _StaffSearchScreenState extends State<StaffSearchScreen> {
     final last = (s['last_name'] ?? '').toString();
     if (last.isNotEmpty) return '$last ${s['first_name'] ?? ''}';
     final full = (s['full_name'] ?? '').toString();
-    return full.isEmpty ? tr('UniBridge user') : full;
+    return full.isEmpty ? tr('AZSA user') : full;
   }
 
   @override
@@ -868,7 +868,7 @@ class _MissingRecordsScreenState extends State<MissingRecordsScreen> {
                       ),
                       for (final r in rows)
                         ListTile(
-                          title: Text('${r['full_name'] ?? tr('UniBridge user')}'),
+                          title: Text('${r['full_name'] ?? tr('AZSA user')}'),
                           subtitle: Text('${r['phone'] ?? tr('No phone number')}'),
                           trailing: r['phone'] == null
                               ? null
@@ -1149,7 +1149,7 @@ class _RecentAccessScreenState extends State<RecentAccessScreen> {
                                   final who = role == 'system'
                                       ? tr('Automatic cleanup')
                                       : (r['actor_name'] ?? '').toString().isEmpty
-                                          ? tr('UniBridge user')
+                                          ? tr('AZSA user')
                                           : '${r['actor_name']}';
                                   final student = r['student_id'] == null
                                       ? ''

@@ -123,7 +123,7 @@ void listenForForegroundNotifications(BuildContext context) {
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     final title = message.notification?.title ??
         message.data['title']?.toString() ??
-        'UniBridge';
+        'AZSA';
     final body = message.notification?.body ?? message.data['body']?.toString() ?? '';
     final emergency = message.data['channel'] == kEmergencyChannelId;
     final chatId = _chatIdFrom(message.data);
@@ -176,7 +176,7 @@ void _openFromPayload(String? payload) {
   }
 }
 
-// Removes UniBridge notifications from the phone's notification bar.
+// Removes AZSA notifications from the phone's notification bar.
 Future<void> clearNotificationBar() async {
   if (kIsWeb) return;
   try {

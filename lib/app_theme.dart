@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// ---------------- The look of UniBridge (one file) ----------------
+// ---------------- The look of AZSA (one file) ----------------
 // Colours, radii, spacing and the light / dark theme are all here.
 // To change the look of the whole app, change the numbers in this file.
 // The font is the system font for now.

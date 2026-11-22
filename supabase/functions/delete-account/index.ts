@@ -5,7 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // Needs sql/2026-11-04-delete-account.sql to be run first.
 //
 // Kept for the other person: finished transactions, chat text messages
-// and ratings (the deleted user shows as "UniBridge user").
+// and ratings (the deleted user shows as "AZSA user").
 // Deleted: every file of the user in every bucket (see step 4).
 //
 // RULE: when a new bucket or a table with personal data is added, add it

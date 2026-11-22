@@ -1,4 +1,4 @@
-UniBridge icons (optional)
+AZSA icons (optional)
 =========================
 
 Put your own icons in this folder. The app uses them when the file exists.

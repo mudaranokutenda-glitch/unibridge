@@ -30,7 +30,7 @@ const AUTO_LOCATION = "Square Port-Saïd";
 // Locations used by rates typed in the app by staff (set_parallel_rate).
 // Old rows from the previous system ("Alger", "official") are NOT staff rates.
 const STAFF_LOCATIONS = ["Alger (staff)", "Annaba"];
-const USER_AGENT = "UniBridgeRatesBot/1.0 (student exchange app, 1 visit per hour)";
+const USER_AGENT = "AZSARatesBot/1.0 (student exchange app, 1 visit per hour)";
 
 type Quote = { buy: number | null; sell: number };
 type SourceReport = { source: string; quotes: Partial<Record<Pair, Quote>>; note?: string };

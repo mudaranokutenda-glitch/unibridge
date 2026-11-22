@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Same sky blue as the app's own intro screen (AppColors.sky in lib/app_theme.dart). -->
-    <color name="splash_blue">#2F80ED</color>
+    <!-- The very first screen: white, like the app's intro with the AZSA logo (lib/intro.dart). -->
+    <color name="splash_background">#FFFFFF</color>
+    <!-- Behind the AZSA circle in the app icon (mipmap-anydpi-v26/ic_launcher.xml). -->
+    <color name="ic_launcher_background">#FFFFFF</color>
 </resources>

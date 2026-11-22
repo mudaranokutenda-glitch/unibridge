@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 // ---------------- Chat wallpaper ----------------
 // Drawn by code (no image file): small flowers and leaves, the currency
-// signs \$ € DA and the name UniBridge, repeated like WhatsApp's doodles.
+// signs \$ € DA and the name AZSA, repeated like WhatsApp's doodles.
 // Dark lines on the light chat background, light lines in dark mode.
 
 class ChatWallpaper extends StatelessWidget {
@@ -53,7 +53,7 @@ class _WallpaperPainter extends CustomPainter {
     ('\$', 96.0, 44.0, 24.0, -0.3),
     ('€', 206.0, 106.0, 24.0, 0.25),
     ('DA', 58.0, 124.0, 19.0, -0.2),
-    ('UniBridge', 150.0, 222.0, 15.0, -0.12),
+    ('AZSA', 150.0, 222.0, 15.0, -0.12),
     ('\$', 16.0, 112.0, 17.0, 0.3),
     ('€', 112.0, 200.0, 17.0, -0.2),
     ('DA', 172.0, 84.0, 14.0, 0.2),

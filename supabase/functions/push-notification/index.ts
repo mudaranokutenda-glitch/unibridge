@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
           message: {
             token: profile.fcm_token,
             notification: {
-              title: TITLES[String(type)] ?? "UniBridge",
+              title: TITLES[String(type)] ?? "AZSA",
               body: String(content ?? "").slice(0, 150),
             },
             data: { type: String(type ?? ""), channel: "general" },

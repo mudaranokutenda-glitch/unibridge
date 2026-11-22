@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'config.dart';
+import 'brand.dart';
 import 'push.dart';
 import 'intro.dart';
 import 'startup_sound.dart';
@@ -50,7 +51,7 @@ class UniBridgeApp extends StatelessWidget {
         valueListenable: AppSettings.themeMode,
         builder: (context, themeMode, _) => MaterialApp(
           navigatorKey: appNavigatorKey, // lets a tapped notification open a chat
-          title: 'UniBridge',
+          title: kAppName,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: themeMode,

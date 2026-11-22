@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Very first screen while Android starts the app: plain sky blue, no logo.
+<!-- Very first screen while Android starts the app: plain white, no logo.
      The app then shows its own intro (lib/intro.dart). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/splash_blue" />
+    <item android:drawable="@color/splash_background" />
 </layer-list>

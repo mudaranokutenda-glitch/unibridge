@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'config.dart';
+import 'brand.dart';
 import 'push.dart';
 import 'profile_setup.dart';
 import 'email_code.dart';
@@ -420,15 +421,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ),
                     ),
-                    const Text(
-                      'UniBridge',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    const AppWordmark(size: 44, color: Colors.white),
                     const SizedBox(height: AppSpace.l),
                     AppCard(
                       padding: const EdgeInsets.all(AppSpace.xl),
@@ -443,7 +436,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           const SizedBox(height: AppSpace.xs),
                           Text(
                             isSignUp
-                                ? tr('Join UniBridge today.')
+                                ? tr('Join AZSA today.')
                                 : tr('Glad to see you again.'),
                             style: TextStyle(
                                 color: Theme.of(context)

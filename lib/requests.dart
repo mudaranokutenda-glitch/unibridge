@@ -262,7 +262,7 @@ Widget myRequestRow(
         ? tr('Cancelled')
         : otherId == null
             ? tr('Waiting for someone to match')
-            : tr('UniBridge user'),
+            : tr('AZSA user'),
     subtitle: other == null
         ? requestHeadline(r, withAmount: false)
         : [requestHeadline(r, withAmount: false), ratingText(other), completedText(other)]

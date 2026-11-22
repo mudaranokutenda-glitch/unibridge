@@ -340,7 +340,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (!isProfileComplete(saved) || !hasName(saved)) {
         if (mounted) {
           setState(() => errorMessage = tr(
-              'Your profile could not be saved. Please contact UniBridge support.'));
+              'Your profile could not be saved. Please contact AZSA support.'));
         }
         return;
       }

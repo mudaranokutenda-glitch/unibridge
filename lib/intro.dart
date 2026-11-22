@@ -1,20 +1,21 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'config.dart';
 import 'auth.dart';
 import 'email_code.dart';
 import 'profile_setup.dart';
 import 'app_icons.dart';
 import 'app_theme.dart';
-import 'sky_background.dart';
 import 'startup_sound.dart';
 
-// ---------------- Start-up intro (about 1.5 seconds) ----------------
-// The logo fades and scales in, then the app name appears. After that the app goes to
-// the login screen or to the home screen, like before. It runs once per cold start.
-// Logo file (optional): assets/logo/logo.png. Without it a simple icon is shown.
+// ---------------- Start-up intro (about 2 seconds) ----------------
+// White screen: the full AZSA logo fades and scales in while the start-up sound
+// plays. After that the app goes to the login screen or to the home screen.
+// It runs once per cold start. Logo file: assets/logo/logo.jpg (without it a
+// simple icon is shown).
 
-const String kLogoAsset = 'assets/logo/logo.png';
+const String kLogoAsset = 'assets/logo/logo.jpg';
 
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
@@ -27,7 +28,7 @@ class _IntroScreenState extends State<IntroScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1500),
+    duration: const Duration(milliseconds: 2000),
   );
   late final Animation<double> logoFade = CurvedAnimation(
     parent: controller,
@@ -38,10 +39,6 @@ class _IntroScreenState extends State<IntroScreen>
     parent: controller,
     curve: const Interval(0.0, 0.55, curve: Curves.easeOutBack),
   ));
-  late final Animation<double> nameFade = CurvedAnimation(
-    parent: controller,
-    curve: const Interval(0.5, 0.9, curve: Curves.easeOut),
-  );
 
   @override
   void initState() {
@@ -91,10 +88,12 @@ class _IntroScreenState extends State<IntroScreen>
 
   Widget logo() {
     if (AppAssets.has(kLogoAsset)) {
+      // The full logo (cap, circle and ribbon), as big as the screen allows.
+      final w = MediaQuery.of(context).size.width;
       return Image.asset(
         kLogoAsset,
-        width: 132,
-        height: 132,
+        width: (w * 0.7).clamp(180.0, 340.0),
+        fit: BoxFit.contain,
         errorBuilder: (_, _, _) => fallbackLogo(),
       );
     }
@@ -105,36 +104,24 @@ class _IntroScreenState extends State<IntroScreen>
   Widget fallbackLogo() => Container(
         width: 112,
         height: 112,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+        decoration: const BoxDecoration(color: AppColors.skyPale, shape: BoxShape.circle),
         child: const Icon(Icons.school_rounded, size: 60, color: AppColors.sky),
       );
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SkyBackground(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FadeTransition(
-                opacity: logoFade,
-                child: ScaleTransition(scale: logoScale, child: logo()),
-              ),
-              const SizedBox(height: AppSpace.l),
-              FadeTransition(
-                opacity: nameFade,
-                child: const Text(
-                  'UniBridge',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
+    // White screen with dark status-bar icons, like the logo's own background.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.white,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: FadeTransition(
+            opacity: logoFade,
+            child: ScaleTransition(scale: logoScale, child: logo()),
           ),
         ),
       ),

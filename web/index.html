@@ -7,35 +7,36 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="UniBridge - exchange, marketplace and student space for Zimbabwean students in Algeria.">
+  <meta name="description" content="AZSA - exchange, marketplace and student space for Zimbabwean students in Algeria.">
   <meta name="theme-color" content="#2F80ED">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="UniBridge">
+  <meta name="apple-mobile-web-app-title" content="AZSA">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>UniBridge</title>
+  <title>AZSA</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Sky blue while the app loads (same as the Android start screen). -->
+  <!-- White while the app loads (same as the Android start screen and the intro). -->
   <style>
-    html, body { margin: 0; height: 100%; background: #2F80ED; }
+    html, body { margin: 0; height: 100%; background: #FFFFFF; }
     #loading {
       position: fixed; inset: 0; display: flex; align-items: center;
-      justify-content: center; color: #ffffff;
-      font: 800 30px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      justify-content: center; color: #14233B;
+      font: 900 34px Georgia, "Times New Roman", serif; letter-spacing: 2px;
+      text-shadow: 2px 3px 4px rgba(0,0,0,0.3);
     }
   </style>
 </head>
 <body>
-  <div id="loading">UniBridge</div>
+  <div id="loading">AZSA</div>
   <script>
-    // Hide "UniBridge" once Flutter has drawn its first frame.
+    // Hide "AZSA" once Flutter has drawn its first frame.
     window.addEventListener('flutter-first-frame', function () {
       var el = document.getElementById('loading');
       if (el) el.remove();

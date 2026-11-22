@@ -1,9 +1,9 @@
 {
-    "name": "UniBridge",
-    "short_name": "UniBridge",
+    "name": "AZSA",
+    "short_name": "AZSA",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#2F80ED",
+    "background_color": "#FFFFFF",
     "theme_color": "#2F80ED",
     "description": "Exchange, marketplace and student space for Zimbabwean students in Algeria.",
     "orientation": "portrait-primary",

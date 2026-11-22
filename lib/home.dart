@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
+import 'brand.dart';
 import 'push.dart';
 import 'profiles.dart';
 import 'requests.dart';
@@ -309,7 +310,7 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('UniBridge'),
+        title: const AppWordmark(size: 26),
         actions: [
           const NotificationBell(),
           IconButton(

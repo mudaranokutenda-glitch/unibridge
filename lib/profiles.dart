@@ -26,7 +26,7 @@ double? asDouble(dynamic v) =>
 
 String publicDisplayName(Map<String, dynamic> p) {
   final name = (p['full_name'] ?? '').toString().trim();
-  return name.isEmpty ? tr('UniBridge user') : name;
+  return name.isEmpty ? tr('AZSA user') : name;
 }
 
 String profilePlace(Map<String, dynamic> p) {
@@ -1360,7 +1360,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   'account and passport numbers, appointments, listings, open '
                   'requests, notifications and blocks.\n\n'
                   'Kept for the other person: finished transactions, chat '
-                  'text messages and ratings (you will show as "UniBridge '
+                  'text messages and ratings (you will show as "AZSA '
                   'user").\n\n'
                   'Type DELETE to confirm.',
                 )),
@@ -1559,7 +1559,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                     final p = profiles[id];
                     return ListTile(
                       leading: avatar(p),
-                      title: Text(p == null ? tr('UniBridge user') : publicDisplayName(p)),
+                      title: Text(p == null ? tr('AZSA user') : publicDisplayName(p)),
                       trailing: TextButton(
                         onPressed: () => unblock(id),
                         child: Text(tr('Unblock')),

@@ -14,10 +14,10 @@ typedef LegalSection = (String, String);
 // ---------------- Terms (English) ----------------
 const List<LegalSection> kTermsEn = [
   (
-    'About UniBridge',
-    'UniBridge helps students in Algeria find each other to exchange money, '
+    'About AZSA',
+    'AZSA helps students in Algeria find each other to exchange money, '
         'buy and sell items, and keep their student information in one place. '
-        'UniBridge never holds, sends or receives money. Every exchange happens '
+        'AZSA never holds, sends or receives money. Every exchange happens '
         'directly between the two users, outside the app.',
   ),
   (
@@ -30,7 +30,7 @@ const List<LegalSection> kTermsEn = [
   (
     'Exchanges between users',
     'You are fully responsible for every exchange you make, and for respecting '
-        'the laws of Algeria, including the rules on foreign currency. UniBridge '
+        'the laws of Algeria, including the rules on foreign currency. AZSA '
         'is not a party to any exchange and cannot promise that the other user '
         'will keep their word. Suggested matches are only suggestions: a match '
         'happens only when both people accept. Both users must confirm in the app '
@@ -58,7 +58,7 @@ const List<LegalSection> kTermsEn = [
   (
     'No warranty',
     'The app is provided "as is". Exchange rates shown in the app are for '
-        'information only. As far as the law allows, UniBridge is not liable for '
+        'information only. As far as the law allows, AZSA is not liable for '
         'losses caused by exchanges or deals between users.',
   ),
   (
@@ -97,7 +97,7 @@ const List<LegalSection> kPrivacyEn = [
         '• Your passport number, passport scan and attestations: you and the '
         'Educational Attaché only. Never a Governor.\n'
         '• Your appointments: you and the Educational Attaché.\n'
-        '• Your student card (verification): you and the UniBridge team.\n'
+        '• Your student card (verification): you and the AZSA team.\n'
         '• Your chats: only the two people in the chat.\n'
         '• Your email: never shown to other users.\n'
         'The app administrator can technically access the stored data in order '
@@ -108,7 +108,7 @@ const List<LegalSection> kPrivacyEn = [
   (
     'Who is who',
     'The Educational Attaché of Zimbabwe works in the embassy office. A Governor '
-        'is the student representative of one wilaya. UniBridge itself is not an '
+        'is the student representative of one wilaya. AZSA itself is not an '
         'embassy app.',
   ),
   (
@@ -142,7 +142,7 @@ const List<LegalSection> kPrivacyEn = [
         'results, passport scans, attestations, appointments, photos (also those '
         'you sent in chats), listings, open requests and notifications. Finished '
         'exchanges, chat text messages and ratings stay for the other person, '
-        'shown as "UniBridge user". The access log keeps its records for safety. '
+        'shown as "AZSA user". The access log keeps its records for safety. '
         'You cannot delete your account while an exchange is in progress. '
         'Messages you sent stay visible to the other person until the chat is '
         'deleted automatically, 30 days after the request ends. A security log '
@@ -161,10 +161,10 @@ const List<LegalSection> kPrivacyEn = [
 // ---------------- Conditions (français) ----------------
 const List<LegalSection> kTermsFr = [
   (
-    'À propos de UniBridge',
-    'UniBridge aide les étudiants en Algérie à se trouver pour échanger de '
+    'À propos de AZSA',
+    'AZSA aide les étudiants en Algérie à se trouver pour échanger de '
         "l'argent, acheter et vendre des objets, et garder leurs informations "
-        "d'étudiant au même endroit. UniBridge ne détient, n'envoie et ne reçoit "
+        "d'étudiant au même endroit. AZSA ne détient, n'envoie et ne reçoit "
         "jamais d'argent. Chaque échange se fait directement entre les deux "
         "utilisateurs, en dehors de l'application.",
   ),
@@ -178,7 +178,7 @@ const List<LegalSection> kTermsFr = [
   (
     'Échanges entre utilisateurs',
     'Vous êtes entièrement responsable de chaque échange et du respect des lois '
-        "algériennes, y compris les règles sur les devises. UniBridge n'est partie "
+        "algériennes, y compris les règles sur les devises. AZSA n'est partie "
         "à aucun échange et ne peut pas promettre que l'autre utilisateur tiendra "
         'parole. Les correspondances suggérées ne sont que des suggestions : la '
         'mise en relation se fait seulement si les deux personnes acceptent. Les '
@@ -208,7 +208,7 @@ const List<LegalSection> kTermsFr = [
   (
     'Aucune garantie',
     "L'application est fournie « telle quelle ». Les taux de change affichés sont "
-        'donnés à titre indicatif. Dans la mesure permise par la loi, UniBridge '
+        'donnés à titre indicatif. Dans la mesure permise par la loi, AZSA '
         "n'est pas responsable des pertes causées par les échanges ou les affaires "
         'entre utilisateurs.',
   ),
@@ -251,7 +251,7 @@ const List<LegalSection> kPrivacyFr = [
         '• Votre numéro de passeport, le scan du passeport et vos attestations : '
         "vous et l'Attaché d'éducation seulement. Jamais un Gouverneur.\n"
         "• Vos rendez-vous : vous et l'Attaché d'éducation.\n"
-        "• Votre carte d'étudiant (vérification) : vous et l'équipe UniBridge.\n"
+        "• Votre carte d'étudiant (vérification) : vous et l'équipe AZSA.\n"
         '• Vos discussions : seulement les deux personnes de la discussion.\n'
         "• Votre e-mail : jamais montré aux autres utilisateurs.\n"
         "L'administrateur de l'application peut techniquement accéder aux données "
@@ -263,7 +263,7 @@ const List<LegalSection> kPrivacyFr = [
   (
     'Qui est qui',
     "L'Attaché d'éducation du Zimbabwe travaille au bureau de l'ambassade. Un "
-        "Gouverneur est le représentant des étudiants d'une wilaya. UniBridge "
+        "Gouverneur est le représentant des étudiants d'une wilaya. AZSA "
         "n'est pas une application de l'ambassade.",
   ),
   (
@@ -301,7 +301,7 @@ const List<LegalSection> kPrivacyFr = [
         'attestations, rendez-vous, photos (aussi celles envoyées dans les '
         'discussions), annonces, demandes ouvertes et notifications. Les échanges '
         "terminés, les messages texte et les notes restent pour l'autre personne, "
-        "avec le nom « UniBridge user ». Le journal d'accès garde ses lignes pour la "
+        "avec le nom « AZSA user ». Le journal d'accès garde ses lignes pour la "
         'sécurité. Vous ne pouvez pas supprimer votre compte pendant un échange en '
         "cours. Les messages que vous avez envoyés restent visibles pour l'autre "
         "personne jusqu'à la suppression automatique de la discussion, 30 jours "
