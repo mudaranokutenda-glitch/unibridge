@@ -34,12 +34,13 @@ class NotificationCenter {
   static void start() {
     final me = supabase.auth.currentUser?.id;
     if (me == null) return;
-    OnlineStatus.start(); // green "online" dot in chats
     if (_userId == me && _channel != null) {
+      OnlineStatus.start(); // green "online" dot in chats
       refresh();
       return;
     }
-    stop();
+    stop(); // also stops the online dot, so start it AFTER this line
+    OnlineStatus.start(); // green "online" dot in chats
     _userId = me;
     _channel = supabase
         .channel('notifications-$me')

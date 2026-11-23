@@ -587,42 +587,6 @@ class GuideScreen extends StatefulWidget {
 }
 
 class _GuideScreenState extends State<GuideScreen> {
-  // Extra sections written by the Educational Attaché (table guide_sections).
-  List<Map<String, dynamic>> sections = [];
-  MyRole role = MyRole.student;
-
-  @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final data = await supabase
-          .from('guide_sections')
-          .select('id, title, sort_order, guide_items(count)')
-          .order('sort_order');
-      final r = await loadMyRole();
-      if (!mounted) return;
-      setState(() {
-        sections = List<Map<String, dynamic>>.from(data);
-        role = r;
-      });
-    } catch (e) {
-      // The built-in guide still works without these extra sections.
-      debugPrint('Could not load the extra guide sections: $e');
-    }
-  }
-
-  int countOf(Map<String, dynamic> s) {
-    final c = s['guide_items'];
-    if (c is List && c.isNotEmpty && c.first is Map) {
-      return int.tryParse('${c.first['count']}') ?? 0;
-    }
-    return 0;
-  }
-
   void openScreen(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
@@ -763,50 +727,23 @@ class _GuideScreenState extends State<GuideScreen> {
   @override
   Widget build(BuildContext context) {
     final steps = _guideSteps();
-    // Students see only the extra sections that have content; staff see all
-    // (to add items to them).
-    final extra = sections.where((s) => role.isStaff || countOf(s) > 0).toList();
     var number = 0;
     return Scaffold(
       appBar: AppBar(title: Text(tr('Guide for new students'))),
-      body: RefreshIndicator(
-        onRefresh: load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpace.screen, AppSpace.s, AppSpace.screen, AppSpace.xxl),
-          children: [
-            infoCard(),
-            for (final step in steps) ...[
-              const SizedBox(height: AppSpace.m),
-              stepCard(step, step.governor ? null : ++number),
-            ],
-            if (extra.isNotEmpty) ...[
-              const SizedBox(height: AppSpace.xl),
-              Text(tr('More information'),
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.primary)),
-              const SizedBox(height: AppSpace.s),
-              for (final s in extra)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.menu_book_outlined),
-                  title: Text(tr('${s['title']}')),
-                  subtitle: Text(countOf(s) == 0
-                      ? tr('Coming soon')
-                      : tr('{count} items', {'count': countOf(s)})),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () async {
-                    await Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => GuideSectionScreen(section: s)));
-                    load();
-                  },
-                ),
-            ],
-            const SizedBox(height: AppSpace.l),
-            infoCard(),
+      body: ListView(
+        // Extra space at the bottom so the last card is not hidden behind
+        // the phone's navigation buttons.
+        padding: EdgeInsets.fromLTRB(AppSpace.screen, AppSpace.s,
+            AppSpace.screen, AppSpace.xxl + MediaQuery.paddingOf(context).bottom),
+        children: [
+          infoCard(),
+          for (final step in steps) ...[
+            const SizedBox(height: AppSpace.m),
+            stepCard(step, step.governor ? null : ++number),
           ],
-        ),
+          const SizedBox(height: AppSpace.l),
+          infoCard(),
+        ],
       ),
     );
   }
