@@ -137,6 +137,9 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   // Live updates: any change in transaction_requests reloads both lists.
   RealtimeChannel? requestsChannel;
   Timer? reloadTimer;
+  // While the app is in the background, live changes don't reload anything:
+  // coming back reloads once.
+  bool appVisible = true;
 
   @override
   void initState() {
@@ -163,11 +166,12 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
         .subscribe();
   }
 
-  // Several changes often come together (match + status). Wait half a
-  // second and reload once.
+  // Several changes often come together (match + status, or many students
+  // posting at the same time). Wait a little and reload once.
   void reloadSoon() {
+    if (!appVisible) return; // done when the app comes back
     reloadTimer?.cancel();
-    reloadTimer = Timer(const Duration(milliseconds: 500), () {
+    reloadTimer = Timer(const Duration(milliseconds: 1200), () {
       if (mounted) loadRequests(quiet: true);
     });
   }
@@ -175,7 +179,14 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
   // Coming back to the app: reload, in case we missed a change while away.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) reloadSoon();
+    if (state == AppLifecycleState.resumed) {
+      appVisible = true;
+      reloadSoon();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      appVisible = false;
+      reloadTimer?.cancel();
+    }
   }
 
   void reloadFromSignal() => loadRequests(quiet: true);
@@ -196,40 +207,42 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
     if (!quiet) setState(() => loading = true);
     try {
       final myId = supabase.auth.currentUser!.id;
-      final results = await Future.wait([
+      // Everything that doesn't depend on another answer is asked AT THE SAME
+      // TIME (one wait instead of seven). Only the two lists can fail; the
+      // other helpers handle their own errors.
+      final results = await Future.wait<dynamic>([
         supabase
             .from('transaction_requests')
             .select()
             .eq('status', 'OPEN')
             .neq('creator_id', myId)
             .isFilter('archived_at', null)
-            .order('created_at', ascending: false),
+            .order('created_at', ascending: false)
+            .limit(200),
         supabase
             .from('transaction_requests')
             .select()
             .or('creator_id.eq.$myId,matched_with_id.eq.$myId')
             .isFilter('archived_at', null)
-            .order('updated_at', ascending: false),
+            .order('updated_at', ascending: false)
+            .limit(200),
+        fetchHiddenUserIds(), // people I blocked or who blocked me
+        loadRequestExpiryHours(),
+        loadMySuggestions(),
+        fetchMyRatedRequestIds(),
+        loadRecentAlert(),
       ]);
-      // Hide requests from people I blocked or who blocked me.
-      final hidden = await fetchHiddenUserIds();
-      await loadRequestExpiryHours();
+      final hidden = results[2] as Set<String>;
       // An expired request leaves the open list at once (the database job
       // cancels it within 15 minutes).
-      final loaded = List<Map<String, dynamic>>.from(results[0])
+      final loaded = List<Map<String, dynamic>>.from(results[0] as List)
           .where((r) => !hidden.contains(r['creator_id']))
           .where((r) => !requestIsExpired(r))
           .toList();
-      final mine = List<Map<String, dynamic>>.from(results[1]);
-      List<Map<String, dynamic>> loadedSuggestions = [];
-      try {
-        loadedSuggestions = List<Map<String, dynamic>>.from(
-            await supabase.rpc('my_match_suggestions') as List);
-      } catch (e) {
-        debugPrint('Could not load suggestions: $e');
-      }
-      final rated = await fetchMyRatedRequestIds();
-      final alert = await loadRecentAlert();
+      final mine = List<Map<String, dynamic>>.from(results[1] as List);
+      final loadedSuggestions = results[4] as List<Map<String, dynamic>>;
+      final rated = results[5] as Set<String>;
+      final alert = results[6] as Map<String, dynamic>?;
       // My own profile is loaded too, for the profile bar at the top.
       final loadedProfiles = await fetchPublicProfiles([
         myId,
@@ -255,6 +268,17 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
           SnackBar(content: Text(friendlyError(e))),
         );
       }
+    }
+  }
+
+  // My suggested matches ([] if they can't be loaded).
+  Future<List<Map<String, dynamic>>> loadMySuggestions() async {
+    try {
+      return List<Map<String, dynamic>>.from(
+          await supabase.rpc('my_match_suggestions') as List);
+    } catch (e) {
+      debugPrint('Could not load suggestions: $e');
+      return [];
     }
   }
 
