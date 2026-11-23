@@ -563,7 +563,10 @@ class _StudentRecordScreenState extends State<StudentRecordScreen> {
           : Form(
               key: formKey,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                // Extra space at the bottom so "Save my record" is not hidden
+                // behind the phone's navigation buttons.
+                padding: EdgeInsets.fromLTRB(
+                    16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom),
                 children: [
                   Text(
                     tr('Only you, the Educational Attaché and the Governor of your wilaya can see this. Other students never see your inscription number or phone.'),

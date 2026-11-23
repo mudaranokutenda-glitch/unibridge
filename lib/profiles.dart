@@ -16,6 +16,7 @@ import 'profile_setup.dart';
 import 'l10n.dart';
 import 'errors.dart';
 import 'notifications.dart';
+import 'notification_check.dart';
 import 'rates.dart';
 
 // ---------------- Public profile helpers ----------------
@@ -1442,6 +1443,20 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12),
             child: NewRequestNotificationsTile(),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Card(
+              child: ListTile(
+                leading: const Icon(Icons.build_circle_outlined),
+                title: Text(tr('Check notifications')),
+                subtitle: Text(tr(
+                    'If notifications or the green online dot do not work.')),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const NotificationCheckScreen())),
+              ),
+            ),
           ),
           profileSectionTitle(context, tr('Privacy')),
           profileGroup([

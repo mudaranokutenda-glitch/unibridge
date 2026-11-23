@@ -23,6 +23,10 @@ class OnlineStatus {
   static bool _joined = false;
   static bool _visible = true;
 
+  // How the connection is doing (shown on Settings -> Check notifications).
+  static final ValueNotifier<String> state =
+      ValueNotifier<String>('not started');
+
   static bool isOnline(String? userId) =>
       userId != null && online.value.contains(userId);
 
@@ -33,6 +37,7 @@ class OnlineStatus {
     stop();
     _userId = me;
     _visible = true;
+    state.value = 'connecting';
 
     final channel = supabase.channel(
       'online-users',
@@ -45,6 +50,12 @@ class OnlineStatus {
         .subscribe((status, error) {
       _joined = status == RealtimeSubscribeStatus.subscribed;
       if (_joined && _visible) _track();
+      state.value = switch (status) {
+        RealtimeSubscribeStatus.subscribed => 'connected',
+        RealtimeSubscribeStatus.timedOut => 'timed out (will try again)',
+        RealtimeSubscribeStatus.closed => 'closed',
+        RealtimeSubscribeStatus.channelError => 'refused: ${error ?? '?'}',
+      };
       if (error != null) debugPrint('Online status: $error');
     });
     _channel = channel;
@@ -71,6 +82,7 @@ class OnlineStatus {
     _userId = null;
     _joined = false;
     online.value = <String>{};
+    state.value = 'not started';
   }
 
   static void _read(RealtimeChannel channel) {
@@ -85,8 +97,11 @@ class OnlineStatus {
     final channel = _channel;
     if (channel == null || !_joined) return;
     try {
-      await channel
+      final res = await channel
           .track({'at': DateTime.now().toUtc().toIso8601String()});
+      if (res != ChannelResponse.ok) {
+        state.value = 'connected, but my status was not shared (${res.name})';
+      }
     } catch (e) {
       debugPrint('Online status (track): $e');
     }

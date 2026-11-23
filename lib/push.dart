@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FunctionException;
 import 'firebase_options.dart';
 import 'config.dart';
 import 'l10n.dart';
@@ -110,11 +112,23 @@ Future<void> showLocalNotification(String title, String body,
   }
 }
 
+// Starts Firebase. On Android it reads android/app/google-services.json,
+// which belongs to the real app id (dz.azsa.app), so push tokens are made
+// for this app and not for the old com.example one in firebase_options.dart.
+Future<void> initFirebase() async {
+  if (Firebase.apps.isNotEmpty) return;
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await Firebase.initializeApp();
+  } else {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+}
+
 @pragma('vm:entry-point')
 Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await initFirebase();
 }
 
 StreamSubscription<RemoteMessage>? _foregroundSub;
@@ -225,6 +239,34 @@ VoidCallback? onEmergencyAlertReceived;
 
 StreamSubscription<String>? _tokenRefreshSub;
 
+// What happened the last time this phone set up push (shown on the
+// "Check notifications" page in Settings).
+class PushStatus {
+  PushStatus._();
+  static String permission = 'unknown';
+  static bool tokenSaved = false;
+  static String? error;
+}
+
+// Saves this phone's push address (token) on my profile. Returns true only
+// if the row was really changed.
+Future<bool> _saveToken(String userId, String? token) async {
+  try {
+    final rows = await supabase
+        .from('profiles')
+        .update({'fcm_token': token})
+        .eq('id', userId)
+        .select('id');
+    final ok = (rows as List).isNotEmpty;
+    if (!ok) PushStatus.error = 'The database did not save the token.';
+    return ok;
+  } catch (e) {
+    PushStatus.error = 'Could not save the token: $e';
+    debugPrint('Could not save FCM token: $e');
+    return false;
+  }
+}
+
 // Never throws: if notifications cannot be set up (no Google Play services,
 // permission refused, no internet), the user still gets into the app.
 Future<void> setupPushNotifications() async {
@@ -239,6 +281,7 @@ Future<void> setupPushNotifications() async {
 Future<void> _setupPushNotifications() async {
   final user = supabase.auth.currentUser;
   if (user == null) return;
+  PushStatus.error = null;
 
   final messaging = FirebaseMessaging.instance;
 
@@ -248,35 +291,47 @@ Future<void> _setupPushNotifications() async {
     sound: true,
     provisional: false,
   );
+  PushStatus.permission = settings.authorizationStatus.name;
   debugPrint('Notification permission: ${settings.authorizationStatus}');
 
-  final token = await messaging.getToken();
+  String? token;
+  try {
+    token = await messaging.getToken();
+  } catch (e) {
+    PushStatus.error = 'Firebase gave no push address: $e';
+    rethrow;
+  }
   debugPrint('FCM TOKEN: $token');
 
   if (token != null && token.isNotEmpty) {
-    try {
-      await supabase
-          .from('profiles')
-          .update({'fcm_token': token})
-          .eq('id', user.id);
-    } catch (e) {
-      debugPrint('Could not save FCM token: $e');
-    }
+    PushStatus.tokenSaved = await _saveToken(user.id, token);
+  } else {
+    PushStatus.tokenSaved = false;
+    PushStatus.error ??= 'Firebase gave no push address.';
   }
 
   // Only one refresh listener at a time, always for the current user.
   await _tokenRefreshSub?.cancel();
   _tokenRefreshSub = messaging.onTokenRefresh.listen((newToken) async {
     debugPrint('New FCM TOKEN: $newToken');
-    try {
-      await supabase
-          .from('profiles')
-          .update({'fcm_token': newToken})
-          .eq('id', user.id);
-    } catch (e) {
-      debugPrint('Could not update FCM token: $e');
-    }
+    PushStatus.tokenSaved = await _saveToken(user.id, newToken);
   });
+}
+
+// Asks the server to send a push to this phone (Settings -> Check
+// notifications). Returns null if it was sent, or the reason it failed.
+Future<String?> sendTestPush({int delaySeconds = 0}) async {
+  try {
+    final res = await supabase.functions.invoke('notify-chat-message',
+        body: {'test': true, 'delay_seconds': delaySeconds});
+    final data = res.data;
+    if (data is Map && data['ok'] == true) return null;
+    return '$data';
+  } on FunctionException catch (e) {
+    return '${e.status}: ${e.details}';
+  } catch (e) {
+    return '$e';
+  }
 }
 
 // Call this just before signing out, so a logged-out account stops

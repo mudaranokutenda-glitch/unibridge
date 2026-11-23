@@ -13,10 +13,60 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Sends one push through Firebase (FCM v1). Returns { ok, result }.
+async function sendPush(
+  fcmToken: string,
+  title: string,
+  body: string,
+  data: Record<string, string>,
+) {
+  // A Firebase access token from the stored service account
+  const raw = Deno.env.get(SERVICE_ACCOUNT_ENV);
+  if (!raw) return { ok: false, error: `Secret ${SERVICE_ACCOUNT_ENV} not found` };
+  const credentials = JSON.parse(raw);
+  const auth = new GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
+  });
+  const client = await auth.getClient();
+  const accessToken = (await client.getAccessToken()).token;
+
+  const fcmRes = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: {
+          token: fcmToken,
+          notification: { title, body },
+          data,
+          android: {
+            // Deliver at once (even when the phone is sleeping), with the
+            // phone's default notification sound.
+            priority: "HIGH",
+            notification: {
+              channel_id: "general",
+              default_sound: true,
+              notification_priority: "PRIORITY_HIGH",
+            },
+          },
+        },
+      }),
+    },
+  );
+  const result = await fcmRes.json();
+  return { ok: fcmRes.ok, result };
+}
+
 Deno.serve(async (req) => {
   try {
-    const { request_id, message } = await req.json();
-    if (!request_id || !message) {
+    const { request_id, message, test, delay_seconds } = await req.json();
+    const isTest = test === true;
+    if (!isTest && (!request_id || !message)) {
       return json({ error: "request_id and message are required" }, 400);
     }
 
@@ -30,6 +80,24 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !userData.user) return json({ error: "Not signed in" }, 401);
     const senderId = userData.user.id;
+
+    // Test (Settings -> Check notifications): a push to MY OWN phone only.
+    if (isTest) {
+      const { data: me } = await admin
+        .from("profiles").select("fcm_token").eq("id", senderId).single();
+      if (!me?.fcm_token) {
+        return json({ ok: false, error: "Your profile has no device token" });
+      }
+      const wait = Math.min(Math.max(Number(delay_seconds) || 0, 0), 10);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait * 1000));
+      const r = await sendPush(
+        me.fcm_token,
+        "AZSA",
+        "Test notification: it works!",
+        { channel: "general", type: "TEST" },
+      );
+      return json(r, r.ok ? 200 : 502);
+    }
 
     // 2. Find the other person in this transaction
     const { data: reqRow, error: reqErr } = await admin
@@ -55,50 +123,14 @@ Deno.serve(async (req) => {
       return json({ skipped: "Recipient has no device token" });
     }
 
-    // 4. Get a Firebase access token from the stored service account
-    const raw = Deno.env.get(SERVICE_ACCOUNT_ENV);
-    if (!raw) return json({ error: `Secret ${SERVICE_ACCOUNT_ENV} not found` }, 500);
-    const credentials = JSON.parse(raw);
-    const auth = new GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
-    });
-    const client = await auth.getClient();
-    const accessToken = (await client.getAccessToken()).token;
-
-    // 5. Send the push
-    const fcmRes = await fetch(
-      `https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: {
-            token: recipient.fcm_token,
-            notification: {
-              title: sender?.full_name || "New message",
-              body: String(message).slice(0, 100),
-            },
-            data: { request_id: String(request_id), channel: "general" },
-            android: {
-              // Deliver at once (even when the phone is sleeping), with the
-              // phone's default notification sound.
-              priority: "HIGH",
-              notification: {
-                channel_id: "general",
-                default_sound: true,
-                notification_priority: "PRIORITY_HIGH",
-              },
-            },
-          },
-        }),
-      },
+    // 4. Send the push
+    const r = await sendPush(
+      recipient.fcm_token,
+      sender?.full_name || "New message",
+      String(message).slice(0, 100),
+      { request_id: String(request_id), channel: "general" },
     );
-    const result = await fcmRes.json();
-    return json({ ok: fcmRes.ok, result }, fcmRes.ok ? 200 : 502);
+    return json(r, r.ok ? 200 : 502);
   } catch (e) {
     return json({ error: String(e) }, 500);
   }

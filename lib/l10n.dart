@@ -463,7 +463,6 @@ const Map<String, String> _t = {
   'Other users can see the blue tick next to your name.': 'Les autres utilisateurs voient la coche bleue à côté de votre nom.',
   'Under review': 'En cours de vérification',
   'We received your student card and will check it soon. You will see a blue tick here once it is approved.': "Nous avons reçu votre carte d'étudiant et la vérifierons bientôt. Vous verrez une coche bleue ici une fois approuvée.",
-  'Check again': 'Vérifier à nouveau',
   'Your last request was not approved. You can send a new photo.': "Votre dernière demande n'a pas été approuvée. Vous pouvez envoyer une nouvelle photo.",
   'Your last request was not approved: {note}': "Votre dernière demande n'a pas été approuvée : {note}",
   'A blue tick tells other students that we checked your student card.': "La coche bleue indique aux autres étudiants que nous avons vérifié votre carte d'étudiant.",
@@ -1619,4 +1618,38 @@ const Map<String, String> _t = {
       "Entrez de vrais taux (plus de 0)",
   'The buy rate cannot be higher than the sell rate':
       "Le taux d'achat ne peut pas dépasser le taux de vente",
+  // ---- Check notifications (Settings) ----
+  'Check notifications': 'Vérifier les notifications',
+  'If notifications or the green online dot do not work.':
+      'Si les notifications ou le point vert « en ligne » ne marchent pas.',
+  'Check again': 'Vérifier à nouveau',
+  'Close the app now': "Fermez l'application maintenant",
+  "Press the phone's Home button now. A notification should arrive in about 10 seconds, with the phone's sound.":
+      "Appuyez maintenant sur le bouton Accueil du téléphone. Une notification devrait arriver dans environ 10 secondes, avec le son du téléphone.",
+  'Sent. It should appear in your notification bar.':
+      'Envoyée. Elle devrait apparaître dans votre barre de notifications.',
+  'Not sent: {error}': 'Non envoyée : {error}',
+  'Notifications in the notification bar are for the Android app. The web version shows them on the bell only.':
+      "Les notifications dans la barre sont pour l'application Android. La version web les montre seulement sur la cloche.",
+  'Notifications allowed for AZSA': 'Notifications autorisées pour AZSA',
+  'Android is blocking AZSA notifications.':
+      'Android bloque les notifications de AZSA.',
+  'Allow': 'Autoriser',
+  '"General" notifications have sound and pop-up':
+      'Les notifications « Général » ont le son et l\'affichage',
+  'Turn on sound and "Pop on screen" for General.':
+      'Activez le son et « Afficher à l\'écran » pour Général.',
+  'Open settings': 'Ouvrir les réglages',
+  'This phone is registered for notifications':
+      'Ce téléphone est enregistré pour les notifications',
+  'Online status (green dot)': 'Statut en ligne (point vert)',
+  '{n} people online now (you included).':
+      '{n} personnes en ligne maintenant (vous compris).',
+  'Tests': 'Tests',
+  'Show a notification from this phone':
+      'Afficher une notification depuis ce téléphone',
+  'Test: this is how AZSA notifications look and sound.':
+      'Test : voici l\'aspect et le son des notifications AZSA.',
+  'Send a test from the server': 'Envoyer un test depuis le serveur',
+  'Test with the app closed': "Tester avec l'application fermée",
 };

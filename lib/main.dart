@@ -3,9 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'firebase_options.dart';
 import 'config.dart';
 import 'brand.dart';
 import 'push.dart';
@@ -18,9 +16,7 @@ import 'app_icons.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await initFirebase(); // see push.dart
   // Push notifications are for the Android app only (not the web version).
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
