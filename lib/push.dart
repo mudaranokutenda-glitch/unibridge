@@ -62,7 +62,8 @@ Future<void> initLocalNotifications() async {
   try {
     await localNotifications.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        // Small white graduation cap in the status bar (res/drawable-*/ic_stat_azsa.png).
+        android: AndroidInitializationSettings('@drawable/ic_stat_azsa'),
       ),
       // Tap on a notification shown while the app was open.
       onDidReceiveNotificationResponse: (response) =>
@@ -98,6 +99,8 @@ Future<void> showLocalNotification(String title, String body,
           sound: channel.sound,
           audioAttributesUsage: channel.audioAttributesUsage,
           styleInformation: BigTextStyleInformation(body),
+          icon: '@drawable/ic_stat_azsa',
+          color: const Color(0xFF2F80ED), // sky blue behind the small icon
         ),
       ),
       payload: payload,
