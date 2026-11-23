@@ -9,13 +9,15 @@ import 'app_icons.dart';
 import 'app_theme.dart';
 import 'startup_sound.dart';
 
-// ---------------- Start-up intro (about 2 seconds) ----------------
+// ---------------- Start-up intro (about 4 seconds) ----------------
 // White screen: the full AZSA logo fades and scales in while the start-up sound
 // plays. After that the app goes to the login screen or to the home screen.
 // It runs once per cold start. Logo file: assets/logo/logo.jpg (without it a
 // simple icon is shown).
 
 const String kLogoAsset = 'assets/logo/logo.jpg';
+// How long the full logo stays after it has appeared.
+const Duration kLogoHold = Duration(milliseconds: 2600);
 
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
@@ -28,7 +30,7 @@ class _IntroScreenState extends State<IntroScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2000),
+    duration: const Duration(milliseconds: 1400),
   );
   late final Animation<double> logoFade = CurvedAnimation(
     parent: controller,
@@ -44,7 +46,11 @@ class _IntroScreenState extends State<IntroScreen>
   void initState() {
     super.initState();
     StartupSound.playOnce();
-    controller.forward().whenComplete(goOn);
+    // The logo grows in (1.4 s), then stays on screen until about 4 s in total.
+    controller.forward().whenComplete(() async {
+      await Future<void>.delayed(kLogoHold);
+      goOn();
+    });
   }
 
   // After the animation: the same screen the app showed before the intro existed.
