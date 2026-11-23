@@ -10,6 +10,22 @@ import 'student_space.dart' show showSnack, shortDate;
 import 'l10n.dart';
 import 'errors.dart';
 
+// WhatsApp link with a ready message, or null when the poster has no number.
+Uri? posterWhatsAppUri(Map<String, dynamic> p) {
+  final n = (p['contact_whatsapp'] ?? '').toString();
+  if (!RegExp(r'^[0-9]{8,15}$').hasMatch(n)) return null;
+  return Uri.parse('https://wa.me/$n').replace(queryParameters: {
+    'text': tr('Hello, I saw your poster "{title}" on AZSA.', {'title': '${p['title']}'}),
+  });
+}
+
+// The business's website (or other link), or null.
+Uri? posterLinkUri(Map<String, dynamic> p) {
+  final l = (p['link_url'] ?? '').toString();
+  if (!RegExp(r'^https?://').hasMatch(l)) return null;
+  return Uri.tryParse(l);
+}
+
 // ---------------- E2. Sliding posters at the top of the Requests tab ----------------
 // The database only returns posters that are active and between their start
 // and end dates (sql/2026-11-05-07-posters.sql). Hidden when there are none.
@@ -104,6 +120,100 @@ class _PosterCarouselState extends State<PosterCarousel> {
     });
   }
 
+  // Opens WhatsApp (with a ready message) or the business's website.
+  Future<void> openContact(Uri uri) async {
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) showSnack(context, tr('Could not open the link.'));
+    } catch (e) {
+      if (mounted) showSnack(context, tr('Could not open the link.'));
+    }
+  }
+
+  // The bar at the bottom of a poster: title + Contact button(s).
+  Widget contactBar(Map<String, dynamic> p) {
+    final whatsapp = posterWhatsAppUri(p);
+    final link = posterLinkUri(p);
+    if (whatsapp == null && link == null) {
+      return const Positioned(left: 0, top: 0, child: SizedBox.shrink());
+    }
+    final both = whatsapp != null && link != null;
+    Widget button(
+        {required IconData icon,
+        required String label,
+        required Color bg,
+        required Color fg,
+        required Uri uri}) {
+      return Padding(
+        padding: const EdgeInsetsDirectional.only(start: 6),
+        child: Material(
+          color: bg,
+          shape: const StadiumBorder(),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () => openContact(uri),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 16, color: fg),
+                  const SizedBox(width: 5),
+                  Text(label,
+                      style: TextStyle(
+                          color: fg, fontWeight: FontWeight.w700, fontSize: 13)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        padding: const EdgeInsetsDirectional.fromSTEB(12, 18, 8, 8),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black87],
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${p['title']}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (whatsapp != null)
+              button(
+                  icon: Icons.chat,
+                  label: both ? 'WhatsApp' : tr('Contact'),
+                  bg: const Color(0xFF25D366),
+                  fg: Colors.white,
+                  uri: whatsapp),
+            if (link != null)
+              button(
+                  icon: Icons.open_in_new,
+                  label: both ? tr('Website') : tr('Contact'),
+                  bg: Colors.white,
+                  fg: AppColors.text,
+                  uri: link),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> openPoster(Map<String, dynamic> p) async {
     final link = (p['link_url'] ?? '').toString();
     if (link.isNotEmpty) {
@@ -147,17 +257,41 @@ class _PosterCarouselState extends State<PosterCarousel> {
                       setState(() => page = i % posters.length),
                   itemBuilder: (context, i) {
                     final p = posters[i % posters.length];
-                    return GestureDetector(
-                      onTap: () => openPoster(p),
-                      child: Image.network(
-                        '${p['image_url']}',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          color: kPlaceholderBg,
-                          alignment: Alignment.center,
-                          child: Text('${p['title']}'),
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        GestureDetector(
+                          onTap: () => openPoster(p),
+                          child: Image.network(
+                            '${p['image_url']}',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Container(
+                              color: kPlaceholderBg,
+                              alignment: Alignment.center,
+                              child: Text('${p['title']}'),
+                            ),
+                          ),
                         ),
-                      ),
+                        if (p['is_ad'] == true)
+                          PositionedDirectional(
+                            top: 8,
+                            start: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(tr('Ad'),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        contactBar(p),
+                      ],
                     );
                   },
                 ),
@@ -327,6 +461,8 @@ class EditPosterScreen extends StatefulWidget {
 class _EditPosterScreenState extends State<EditPosterScreen> {
   final title = TextEditingController();
   final link = TextEditingController();
+  final whatsapp = TextEditingController();
+  bool isAd = false;
   late DateTime startsOn;
   late DateTime endsOn;
   int position = 1;
@@ -342,6 +478,8 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
     final now = DateTime.now();
     title.text = '${p?['title'] ?? ''}';
     link.text = '${p?['link_url'] ?? ''}';
+    whatsapp.text = '${p?['contact_whatsapp'] ?? ''}';
+    isAd = p?['is_ad'] == true;
     startsOn = DateTime.tryParse('${p?['starts_on']}') ??
         DateTime(now.year, now.month, now.day);
     endsOn = DateTime.tryParse('${p?['ends_on']}') ??
@@ -399,12 +537,29 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
       showSnack(context, tr('The link must start with https://'));
       return;
     }
+    // WhatsApp number: digits only, with the country code (213..., 263...).
+    var wa = whatsapp.text.replaceAll(RegExp(r'[\s\-().]'), '');
+    if (wa.startsWith('+')) wa = wa.substring(1);
+    if (wa.startsWith('00')) wa = wa.substring(2);
+    if (wa.isNotEmpty) {
+      if (wa.startsWith('0')) {
+        showSnack(context,
+            tr('Add the country code to the WhatsApp number, for example 213 for Algeria or 263 for Zimbabwe.'));
+        return;
+      }
+      if (!RegExp(r'^[0-9]{8,15}$').hasMatch(wa)) {
+        showSnack(context, tr('Check the WhatsApp number (8 to 15 digits).'));
+        return;
+      }
+    }
     setState(() => saving = true);
     String? uploadedPath;
     try {
       final values = <String, dynamic>{
         'title': title.text.trim(),
         'link_url': linkText.isEmpty ? null : linkText,
+        'contact_whatsapp': wa.isEmpty ? null : wa,
+        'is_ad': isAd,
         'starts_on': day(startsOn),
         'ends_on': day(endsOn),
         'position': position,
@@ -481,11 +636,31 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
             maxLength: 120,
             decoration: InputDecoration(labelText: tr('Title')),
           ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+                tr('Contact (optional): a "Contact" button appears on the poster.'),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
+          TextField(
+            controller: whatsapp,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: tr('WhatsApp number (optional)'),
+              hintText: '213555123456',
+              helperText: tr('With the country code, without + (213 Algeria, 263 Zimbabwe).'),
+              prefixIcon: const Icon(Icons.chat_outlined),
+            ),
+          ),
           TextField(
             controller: link,
             keyboardType: TextInputType.url,
             decoration: InputDecoration(
-                labelText: tr('Link (optional)'), hintText: 'https://'),
+              labelText: tr('Website or other link (optional)'),
+              hintText: 'https://',
+              prefixIcon: const Icon(Icons.link),
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -514,6 +689,13 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
                 DropdownMenuItem(value: i, child: Text('$i')),
             ],
             onChanged: (v) => setState(() => position = v ?? position),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(tr('This is an advert')),
+            subtitle: Text(tr('Shows a small "Ad" label on the poster.')),
+            value: isAd,
+            onChanged: (v) => setState(() => isAd = v),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
