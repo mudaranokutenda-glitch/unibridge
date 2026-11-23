@@ -1,4 +1,4 @@
-package com.example.unibridge_app
+package dz.azsa.app
 
 import android.content.Context
 import android.media.AudioManager

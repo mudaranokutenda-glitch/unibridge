@@ -15,3 +15,7 @@ key.properties
 
 # Kotlin compiler cache
 .kotlin/
+
+# Firebase settings for the app: downloaded from the Firebase console, kept
+# only on your computer (never in GitHub).
+app/google-services.json
