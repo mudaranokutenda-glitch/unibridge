@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'config.dart';
+import 'app_theme.dart';
 import 'profiles.dart';
 import 'profile_setup.dart';
 import 'roles.dart';
@@ -442,6 +443,143 @@ class _ContactEditDialogState extends State<ContactEditDialog> {
 
 // ---------------- 22. Guide for new students ----------------
 
+// The guide is built into the app (one page of cards, in order). Sections the
+// Educational Attaché adds in the database are shown below it ("More information").
+
+// One card of the guide.
+class _GuideStep {
+  final String title;
+  final List<(String, String)> items; // (text, quantity like "×3" or "")
+  final String? note;
+  final bool governor; // a job for the Governor
+  final bool documents; // true: "Documents to bring", false: "To do"
+  final String? action; // 'attestation' or 'record'
+  const _GuideStep(this.title, this.items,
+      {this.note, this.governor = false, this.documents = true, this.action});
+}
+
+const String _autorisation = "Autorisation d'inscription étudiant étranger";
+
+List<_GuideStep> _guideSteps() {
+  String cay(String doc) => '$doc (${tr('current academic year')})';
+  final autorisation = '$_autorisation (${tr('Ministry')})';
+  final hebergement = cay('Hébergement');
+  final bourse = cay('Attestation de bourse');
+  final immatriculation = cay("Attestation d'immatriculation");
+  final scolarite = cay('Certificat de scolarité');
+  final recepisse = tr('Récépissé or Carte de séjour');
+  return [
+    _GuideStep(tr('Before arrival'), [
+      (tr('Give the list of new students to their cités, so the rooms are ready.'), ''),
+      (tr('Tell each cité the arrival date in Algeria, and the date and time the students will reach the cité.'), ''),
+      (tr('Scan these documents before handing them in (the university keeps the originals): birth certificate, A Level certificate, O Level certificate.'), ''),
+    ], governor: true, documents: false),
+    _GuideStep(tr('Inscription at the Rectorat / DOU (student card)'), [
+      (tr('Birth certificate (original + 1 copy)'), ''),
+      (tr('O Level certificate (original + 1 copy)'), ''),
+      (tr('A Level certificate (original + 1 copy)'), ''),
+      (tr('Passport: data page and visa page (1 copy or more)'), ''),
+      (tr('4 passport photos'), ''),
+      (tr('Inscription fee: 200 DA'), ''),
+      (autorisation, ''),
+      (bourse, ''),
+    ], note: tr('You will be given envelopes to take to your faculty, then to your department, where the student cards are printed. If you will study French first, you will also be given an Autorisation d\'inscription étudiant étranger to block (reserve) your year.')),
+    _GuideStep(tr('Documents from the Educational Attaché'), [
+      (bourse, ''),
+      (immatriculation, ''),
+      (autorisation, ''),
+      ('Équivalence du bac', ''),
+    ], action: 'attestation'),
+    _GuideStep(tr('Medical tests'), [
+      (tr('First get the prescription from your residence clinic.'), ''),
+      (tr('Then get the medical certificate from the cité clinic.'), ''),
+    ], documents: false),
+    _GuideStep(tr('Hébergement (residence)'), [
+      (tr('Birth certificate'), ''),
+      (tr('Passport copy'), ''),
+      (tr('2 passport photos'), ''),
+      (tr('Medical certificate from your residence clinic'), ''),
+      (scolarite, ''),
+    ], note: tr('Then fill in your student information in the app: name, date of entry, passport number, issue and expiry dates, programme, current year and phone number.'),
+        action: 'record'),
+    _GuideStep(tr('Police (Récépissé or Carte de séjour)'), [
+      (tr('Quittance: 20,000 DA (the amount can change from one academic year to another)'), ''),
+      (scolarite, '×3'),
+      (autorisation, '×3'),
+      (tr('Birth certificate copies'), '×3'),
+      (tr('Passport copies'), '×4'),
+      (tr('10 clear passport photos'), ''),
+      (tr('Medical certificate: original + 3 copies'), ''),
+      ('$hebergement: ${tr('original + 3 copies')}', ''),
+      (bourse, '×3'),
+      (immatriculation, '×3'),
+    ]),
+    _GuideStep(tr('Bank account'), [
+      (tr('2 passport photos'), ''),
+      (recepisse, ''),
+      (hebergement, ''),
+      (tr('Passport copy'), ''),
+      (tr('Birth certificate: original + 1 copy'), ''),
+      (bourse, ''),
+      (immatriculation, ''),
+      (autorisation, ''),
+      (scolarite, ''),
+    ]),
+    _GuideStep(tr('French or Arabic course'), [
+      (tr('2 passport photos'), ''),
+      (tr('1 passport copy'), ''),
+      (tr('1 A Level copy'), ''),
+      (tr('1 birth certificate'), ''),
+      ('1 $autorisation', ''),
+      (tr('1 A4 khaki envelope'), ''),
+    ]),
+    _GuideStep(tr('SIM card (Ooredoo, Djezzy or Mobilis)'), [
+      (tr('Passport'), ''),
+      (recepisse, ''),
+    ]),
+    _GuideStep(tr('Poste account (CCP), then BaridiMob'), [
+      (autorisation, ''),
+      (hebergement, ''),
+      (tr('Passport'), ''),
+      (recepisse, ''),
+      (tr('Algerian phone number'), ''),
+      (tr('Birth certificate'), ''),
+      (scolarite, ''),
+    ], note: tr('For BaridiMob you need your CCP account.')),
+    _GuideStep(tr('Algerian bourse'), [
+      (autorisation, '×2'),
+      (tr('Birth certificate copies'), '×2'),
+      (tr('Passport copies'), '×2'),
+      (tr('4 passport photos'), ''),
+      (hebergement, '×2'),
+      (tr('Cheque book (from your Poste account)'), ''),
+      ('Carte de séjour', ''),
+      (bourse, '×2'),
+      (immatriculation, '×2'),
+      (tr('A Level certificate'), '×2'),
+      (tr('O Level certificate'), '×2'),
+      (tr("Attestation d'inscription (French course)"), ''),
+      (scolarite, ''),
+    ]),
+    _GuideStep(tr('Carte Chifa (medical card)'), [
+      (tr('Birth certificate'), ''),
+      (tr('Passport photos'), ''),
+      (scolarite, ''),
+      (autorisation, ''),
+      (tr('Passport copy'), ''),
+      (tr('Blood group'), ''),
+    ]),
+    _GuideStep(tr('Tram card'), [
+      (tr('Passport copy'), ''),
+      (scolarite, ''),
+      (tr('Passport photo'), ''),
+      (hebergement, ''),
+      ('Carte de séjour', ''),
+      (tr('Application form'), ''),
+    ]),
+  ];
+}
+
 class GuideScreen extends StatefulWidget {
   const GuideScreen({super.key});
   @override
@@ -449,8 +587,9 @@ class GuideScreen extends StatefulWidget {
 }
 
 class _GuideScreenState extends State<GuideScreen> {
+  // Extra sections written by the Educational Attaché (table guide_sections).
   List<Map<String, dynamic>> sections = [];
-  bool loading = true;
+  MyRole role = MyRole.student;
 
   @override
   void initState() {
@@ -464,15 +603,15 @@ class _GuideScreenState extends State<GuideScreen> {
           .from('guide_sections')
           .select('id, title, sort_order, guide_items(count)')
           .order('sort_order');
+      final r = await loadMyRole();
       if (!mounted) return;
       setState(() {
         sections = List<Map<String, dynamic>>.from(data);
-        loading = false;
+        role = r;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() => loading = false);
-      showSnack(context, tr('Could not load: {error}', {'error': friendlyError(e, short: true)}));
+      // The built-in guide still works without these extra sections.
+      debugPrint('Could not load the extra guide sections: $e');
     }
   }
 
@@ -484,33 +623,191 @@ class _GuideScreenState extends State<GuideScreen> {
     return 0;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('Guide for new students'))),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: load,
-              child: ListView(
+  void openScreen(Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  Widget infoCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      color: AppColors.skyPale,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline, color: AppColors.sky),
+          const SizedBox(width: AppSpace.m),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('These are the standard steps. They can vary from one wilaya to another.'),
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.text)),
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                    tr('Questions? Contact your current Governor, the current AZSA President or the administration.'),
+                    style: TextStyle(color: scheme.brightness == Brightness.dark
+                        ? AppColors.text
+                        : scheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget stepCard(_GuideStep step, int? number) {
+    final scheme = Theme.of(context).colorScheme;
+    final badgeColor = step.governor ? AppColors.warning : AppColors.sky;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Number of the step (or a flag for the Governor's card).
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: badgeColor,
+                child: number == null
+                    ? const Icon(Icons.flag_outlined, size: 18, color: Colors.white)
+                    : Text('$number',
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: AppSpace.m),
+              Expanded(
+                child: Text(step.title,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
+          if (step.governor) ...[
+            const SizedBox(height: AppSpace.s),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final s in sections)
-                    ListTile(
-                      leading: const Icon(Icons.menu_book_outlined),
-                      title: Text(tr('${s['title']}')),
-                      subtitle: Text(countOf(s) == 0
-                          ? tr('Coming soon')
-                          : tr('{count} items', {'count': countOf(s)})),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () async {
-                        await Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => GuideSectionScreen(section: s)));
-                        load();
-                      },
-                    ),
+                  const Icon(Icons.shield_outlined, size: 14, color: AppColors.warning),
+                  const SizedBox(width: 4),
+                  Text(tr('Governor'),
+                      style: const TextStyle(
+                          color: AppColors.warning, fontWeight: FontWeight.w700, fontSize: 12)),
                 ],
               ),
             ),
+          ],
+          const SizedBox(height: AppSpace.m),
+          Text(step.documents ? tr('Documents to bring') : tr('To do'),
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
+          const SizedBox(height: AppSpace.xs),
+          for (final (text, qty) in step.items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                        step.documents ? Icons.description_outlined : Icons.check_circle_outline,
+                        size: 16,
+                        color: AppColors.sky),
+                  ),
+                  const SizedBox(width: AppSpace.s),
+                  Expanded(child: Text(text)),
+                  if (qty.isNotEmpty) ...[
+                    const SizedBox(width: AppSpace.s),
+                    Text(qty,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, color: AppColors.sky)),
+                  ],
+                ],
+              ),
+            ),
+          if (step.note != null) ...[
+            const SizedBox(height: AppSpace.s),
+            Text(step.note!,
+                style: TextStyle(
+                    fontStyle: FontStyle.italic, color: scheme.onSurfaceVariant)),
+          ],
+          if (step.action == 'attestation') ...[
+            const SizedBox(height: AppSpace.m),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.workspace_premium_outlined),
+              label: Text(tr('Ask for the attestation de bourse')),
+              onPressed: () => openScreen(const AttestationScreen()),
+            ),
+          ],
+          if (step.action == 'record') ...[
+            const SizedBox(height: AppSpace.m),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.badge_outlined),
+              label: Text(tr('Fill in my student information')),
+              onPressed: () => openScreen(const StudentRecordScreen()),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = _guideSteps();
+    // Students see only the extra sections that have content; staff see all
+    // (to add items to them).
+    final extra = sections.where((s) => role.isStaff || countOf(s) > 0).toList();
+    var number = 0;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Guide for new students'))),
+      body: RefreshIndicator(
+        onRefresh: load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpace.screen, AppSpace.s, AppSpace.screen, AppSpace.xxl),
+          children: [
+            infoCard(),
+            for (final step in steps) ...[
+              const SizedBox(height: AppSpace.m),
+              stepCard(step, step.governor ? null : ++number),
+            ],
+            if (extra.isNotEmpty) ...[
+              const SizedBox(height: AppSpace.xl),
+              Text(tr('More information'),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.primary)),
+              const SizedBox(height: AppSpace.s),
+              for (final s in extra)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.menu_book_outlined),
+                  title: Text(tr('${s['title']}')),
+                  subtitle: Text(countOf(s) == 0
+                      ? tr('Coming soon')
+                      : tr('{count} items', {'count': countOf(s)})),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => GuideSectionScreen(section: s)));
+                    load();
+                  },
+                ),
+            ],
+            const SizedBox(height: AppSpace.l),
+            infoCard(),
+          ],
+        ),
+      ),
     );
   }
 }
