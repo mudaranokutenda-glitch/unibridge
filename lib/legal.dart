@@ -3,11 +3,12 @@ import 'l10n.dart';
 
 // ---------------- Terms of use + Privacy policy (English and French) --------
 // A template written for this app. Have it checked before release.
-// The same text is in docs/privacy-policy.html: change both together.
+// The web pages web/privacy.html and web/delete-account.html are made from
+// this file (tool: tools/make_legal_pages.py). Change the text HERE only.
 
 const String kContactEmail = 'mudaranokutenda@gmail.com';
-const String kLegalLastUpdatedEn = '11 November 2026';
-const String kLegalLastUpdatedFr = '11 novembre 2026';
+const String kLegalLastUpdatedEn = '23 November 2026';
+const String kLegalLastUpdatedFr = '23 novembre 2026';
 
 typedef LegalSection = (String, String);
 
@@ -58,8 +59,10 @@ const List<LegalSection> kTermsEn = [
   (
     'No warranty',
     'The app is provided "as is". Exchange rates shown in the app are for '
-        'information only. As far as the law allows, AZSA is not liable for '
-        'losses caused by exchanges or deals between users.',
+        'information only. Businesses advertised on the home page posters are '
+        'not checked or guaranteed by AZSA: deal with them at your own risk. As '
+        'far as the law allows, AZSA is not liable for losses caused by '
+        'exchanges or deals between users or with advertised businesses.',
   ),
   (
     'Changes',
@@ -82,7 +85,9 @@ const List<LegalSection> kPrivacyEn = [
         '• Verification (optional): a photo of your student card.\n'
         '• Activity: requests, chats (text and photos), listings, ratings, reports '
         'and blocks.\n'
-        '• Device: a notification token, so we can send you notifications.',
+        '• Device: a notification token, so we can send you notifications.\n'
+        '• Online status: while the app is open on your screen, other users can '
+        'see in chats that you are online. It is not saved.',
   ),
   (
     'Who can see what',
@@ -100,6 +105,8 @@ const List<LegalSection> kPrivacyEn = [
         '• Your student card (verification): you and the AZSA team.\n'
         '• Your chats: only the two people in the chat.\n'
         '• Your email: never shown to other users.\n'
+        '• Online or offline: other users, only while the app is open on your '
+        'screen.\n'
         'The app administrator can technically access the stored data in order '
         'to run the app. Every time the Educational Attaché or a Governor opens '
         'your results, bank account, passport number or passport scan, it is '
@@ -119,8 +126,12 @@ const List<LegalSection> kPrivacyEn = [
   ),
   (
     'Not sold, not shared',
-    'We do not sell your data and we do not show ads. We do not share it with '
-        'anyone outside the people listed above. The data is stored by the '
+    'We do not sell your data and we do not share it with anyone outside the '
+        'people listed above. The home page can show posters, including adverts '
+        'for businesses chosen by the AZSA team (marked "Ad"). They are the same '
+        'for everyone and use none of your data. If you tap Contact on a poster, '
+        "WhatsApp or the business's website opens: what you send there is between "
+        'you and the business. The data is stored by the '
         'services that run the app: Supabase (database, login, files) and Google '
         'Firebase (notifications); Google sign-in is handled by Google. These '
         'services may store data outside Algeria. We protect the data with access '
@@ -137,7 +148,10 @@ const List<LegalSection> kPrivacyEn = [
   ),
   (
     'Deleting your account',
-    'Profile tab → Delete my account → type DELETE. This deletes your profile, '
+    'In the app: Profile tab → ⚙ Settings → Delete my account → type DELETE. '
+        'If you cannot use the app, email $kContactEmail from the email address '
+        'of your account, with the subject "Delete my account": we delete it '
+        'within 30 days. This deletes your profile, '
         'phone number, student record, bank account and passport numbers, '
         'results, passport scans, attestations, appointments, photos (also those '
         'you sent in chats), listings, open requests and notifications. Finished '
@@ -208,9 +222,11 @@ const List<LegalSection> kTermsFr = [
   (
     'Aucune garantie',
     "L'application est fournie « telle quelle ». Les taux de change affichés sont "
-        'donnés à titre indicatif. Dans la mesure permise par la loi, AZSA '
+        'donnés à titre indicatif. Les entreprises annoncées sur les affiches de '
+        "l'accueil ne sont ni vérifiées ni garanties par AZSA : traitez avec elles "
+        'à vos risques. Dans la mesure permise par la loi, AZSA '
         "n'est pas responsable des pertes causées par les échanges ou les affaires "
-        'entre utilisateurs.',
+        'entre utilisateurs ou avec les entreprises annoncées.',
   ),
   (
     'Modifications',
@@ -235,7 +251,10 @@ const List<LegalSection> kPrivacyFr = [
         "• Vérification (facultative) : une photo de votre carte d'étudiant.\n"
         '• Activité : demandes, discussions (texte et photos), annonces, notes, '
         'signalements et blocages.\n'
-        "• Appareil : un jeton de notification, pour vous envoyer des notifications.",
+        "• Appareil : un jeton de notification, pour vous envoyer des notifications.\n"
+        "• Statut en ligne : quand l'application est ouverte sur votre écran, les "
+        "autres utilisateurs voient dans les discussions que vous êtes en ligne. "
+        "Ce n'est pas enregistré.",
   ),
   (
     'Qui peut voir quoi',
@@ -254,6 +273,8 @@ const List<LegalSection> kPrivacyFr = [
         "• Votre carte d'étudiant (vérification) : vous et l'équipe AZSA.\n"
         '• Vos discussions : seulement les deux personnes de la discussion.\n'
         "• Votre e-mail : jamais montré aux autres utilisateurs.\n"
+        "• En ligne ou hors ligne : les autres utilisateurs, seulement quand "
+        "l'application est ouverte sur votre écran.\n"
         "L'administrateur de l'application peut techniquement accéder aux données "
         "enregistrées pour faire fonctionner l'application. Chaque fois que "
         "l'Attaché d'éducation ou un Gouverneur ouvre vos résultats, votre compte "
@@ -274,8 +295,13 @@ const List<LegalSection> kPrivacyFr = [
   ),
   (
     'Ni vendues, ni partagées',
-    'Nous ne vendons pas vos données et nous ne montrons pas de publicité. Nous '
-        'ne les partageons avec personne en dehors des personnes citées plus haut. '
+    'Nous ne vendons pas vos données et nous ne les partageons avec personne en '
+        'dehors des personnes citées plus haut. '
+        "L'accueil peut montrer des affiches, y compris des publicités pour des "
+        "entreprises choisies par l'équipe AZSA (marquées « Pub »). Elles sont les "
+        "mêmes pour tous et n'utilisent aucune de vos données. Si vous touchez "
+        "Contacter sur une affiche, WhatsApp ou le site de l'entreprise s'ouvre : "
+        "ce que vous y envoyez est entre vous et l'entreprise. "
         "Les données sont hébergées par les services qui font fonctionner "
         "l'application : Supabase (base de données, connexion, fichiers) et Google "
         'Firebase (notifications) ; la connexion Google est gérée par Google. Ces '
@@ -295,7 +321,10 @@ const List<LegalSection> kPrivacyFr = [
   ),
   (
     'Supprimer votre compte',
-    'Onglet Profil → Supprimer mon compte → tapez DELETE. Cela supprime votre '
+    "Dans l'application : onglet Profil → ⚙ Paramètres → Supprimer mon compte → "
+        "tapez DELETE. Si vous ne pouvez pas utiliser l'application, écrivez à "
+        '$kContactEmail depuis l\'adresse e-mail de votre compte, avec le sujet '
+        '« Supprimer mon compte » : nous le supprimons sous 30 jours. Cela supprime votre '
         'profil, votre numéro de téléphone, votre fiche étudiant, vos numéros de '
         'compte bancaire et de passeport, vos résultats, scans de passeport, '
         'attestations, rendez-vous, photos (aussi celles envoyées dans les '

@@ -72,12 +72,15 @@ flutter build appbundle --release
 
 The file is `build/app/outputs/bundle/release/app-release.aab`.
 
-## 7. Privacy policy page  (you)
+## 7. Privacy policy page  (done)
 
-Google Play needs a public link. Easiest free options:
-- **GitHub Pages:** push this repo to GitHub, Settings → Pages → deploy from the `docs`
-  folder. The link becomes `https://YOUR_NAME.github.io/REPO/privacy-policy.html`.
-- **Google Sites:** paste the text of `docs/privacy-policy.html` into a new site.
+The privacy policy and the account deletion page are published with the web
+version (GitHub Pages), made from `lib/legal.dart` by `tools/make_legal_pages.py`:
+- Privacy policy URL: `https://mudaranokutenda-glitch.github.io/unibridge/privacy.html`
+- Account deletion URL: `https://mudaranokutenda-glitch.github.io/unibridge/delete-account.html`
+
+To change the text: edit `lib/legal.dart`, run `python tools/make_legal_pages.py`,
+then commit and push.
 
 ## 8. Play Console  (you)
 
@@ -86,7 +89,7 @@ Google Play needs a public link. Easiest free options:
    screenshots, a 1024×500 feature graphic.
 3. App content: privacy policy URL, data safety (answers in `docs/play-store-listing.md`),
    content rating, target audience 18+, account deletion URL
-   (`.../privacy-policy.html#delete-account`).
+   (`https://mudaranokutenda-glitch.github.io/unibridge/delete-account.html`).
 4. Start with **Internal testing** → upload the `.aab` → add your testers' emails.
    New personal developer accounts must run a **closed test with at least 12 testers for
    14 days** before production.

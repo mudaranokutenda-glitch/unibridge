@@ -9,13 +9,13 @@ Limits: app name 30 characters, short description 80 characters, full descriptio
 
 ## English (en-US)
 
-**App name:** UniBridge
+**App name:** AZSA
 
 **Short description:**
 Students in Algeria: find exchange partners, chat safely, buy & sell.
 
 **Full description:**
-UniBridge connects university students in Algeria.
+AZSA connects university students in Algeria.
 
 • Find a student who wants to exchange with you, by currency, wilaya and type
 • Chat in the app: send photos, share your location once, download the chat
@@ -26,19 +26,19 @@ UniBridge connects university students in Algeria.
 • Indicative bank and parallel-market rates, updated automatically
 • Fingerprint / face lock, dark mode, English, French and Arabic
 
-UniBridge never holds or moves money. Every exchange happens directly between the two students, outside the app. Always agree the rate before you exchange, and respect the law.
+AZSA never holds or moves money. Every exchange happens directly between the two students, outside the app. Always agree the rate before you exchange, and respect the law.
 
 ---
 
 ## Français (fr-FR)
 
-**Nom :** UniBridge
+**Nom :** AZSA
 
 **Description courte :**
 Étudiants en Algérie : trouvez un partenaire d'échange, discutez, vendez.
 
 **Description complète :**
-UniBridge met en relation les étudiants des universités algériennes.
+AZSA met en relation les étudiants des universités algériennes.
 
 • Trouvez un étudiant pour échanger, par devise, wilaya et type
 • Discutez dans l'application : photos, position partagée une fois, export de la discussion
@@ -49,19 +49,19 @@ UniBridge met en relation les étudiants des universités algériennes.
 • Taux indicatifs banque et marché parallèle, mis à jour automatiquement
 • Verrouillage par empreinte / visage, mode sombre, français, anglais et arabe
 
-UniBridge ne détient ni ne transfère jamais d'argent. Chaque échange se fait directement entre les deux étudiants, en dehors de l'application. Mettez-vous toujours d'accord sur le taux et respectez la loi.
+AZSA ne détient ni ne transfère jamais d'argent. Chaque échange se fait directement entre les deux étudiants, en dehors de l'application. Mettez-vous toujours d'accord sur le taux et respectez la loi.
 
 ---
 
 ## العربية (ar)
 
-**الاسم:** UniBridge
+**الاسم:** AZSA
 
 **وصف قصير:**
 لطلاب الجزائر: جد شريك تبادل، تحدّث بأمان، بِع واشترِ.
 
 **الوصف الكامل:**
-يربط UniBridge بين طلاب الجامعات في الجزائر.
+يربط AZSA بين طلاب الجامعات في الجزائر.
 
 • جد طالباً للتبادل حسب العملة والولاية والنوع
 • محادثة داخل التطبيق: إرسال الصور، مشاركة الموقع مرة واحدة، تنزيل المحادثة
@@ -72,7 +72,7 @@ UniBridge ne détient ni ne transfère jamais d'argent. Chaque échange se fait 
 • أسعار تقريبية للبنك والسوق الموازية تُحدَّث تلقائياً
 • قفل بالبصمة أو الوجه، الوضع الداكن، العربية والفرنسية والإنجليزية
 
-لا يحتفظ UniBridge بالمال ولا ينقله أبداً. يتم كل تبادل مباشرة بين الطالبين خارج التطبيق. اتفق دائماً على السعر قبل التبادل واحترم القانون.
+لا يحتفظ AZSA بالمال ولا ينقله أبداً. يتم كل تبادل مباشرة بين الطالبين خارج التطبيق. اتفق دائماً على السعر قبل التبادل واحترم القانون.
 
 ---
 
@@ -84,7 +84,7 @@ Answers that match what the app does today:
 |---|---|
 | Does your app collect or share user data? | Yes, collects. Not shared with third parties for their own use. |
 | Is data encrypted in transit? | Yes (HTTPS to Supabase and Firebase). |
-| Can users request deletion? | Yes, in the app (Profile → Delete my account). |
+| Can users request deletion? | Yes, in the app (Profile → ⚙ Settings → Delete my account) or by email. |
 | Personal info | Name, email, user IDs (inscription number): collected, required, for app functionality and account management. |
 | Photos | Profile photo, listing photos, chat photos, student card: collected, optional, app functionality. |
 | Location | Approximate and precise: collected, optional (only when the user shares it in a chat). |
@@ -93,8 +93,8 @@ Answers that match what the app does today:
 | Device IDs | Firebase push token: collected, for notifications. |
 
 ## Other Play Console items
-- **Privacy policy URL:** required. Host `docs/privacy-policy.html` somewhere public (see RELEASE.md) and paste the link.
-- **Account deletion URL:** Play asks for a web page explaining how to delete an account. The same privacy policy page has a section for it.
+- **Privacy policy URL:** `https://mudaranokutenda-glitch.github.io/unibridge/privacy.html`
+- **Account deletion URL:** `https://mudaranokutenda-glitch.github.io/unibridge/delete-account.html`
 - **Content rating:** answer the questionnaire. The app has user-to-user chat and a marketplace.
 - **Target audience:** 18+ (university students).
 - **Financial features declaration:** the app does not process payments; describe it as "peer-to-peer matching, no money handled by the app".
