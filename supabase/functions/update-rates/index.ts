@@ -30,6 +30,12 @@ const AUTO_LOCATION = "Square Port-Saïd";
 // Locations used by rates typed in the app by staff (set_parallel_rate).
 // Old rows from the previous system ("Alger", "official") are NOT staff rates.
 const STAFF_LOCATIONS = ["Alger (staff)", "Annaba"];
+// Added to what the sources say before the rate is saved (decided by AZSA):
+// USD buy +1 DA, USD sell +2 DA. EUR is saved as the sources give it.
+const ADJUST: Record<Pair, { buy: number; sell: number }> = {
+  "USD/DZD": { buy: 1, sell: 2 },
+  "EUR/DZD": { buy: 0, sell: 0 },
+};
 const USER_AGENT = "AZSARatesBot/1.0 (student exchange app, 1 visit per hour)";
 
 type Quote = { buy: number | null; sell: number };
@@ -301,29 +307,40 @@ Deno.serve(async (req) => {
         .order("updated_at", { ascending: false })
         .limit(1);
       const lastRow = lastRows?.[0];
+      const add = ADJUST[pair];
       const last = lastRow
         ? { buy: Number(lastRow.buy_rate), sell: Number(lastRow.sell_rate) }
         : null;
+      // The bot's own last rate includes the +1/+2: compare without it.
+      const lastRaw = last && lastRow!.location === AUTO_LOCATION
+        ? { buy: last.buy - add.buy, sell: last.sell - add.sell }
+        : last;
 
-      const d = decide(pair, sources, official[pair], last);
+      const d = decide(pair, sources, official[pair], lastRaw);
       Object.assign(pairReport, d);
-      if (!d.rate || dryRun) continue;
+      if (!d.rate) continue;
+      const rate = {
+        buy: round2(d.rate.buy + add.buy),
+        sell: round2(d.rate.sell + add.sell),
+      };
+      pairReport.saved_rate = rate;
+      if (dryRun) continue;
 
       if (
         lastRow && lastRow.location === AUTO_LOCATION &&
-        last!.buy === d.rate.buy && last!.sell === d.rate.sell
+        last!.buy === rate.buy && last!.sell === rate.sell
       ) {
         // Same rate as before: only mark it as checked now (updated_at).
         await admin.from("exchange_rates")
-          .update({ buy_rate: d.rate.buy })
+          .update({ buy_rate: rate.buy })
           .eq("id", lastRow.id);
         pairReport.saved = "unchanged (checked now)";
       } else {
         inserts.push({
           pair,
           source: "black_market",
-          buy_rate: d.rate.buy,
-          sell_rate: d.rate.sell,
+          buy_rate: rate.buy,
+          sell_rate: rate.sell,
           location: AUTO_LOCATION,
         });
         pairReport.saved = "new rate";

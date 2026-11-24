@@ -1652,4 +1652,13 @@ const Map<String, String> _t = {
       'Test : voici l\'aspect et le son des notifications AZSA.',
   'Send a test from the server': 'Envoyer un test depuis le serveur',
   'Test with the app closed': "Tester avec l'application fermée",
+  // ---- 24 November: marketplace and posters ----
+  'Mark sold': 'Vendu',
+  'All products': 'Tous les produits',
+  'My products': 'Mes produits',
+  'Undo': 'Annuler',
+  '{count} active. Active posters are shown in a random order. Images should be 16:9.':
+      '{count} actives. Les affiches actives sont montrées dans un ordre au hasard. Les images doivent être en 16:9.',
+  'Run the new posters SQL first (position is no longer used).':
+      "Exécutez d'abord le nouveau SQL des affiches (la position n'est plus utilisée).",
 };

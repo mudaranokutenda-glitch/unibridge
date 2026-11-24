@@ -75,10 +75,10 @@ class _PosterCarouselState extends State<PosterCarousel> {
           .select()
           .eq('active', true)
           .lte('starts_on', today)
-          .gte('ends_on', today)
-          .order('position');
+          .gte('ends_on', today);
       if (!mounted) return;
-      final loaded = List<Map<String, dynamic>>.from(data);
+      // A new random order each time the posters load.
+      final loaded = List<Map<String, dynamic>>.from(data)..shuffle();
       controller?.dispose();
       setState(() {
         posters = loaded;
@@ -351,7 +351,7 @@ class _ManagePostersScreenState extends State<ManagePostersScreen> {
           .from('posters')
           .select()
           .order('active', ascending: false)
-          .order('position');
+          .order('created_at', ascending: false);
       if (!mounted) return;
       setState(() {
         posters = List<Map<String, dynamic>>.from(data);
@@ -418,7 +418,7 @@ class _ManagePostersScreenState extends State<ManagePostersScreen> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(tr(
-                      '{count} of 4 active. Each active poster has its own position (1 is shown first). Images should be 16:9.',
+                      '{count} active. Active posters are shown in a random order. Images should be 16:9.',
                       {'count': activeCount})),
                 ),
                 for (final p in posters)
@@ -435,7 +435,7 @@ class _ManagePostersScreenState extends State<ManagePostersScreen> {
                     ),
                     title: Text('${p['title']}'),
                     subtitle: Text(
-                        '${p['active'] == true ? tr('Active, position {n}', {'n': p['position']}) : tr('Not active')}'
+                        '${p['active'] == true ? tr('Active') : tr('Not active')}'
                         ' · ${shortDate(p['starts_on'])} → ${shortDate(p['ends_on'])}'),
                     onTap: () => edit(p),
                     trailing: IconButton(
@@ -465,7 +465,6 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
   bool isAd = false;
   late DateTime startsOn;
   late DateTime endsOn;
-  int position = 1;
   bool active = true;
   Uint8List? newImage;
   bool saving = false;
@@ -484,7 +483,6 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
         DateTime(now.year, now.month, now.day);
     endsOn = DateTime.tryParse('${p?['ends_on']}') ??
         startsOn.add(const Duration(days: 30));
-    position = (p?['position'] as int?) ?? 1;
     active = p?['active'] != false;
   }
 
@@ -562,7 +560,6 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
         'is_ad': isAd,
         'starts_on': day(startsOn),
         'ends_on': day(endsOn),
-        'position': position,
         'active': active,
       };
       if (newImage != null) {
@@ -591,12 +588,11 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
         await supabase.storage.from('posters').remove([uploadedPath]);
       }
       if (!mounted) return;
-      // 23505 = another active poster already has this position.
       showSnack(
           context,
-          e.code == '23505'
-              ? tr('Another active poster already uses position {n}. Choose another position or turn that poster off first.',
-                  {'n': position})
+          e.code == '23502'
+              // The posters SQL of 24 November was not run yet.
+              ? tr('Run the new posters SQL first (position is no longer used).')
               : tr('Could not save: {error}', {'error': e.message}));
     } catch (e) {
       if (mounted) showSnack(context, tr('Could not save: {error}', {'error': friendlyError(e, short: true)}));
@@ -681,15 +677,6 @@ class _EditPosterScreenState extends State<EditPosterScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<int>(
-            initialValue: position,
-            decoration: InputDecoration(labelText: tr('Position')),
-            items: [
-              for (var i = 1; i <= 4; i++)
-                DropdownMenuItem(value: i, child: Text('$i')),
-            ],
-            onChanged: (v) => setState(() => position = v ?? position),
-          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(tr('This is an advert')),

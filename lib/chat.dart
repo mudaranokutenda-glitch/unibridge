@@ -52,6 +52,11 @@ class _ChatScreenState extends State<ChatScreen> {
   RealtimeChannel? requestChannel;
   Timer? reloadTimer;
 
+  // Blue ticks: tell the server I have read the other person's messages.
+  AppLifecycleListener? _lifecycle;
+  bool _markingRead = false;
+  bool _markReadAgain = false;
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +83,46 @@ class _ChatScreenState extends State<ChatScreen> {
           callback: (_) => reloadSoon(),
         )
         .subscribe();
+    // Back in the app with this chat open: mark new messages as read.
+    _lifecycle = AppLifecycleListener(onResume: markRead);
+  }
+
+  // Two blue ticks for the sender. Only while this chat is really on screen.
+  Future<void> markRead() async {
+    if (!mounted) return;
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    if (ModalRoute.of(context)?.isCurrent == false) return;
+    if (_markingRead) {
+      _markReadAgain = true;
+      return;
+    }
+    _markingRead = true;
+    try {
+      await supabase
+          .rpc('mark_chat_read', params: {'p_request_id': widget.requestId});
+    } catch (e) {
+      debugPrint('Could not mark the chat as read: $e');
+    } finally {
+      _markingRead = false;
+      if (_markReadAgain) {
+        _markReadAgain = false;
+        markRead();
+      }
+    }
+  }
+
+  // Called when the list of messages changes.
+  void _readIfNew(List<Map<String, dynamic>> messages, String myId) {
+    final unread = messages.any((m) =>
+        m['sender_id'] != null &&
+        m['sender_id'] != myId &&
+        m['type'] != 'SYSTEM' &&
+        m['read_at'] == null);
+    if (unread) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => markRead());
+    }
   }
 
   void reloadSoon() {
@@ -91,6 +136,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     if (openChatRequestId == widget.requestId) openChatRequestId = null;
     reloadTimer?.cancel();
+    _lifecycle?.dispose();
     final channel = requestChannel;
     if (channel != null) supabase.removeChannel(channel);
     messageController.dispose();
@@ -718,6 +764,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final messages = snapshot.data!;
+                  _readIfNew(messages, myId);
                   if (messages.isEmpty) {
                     return Center(child: Text(tr('No messages yet. Say hi!')));
                   }
@@ -908,6 +955,18 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // Like WhatsApp: 1 grey tick = sent, 2 grey = delivered to their phone,
+  // 2 blue = they opened the chat.
+  Widget _ticks(Map<String, dynamic> m, Color grey) {
+    if (m['read_at'] != null) {
+      return const Icon(Icons.done_all, size: 16, color: Color(0xFF34B7F1));
+    }
+    if (m['delivered_at'] != null) {
+      return Icon(Icons.done_all, size: 16, color: grey);
+    }
+    return Icon(Icons.done, size: 16, color: grey);
+  }
+
   Widget _messageBubble(
       BuildContext context, Map<String, dynamic> m, String myId,
       {DateTime? when, bool firstOfGroup = true}) {
@@ -955,10 +1014,19 @@ class _ChatScreenState extends State<ChatScreen> {
       bottomLeft: r,
       bottomRight: r,
     );
-    final time = when == null
+    final Widget time = when == null
         ? const SizedBox.shrink()
-        : Text(_hhmm(when),
-            style: TextStyle(fontSize: 11, color: timeColor));
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_hhmm(when),
+                  style: TextStyle(fontSize: 11, color: timeColor)),
+              if (isMine) ...[
+                const SizedBox(width: 3),
+                _ticks(m, timeColor),
+              ],
+            ],
+          );
 
     final Widget content;
     if (isPhoto) {

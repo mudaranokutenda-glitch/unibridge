@@ -55,22 +55,55 @@ class NotificationCenter {
           ),
           callback: (_) => refreshSoon(),
         )
+        // A new chat message for me (the database only sends the ones I am
+        // allowed to read): two grey ticks for the sender.
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) {
+            final sender = payload.newRecord['sender_id']?.toString();
+            if (sender != null && sender != me) markDeliveredSoon();
+          },
+        )
         .subscribe();
     try {
       if (!kIsWeb) {
-        _pushSub = FirebaseMessaging.onMessage.listen((_) => refreshSoon());
+        _pushSub = FirebaseMessaging.onMessage.listen((_) {
+          refreshSoon();
+          markDeliveredSoon();
+        });
       }
     } catch (e) {
       debugPrint('Push listener not available: $e');
     }
-    _lifecycle = AppLifecycleListener(onResume: refreshSoon);
+    _lifecycle = AppLifecycleListener(onResume: () {
+      refreshSoon();
+      markDeliveredSoon();
+    });
     refresh();
+    markDeliveredSoon();
+  }
+
+  // Messages sent to me while my app was closed: delivered now.
+  static Timer? _deliveredDebounce;
+  static void markDeliveredSoon() {
+    _deliveredDebounce?.cancel();
+    _deliveredDebounce = Timer(const Duration(milliseconds: 500), () async {
+      if (supabase.auth.currentUser == null) return;
+      try {
+        await supabase.rpc('mark_messages_delivered');
+      } catch (e) {
+        debugPrint('Could not mark messages as delivered: $e');
+      }
+    });
   }
 
   // Called at log out: no count for the next person on this phone.
   static void stop() {
     OnlineStatus.stop();
     _debounce?.cancel();
+    _deliveredDebounce?.cancel();
     _pushSub?.cancel();
     _pushSub = null;
     _lifecycle?.dispose();

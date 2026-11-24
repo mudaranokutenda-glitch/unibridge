@@ -7,6 +7,7 @@ import 'app_theme.dart';
 import 'profiles.dart';
 import 'chat.dart';
 import 'request_row.dart';
+import 'wilayas.dart';
 import 'errors.dart';
 import 'l10n.dart';
 
@@ -265,8 +266,10 @@ Widget myRequestRow(
             : tr('AZSA user'),
     subtitle: other == null
         ? requestHeadline(r, withAmount: false)
-        : [requestHeadline(r, withAmount: false), ratingText(other), completedText(other)]
-            .join(' · '),
+        : [
+            requestHeadline(r, withAmount: false),
+            if (validWilaya(other['wilaya']) != null) validWilaya(other['wilaya'])!,
+          ].join(' · '),
     amount: formatAmount(r['amount'], r['currency']),
     status: requestStatusText(r),
     action: status == 'OPEN' && r['creator_id'] == myId

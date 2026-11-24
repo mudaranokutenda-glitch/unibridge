@@ -30,7 +30,7 @@ const String _filterMine = 'MINE';
 
 String _filterLabel(String f) {
   if (f == _filterAll) return tr('All');
-  if (f == _filterMine) return tr('My listings');
+  if (f == _filterMine) return tr('My products');
   return tr(f); // category names are saved in English, shown translated
 }
 
@@ -380,7 +380,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       if (selectedFilter == _filterMine) {
         if (!isMine) return false;
       } else {
-        if (isSold) return false; // sold items only show under tr("My listings")
+        if (isSold) return false; // sold items only show under "My products"
         if (selectedFilter != _filterAll &&
             (l['category'] ?? '').toString().trim() != selectedFilter) {
           return false;
@@ -430,11 +430,72 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  // The seller's own green "Mark sold" button on the card (no need to open
+  // the item). The database only lets the seller change their own items.
+  Future<void> _setSold(Map<String, dynamic> l, bool sold) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await supabase
+          .from('marketplace_listings')
+          .update({'is_sold': sold}).eq('id', l['id']);
+      if (!mounted) return;
+      setState(() => l['is_sold'] = sold);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        content: Text(sold
+            ? tr('Marked as sold. Other students can no longer see it.')
+            : tr('Your listing is available again.')),
+        action: SnackBarAction(
+          label: tr('Undo'),
+          onPressed: () => _setSold(l, !sold),
+        ),
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(tr('Could not update: {error}',
+              {'error': friendlyError(e, short: true)}))));
+    }
+  }
+
+  Widget _soldButton(Map<String, dynamic> l) {
+    final isSold = l['is_sold'] == true;
+    const green = Color(0xFF1E8E3E);
+    return SizedBox(
+      width: double.infinity,
+      height: 30,
+      child: isSold
+          ? OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: const Icon(Icons.undo, size: 16),
+              label: Text(tr('Mark as available'),
+                  style: const TextStyle(fontSize: 12)),
+              onPressed: () => _setSold(l, false),
+            )
+          : FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: green.withValues(alpha: 0.16),
+                foregroundColor: green,
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: const Icon(Icons.check_circle_outline, size: 16),
+              label: Text(tr('Mark sold'),
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700)),
+              onPressed: () => _setSold(l, true),
+            ),
+    );
+  }
+
   Widget _gridCard(Map<String, dynamic> l) {
     final isSold = l['is_sold'] == true;
     final images = listingImages(l);
     final price = _priceText(l['price']);
     final seller = sellers[l['seller_id']];
+    final isMine = l['seller_id'] == supabase.auth.currentUser?.id;
 
     return Opacity(
       opacity: isSold ? 0.65 : 1,
@@ -541,6 +602,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                     const SizedBox(height: 4),
                     _sellerLine(seller),
+                    // Only the seller sees this button on their own items.
+                    if (isMine) ...[
+                      const SizedBox(height: 6),
+                      _soldButton(l),
+                    ],
                   ],
                 ),
               ),
@@ -659,7 +725,29 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ],
             ),
           ),
-          if (selectedFilter != _filterAll)
+          // All products / My products (the seller's own items, sold ones too).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: Text(tr('All products')),
+                  selected: selectedFilter != _filterMine,
+                  onSelected: (_) =>
+                      setState(() => selectedFilter = _filterAll),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  avatar: const Icon(Icons.storefront_outlined, size: 18),
+                  label: Text(tr('My products')),
+                  selected: selectedFilter == _filterMine,
+                  onSelected: (_) =>
+                      setState(() => selectedFilter = _filterMine),
+                ),
+              ],
+            ),
+          ),
+          if (selectedFilter != _filterAll && selectedFilter != _filterMine)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
               child: Row(
@@ -719,11 +807,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.all(12),
                               gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
                                 crossAxisSpacing: 10,
                                 mainAxisSpacing: 10,
-                                mainAxisExtent: 250,
+                                // Taller when a card has the seller's button.
+                                mainAxisExtent: items.any((l) =>
+                                        l['seller_id'] ==
+                                        supabase.auth.currentUser?.id)
+                                    ? 286
+                                    : 250,
                               ),
                               itemCount: items.length,
                               itemBuilder: (context, index) =>

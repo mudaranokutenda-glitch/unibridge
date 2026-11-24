@@ -15,6 +15,7 @@ import 'staff_tools.dart';
 import 'notifications.dart';
 import 'posters.dart';
 import 'request_row.dart';
+import 'wilayas.dart';
 import 'bottom_bar.dart';
 import 'app_icons.dart';
 import 'app_theme.dart';
@@ -524,7 +525,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
             const SizedBox(height: 8),
             RequestRow(
               person: other,
-              subtitle: [ratingText(other), completedText(other)].join(' · '),
+              // Only the wilaya: rating and completed count are on the profile.
+              subtitle: validWilaya(other?['wilaya']) ?? '',
               amount: formatAmount(x['amount'], x['currency']),
               status: tr('Your request: {type}', {'type': typeLabel(x['my_type'])}),
             ),
@@ -564,11 +566,8 @@ class _OpenRequestsScreenState extends State<OpenRequestsScreen>
       person: creator,
       // "Anyone to receive 30 USD" right under the name.
       headline: requestHeadline(r),
-      subtitle: [
-        if (creatorWilaya(r).isNotEmpty) creatorWilaya(r),
-        ratingText(creator),
-        completedText(creator),
-      ].join(' · '),
+      // Only the wilaya: rating and completed count are on the profile.
+      subtitle: creatorWilaya(r),
       action: SmallRowButton(
         label: busy ? '...' : tr('Match'),
         onPressed: matchingId != null ? null : () => matchWithRequest(r),
