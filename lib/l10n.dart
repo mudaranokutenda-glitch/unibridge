@@ -1661,4 +1661,20 @@ const Map<String, String> _t = {
       '{count} actives. Les affiches actives sont montrées dans un ordre au hasard. Les images doivent être en 16:9.',
   'Run the new posters SQL first (position is no longer used).':
       "Exécutez d'abord le nouveau SQL des affiches (la position n'est plus utilisée).",
+  // ---- 26 November: roles screen ----
+  'Roles': 'Rôles',
+  'Make someone Governor, Attaché or Admin': 'Nommer un Gouverneur, un Attaché ou un Admin',
+  'Name or email': 'Nom ou e-mail',
+  'Type at least 2 letters.': 'Tapez au moins 2 lettres.',
+  'Staff and Governors now': 'Personnel et Gouverneurs actuels',
+  'Nobody found.': "Personne n'a été trouvé.",
+  'Nobody has a role yet. Search for a person above.': "Personne n'a encore de rôle. Cherchez une personne ci-dessus.",
+  "Choose the Governor's wilaya.": 'Choisissez la wilaya du Gouverneur.',
+  'Saved. They see the new role after reopening the app.': "Enregistré. La personne verra son nouveau rôle après avoir rouvert l'application.",
+  'Sees only the students of their wilaya. Never passports.': 'Voit seulement les étudiants de sa wilaya. Jamais les passeports.',
+  'Sees all students and documents. Every opening is recorded.': 'Voit tous les étudiants et documents. Chaque ouverture est enregistrée.',
+  'Everything, and can give roles.': 'Tout, et peut donner des rôles.',
+  'A normal member.': 'Un membre normal.',
+  "Governor's wilaya": 'Wilaya du Gouverneur',
+  'Admin': 'Admin',
 };

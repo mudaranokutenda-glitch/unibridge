@@ -10,6 +10,7 @@ import 'student_space.dart';
 import 'posters.dart';
 import 'student_info.dart';
 import 'staff_tools.dart';
+import 'staff_roles.dart';
 import 'rates.dart';
 import 'l10n.dart';
 import 'errors.dart';
@@ -106,6 +107,11 @@ List<StaffTool> staffToolsFor(MyRole role) {
       StaffTool(Icons.edit_note_outlined, tr('Manage contacts'),
           tr('Contacts shown to students'), tr('Communication'), contact,
           () => const ManageContactsScreen()),
+      // Only the admin can give roles (the database checks it again).
+      if (role.isAdmin)
+        StaffTool(Icons.admin_panel_settings_outlined, tr('Roles'),
+            tr('Make someone Governor, Attaché or Admin'), tr('Admin'),
+            const Color(0xFFD64545), () => const StaffRolesScreen()),
     ];
   }
   if (role.isRep) {

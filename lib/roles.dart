@@ -11,6 +11,7 @@ class MyRole {
   const MyRole(this.role, this.repWilaya);
 
   bool get isStaff => role == 'attache' || role == 'admin';
+  bool get isAdmin => role == 'admin';
   bool get isRep => role == 'rep' && repWilaya != null;
   // Can open the students list (staff: all wilayas, rep: their own).
   bool get canSeeStudents => isStaff || isRep;
